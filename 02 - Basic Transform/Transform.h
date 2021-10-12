@@ -14,6 +14,7 @@ public:
 	void MoveRelative(DirectX::XMFLOAT3 offset);
 	void Rotate(float p, float y, float r);
 	void Rotate(DirectX::XMFLOAT3 pitchYawRoll);
+	void Scale(float uniformScale);
 	void Scale(float x, float y, float z);
 	void Scale(DirectX::XMFLOAT3 scale);
 
@@ -22,6 +23,7 @@ public:
 	void SetPosition(DirectX::XMFLOAT3 position);
 	void SetRotation(float p, float y, float r);
 	void SetRotation(DirectX::XMFLOAT3 pitchYawRoll);
+	void SetScale(float uniformScale);
 	void SetScale(float x, float y, float z);
 	void SetScale(DirectX::XMFLOAT3 scale);
 

@@ -73,6 +73,14 @@ void Transform::Rotate(DirectX::XMFLOAT3 pitchYawRoll)
 	vectorsDirty = true;
 }
 
+void Transform::Scale(float uniformScale)
+{
+	scale.x *= uniformScale;
+	scale.y *= uniformScale;
+	scale.z *= uniformScale;
+	matricesDirty = true;
+}
+
 void Transform::Scale(float x, float y, float z)
 {
 	scale.x *= x;
@@ -117,6 +125,14 @@ void Transform::SetRotation(DirectX::XMFLOAT3 pitchYawRoll)
 	this->pitchYawRoll = pitchYawRoll;
 	matricesDirty = true;
 	vectorsDirty = true;
+}
+
+void Transform::SetScale(float uniformScale)
+{
+	scale.x = uniformScale;
+	scale.y = uniformScale;
+	scale.z = uniformScale;
+	matricesDirty = true;
 }
 
 void Transform::SetScale(float x, float y, float z)

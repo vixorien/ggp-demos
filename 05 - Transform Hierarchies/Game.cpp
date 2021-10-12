@@ -24,7 +24,8 @@ Game::Game(HINSTANCE hInstance)
 		"DirectX Game",	   // Text for the window's title bar
 		1280,			   // Width of the window's client area
 		720,			   // Height of the window's client area
-		true)			   // Show extra stats (fps) in title bar?
+		true),			   // Show extra stats (fps) in title bar?
+	camera(0)
 {
 
 #if defined(DEBUG) || defined(_DEBUG)
@@ -32,8 +33,6 @@ Game::Game(HINSTANCE hInstance)
 	CreateConsoleWindow(500, 120, 32, 120);
 	printf("Console window created successfully.  Feel free to printf() here.\n");
 #endif
-
-	camera = 0;
 
 }
 
@@ -84,7 +83,7 @@ void Game::Init()
 	device->CreateBuffer(&cbDesc, 0, vsConstantBuffer.GetAddressOf());
 
 	// Create the camera
-	camera = new Camera(0, 0, -15, 5.0f, 5.0f, XM_PIDIV4, (float)width / height, 0.01f, 100.0f, CameraProjectionType::Perspective);
+	camera = new Camera(0, 0, -25, 5.0f, 5.0f, XM_PIDIV4, (float)width / height, 0.01f, 100.0f, CameraProjectionType::Perspective);
 }
 
 // --------------------------------------------------------
@@ -187,33 +186,57 @@ void Game::CreateBasicGeometry()
 	meshes.push_back(quadMesh);
 	meshes.push_back(quad2sidedMesh);
 
-	// Create the game entities
-	entities.push_back(new GameEntity(cubeMesh));
-	entities.push_back(new GameEntity(cylinderMesh));
-	entities.push_back(new GameEntity(helixMesh));
-	entities.push_back(new GameEntity(sphereMesh));
-	entities.push_back(new GameEntity(helixMesh));
-	entities.push_back(new GameEntity(cylinderMesh));
-	entities.push_back(new GameEntity(cubeMesh));
+	// Set up a grid of entities like so:
+	
+	//              .
+	//     [ ]    . o .    [ ]   
+	//              .
+	//      .               .
+	//    . o .     O     . o .
+	//      .               .
+	//              .
+	//     [ ]    . o .    [ ]
+	//              .
+	//
 
-	// Adjust transforms
-	entities[0]->GetTransform()->MoveAbsolute(-9, 0, 0);
-	entities[1]->GetTransform()->MoveAbsolute(-6, 0, 0);
-	entities[2]->GetTransform()->MoveAbsolute(-3, 0, 0);
-	entities[3]->GetTransform()->MoveAbsolute(0, 0, 0);
-	entities[4]->GetTransform()->MoveAbsolute(3, 0, 0);
-	entities[5]->GetTransform()->MoveAbsolute(6, 0, 0);
-	entities[6]->GetTransform()->MoveAbsolute(9, 0, 0);
+	// Create the center sphere
+	GameEntity* center = new GameEntity(sphereMesh);
+	entities.push_back(center);
 
-	// Add object as children of others
-	entities[3]->GetTransform()->AddChild(entities[1]->GetTransform());
-	entities[3]->GetTransform()->AddChild(entities[5]->GetTransform());
+	// Create 5 sets of children (first-level children, plus another set for each of those)
+	XMFLOAT3 offsets[4] = { XMFLOAT3(0, 1, 0), XMFLOAT3(0, -1, 0), XMFLOAT3(-1,0,0), XMFLOAT3(1,0,0) };
+	for (int i = 0; i < 5; i++)
+	{
+		// Grab the current entity, which will be either the "center" sphere or
+		// one of its first four immediate children (due to the order added to the vector)
+		GameEntity* current = entities[i];
 
-	entities[1]->GetTransform()->AddChild(entities[0]->GetTransform());
-	entities[1]->GetTransform()->AddChild(entities[2]->GetTransform());
+		// Offset depends on level
+		float currentOffset = i == 0 ? 6.0f : 3.0f;
 
-	entities[5]->GetTransform()->AddChild(entities[4]->GetTransform());
-	entities[5]->GetTransform()->AddChild(entities[6]->GetTransform());
+		// Make 4 children (up, down, left, right) based on offsets
+		for (int ch = 0; ch < 4; ch++)
+		{
+			// Make the child, attached to the parent, moved slighty and scaled down
+			GameEntity* child = new GameEntity(sphereMesh);
+			child->GetTransform()->SetParent(current->GetTransform(), false);
+			child->GetTransform()->MoveAbsolute(offsets[ch].x * currentOffset, offsets[ch].y * currentOffset, offsets[ch].z * currentOffset);
+			child->GetTransform()->SetScale(0.75f);
+			entities.push_back(child);
+		}
+	}
+	
+	// Make four cubes, too
+	XMFLOAT3 cubeOffsets[4] = { XMFLOAT3(-1, 1, 0), XMFLOAT3(1, 1, 0), XMFLOAT3(1, -1, 0), XMFLOAT3(-1, -1, 0) };
+	for (int ch = 0; ch < 4; ch++)
+	{
+		// Make the child, attached to the parent, moved slighty and scaled down
+		GameEntity* child = new GameEntity(cubeMesh);
+		child->GetTransform()->SetParent(entities[0]->GetTransform(), false);
+		child->GetTransform()->MoveAbsolute(cubeOffsets[ch].x * 6.0f, cubeOffsets[ch].y * 6.0f, cubeOffsets[ch].z * 6.0f);
+		child->GetTransform()->SetScale(2.0f);
+		entities.push_back(child);
+	}
 }
 
 
@@ -245,20 +268,13 @@ void Game::Update(float deltaTime, float totalTime)
 		e->GetTransform()->Rotate(0, 0, deltaTime);
 	}
 
+	// Adjust the last 4 entities (the cubes) differently
 	float scale = (float)sin(totalTime * 5) * 0.5f + 1.0f;
-	float scaleFast = (float)sin(totalTime * 10) * 0.25f + 1.0f;
-	entities[1]->GetTransform()->SetScale(scale, scale, scale);
-	entities[5]->GetTransform()->SetScale(scale, scale, scale);
-
-	entities[0]->GetTransform()->Rotate(deltaTime * 1.0f, 0, 0);
-	entities[2]->GetTransform()->Rotate(deltaTime * 1.0f, 0, 0);
-	entities[4]->GetTransform()->Rotate(deltaTime * 1.0f, 0, 0);
-	entities[6]->GetTransform()->Rotate(deltaTime * 1.0f, 0, 0);
-
-	entities[0]->GetTransform()->SetScale(scaleFast, scaleFast, scaleFast);
-	entities[2]->GetTransform()->SetScale(scaleFast, scaleFast, scaleFast);
-	entities[4]->GetTransform()->SetScale(scaleFast, scaleFast, scaleFast);
-	entities[6]->GetTransform()->SetScale(scaleFast, scaleFast, scaleFast);
+	for (int i = (int)entities.size() - 4; i < (int)entities.size(); i++)
+	{
+		entities[i]->GetTransform()->Rotate(0, deltaTime * 5, 0);
+		entities[i]->GetTransform()->SetScale(scale, scale, scale);
+	}
 
 	// Update the camera this frame
 	camera->Update(deltaTime);
@@ -312,17 +328,6 @@ void Game::Draw(float deltaTime, float totalTime)
 	{
 		e->Draw(context, vsConstantBuffer, camera);
 	}
-
-
-	// Finally do the actual drawing
-	//  - Do this ONCE PER OBJECT you intend to draw
-	//  - This will use all of the currently set DirectX "stuff" (shaders, buffers, etc)
-	//  - DrawIndexed() uses the currently set INDEX BUFFER to look up corresponding
-	//     vertices in the currently set VERTEX BUFFER
-	context->DrawIndexed(
-		3,     // The number of indices to use (we could draw a subset if we wanted)
-		0,     // Offset to the first index we want to use
-		0);    // Offset to add to each index when looking up vertices
 
 
 
