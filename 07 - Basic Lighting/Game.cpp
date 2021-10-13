@@ -121,7 +121,8 @@ void Game::LoadAssetsAndCreateEntities()
 	entities[5]->GetTransform()->MoveAbsolute(6, 0, 0);
 	entities[6]->GetTransform()->MoveAbsolute(9, 0, 0);
 
-	// Create lights
+	// Create lights - Must respect the
+	// max lights defined in the pixel shader!
 	Light dirLight1 = {};
 	dirLight1.Color = XMFLOAT3(1, 0, 0);
 	dirLight1.Type = LIGHT_TYPE_DIRECTIONAL;
@@ -193,7 +194,7 @@ void Game::Update(float deltaTime, float totalTime)
 
 		// Bob up and down
 		XMFLOAT3 pos = e->GetTransform()->GetPosition();
-		//e->GetTransform()->SetPosition(pos.x, sin(totalTime * 2.0f + offset) * 2.0f, pos.z);
+		e->GetTransform()->SetPosition(pos.x, sin(totalTime * 2.0f + offset) * 2.0f, pos.z);
 		offset += 0.31415f;
 	}
 
