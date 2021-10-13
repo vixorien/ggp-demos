@@ -3,6 +3,8 @@
 
 // Basic lighting functions, constants and other useful structures
 
+#define MAX_SPECULAR_EXPONENT 256.0f
+
 #define LIGHT_TYPE_DIRECTIONAL	0
 #define LIGHT_TYPE_POINT		1
 #define LIGHT_TYPE_SPOT			2
@@ -30,7 +32,6 @@ static const float TWO_PI = PI * 2.0f;
 static const float HALF_PI = PI / 2.0f;
 static const float QUARTER_PI = PI / 4.0f;
 
-static const float MAX_SPECULAR_EXPONENT = 256.0f;
 
 // === UTILITY FUNCTIONS ============================================
 
@@ -121,7 +122,7 @@ float3 SpotLight(Light light, float3 normal, float3 worldPos, float3 camPos, flo
 	float penumbra = pow(saturate(dot(-toLight, light.Direction)), light.SpotFalloff);
 
 	// Combine with the point light calculation
-	// Note: This could be optimized a bit!  Dpomg a lot of the same work twice!
+	// Note: This could be optimized a bit!  Doing a lot of the same work twice!
 	return PointLight(light, normal, worldPos, camPos, roughness, surfaceColor) * penumbra;
 }
 

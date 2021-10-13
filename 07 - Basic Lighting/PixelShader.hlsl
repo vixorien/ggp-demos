@@ -25,7 +25,7 @@ float4 main(VertexToPixel input) : SV_TARGET
 
 	// Start off with ambient
 	float3 totalLight = ambientColor * colorTint;
-
+	
 	// Loop and handle all lights
 	for (int i = 0; i < NUM_LIGHTS; i++)
 	{

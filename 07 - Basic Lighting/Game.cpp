@@ -24,7 +24,8 @@ Game::Game(HINSTANCE hInstance)
 		1280,			   // Width of the window's client area
 		720,			   // Height of the window's client area
 		true),			   // Show extra stats (fps) in title bar?
-	camera(0)
+	camera(0),
+	ambientColor(0.1f, 0.1f, 0.25f)
 {
 
 #if defined(DEBUG) || defined(_DEBUG)
@@ -192,7 +193,7 @@ void Game::Update(float deltaTime, float totalTime)
 
 		// Bob up and down
 		XMFLOAT3 pos = e->GetTransform()->GetPosition();
-		e->GetTransform()->SetPosition(pos.x, sin(totalTime * 2.0f + offset) * 2.0f, pos.z);
+		//e->GetTransform()->SetPosition(pos.x, sin(totalTime * 2.0f + offset) * 2.0f, pos.z);
 		offset += 0.31415f;
 	}
 
@@ -230,6 +231,7 @@ void Game::Draw(float deltaTime, float totalTime)
 		// Set total time on this entity's material's pixel shader
 		// Note: If the shader doesn't have this variable, nothing happens
 		std::shared_ptr<SimplePixelShader> ps = e->GetMaterial()->GetPixelShader();
+		ps->SetFloat3("ambientColor", ambientColor);
 		ps->SetFloat("time", totalTime);
 		ps->SetData("lights", &lights[0], sizeof(Light) * (int)lights.size());
 

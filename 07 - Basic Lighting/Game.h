@@ -41,6 +41,6 @@ private:
 	std::vector<Material*> materials;
 	std::vector<GameEntity*> entities;
 	std::vector<Light> lights;
-
+	DirectX::XMFLOAT3 ambientColor;
 };
 
