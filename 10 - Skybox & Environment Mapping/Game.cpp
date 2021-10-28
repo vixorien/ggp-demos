@@ -52,6 +52,7 @@ Game::~Game()
 	for (auto& m : materials) { delete m; }
 
 	delete camera;
+	delete sky;
 }
 
 // --------------------------------------------------------
@@ -77,6 +78,23 @@ void Game::Init()
 // --------------------------------------------------------
 void Game::LoadAssetsAndCreateEntities()
 {
+	// Load 3D models (not using all of them in this demo - could skip some)
+	Mesh* cubeMesh = new Mesh(GetFullPathTo("../../../Assets/Models/cube.obj").c_str(), device);
+	Mesh* cylinderMesh = new Mesh(GetFullPathTo("../../../Assets/Models/cylinder.obj").c_str(), device);
+	Mesh* helixMesh = new Mesh(GetFullPathTo("../../../Assets/Models/helix.obj").c_str(), device);
+	Mesh* sphereMesh = new Mesh(GetFullPathTo("../../../Assets/Models/sphere.obj").c_str(), device);
+	Mesh* torusMesh = new Mesh(GetFullPathTo("../../../Assets/Models/torus.obj").c_str(), device);
+	Mesh* quadMesh = new Mesh(GetFullPathTo("../../../Assets/Models/quad.obj").c_str(), device);
+	Mesh* quad2sidedMesh = new Mesh(GetFullPathTo("../../../Assets/Models/quad_double_sided.obj").c_str(), device);
+
+	meshes.push_back(cubeMesh);
+	meshes.push_back(cylinderMesh);
+	meshes.push_back(helixMesh);
+	meshes.push_back(sphereMesh);
+	meshes.push_back(torusMesh);
+	meshes.push_back(quadMesh);
+	meshes.push_back(quad2sidedMesh);
+
 	// Create a sampler state for texture sampling options
 	Microsoft::WRL::ComPtr<ID3D11SamplerState> sampler;
 	D3D11_SAMPLER_DESC sampDesc = {};
@@ -111,12 +129,34 @@ void Game::LoadAssetsAndCreateEntities()
 	LoadTexture(L"../../../Assets/Textures/cobblestone_normals.png", cobblestoneNormalsSRV);
 	LoadTexture(L"../../../Assets/Textures/cobblestone_specular.png", cobblestoneSpecularSRV);
 
+
 	// Load shaders and create materials
 	std::shared_ptr<SimpleVertexShader> basicVertexShader = std::make_shared<SimpleVertexShader>(device, context, GetFullPathTo_Wide(L"VertexShader.cso").c_str());
 	std::shared_ptr<SimplePixelShader> basicPixelShader = std::make_shared<SimplePixelShader>(device, context, GetFullPathTo_Wide(L"PixelShader.cso").c_str());
 	std::shared_ptr<SimplePixelShader> normalMapPS = std::make_shared<SimplePixelShader>(device, context, GetFullPathTo_Wide(L"NormalMapPS.cso").c_str());
+	std::shared_ptr<SimplePixelShader> envMapPS = std::make_shared<SimplePixelShader>(device, context, GetFullPathTo_Wide(L"EnvironmentMapPS.cso").c_str());
+	std::shared_ptr<SimpleVertexShader> skyVS = std::make_shared<SimpleVertexShader>(device, context, GetFullPathTo_Wide(L"SkyVS.cso").c_str());
+	std::shared_ptr<SimplePixelShader> skyPS = std::make_shared<SimplePixelShader>(device, context, GetFullPathTo_Wide(L"SkyPS.cso").c_str());
 
-	// Create basic materials (no normal maps)
+	// Create the sky
+	sky = new Sky(
+		GetFullPathTo_Wide(L"../../../Assets/Skies/Clouds Blue/right.png").c_str(),
+		GetFullPathTo_Wide(L"../../../Assets/Skies/Clouds Blue/left.png").c_str(),
+		GetFullPathTo_Wide(L"../../../Assets/Skies/Clouds Blue/up.png").c_str(),
+		GetFullPathTo_Wide(L"../../../Assets/Skies/Clouds Blue/down.png").c_str(),
+		GetFullPathTo_Wide(L"../../../Assets/Skies/Clouds Blue/front.png").c_str(),
+		GetFullPathTo_Wide(L"../../../Assets/Skies/Clouds Blue/back.png").c_str(),
+		cubeMesh,
+		skyVS,
+		skyPS,
+		sampler,
+		device,
+		context);
+
+
+
+
+	// Create basic materials (no normal maps) ---------------------
 	Material* matRock = new Material(basicPixelShader, basicVertexShader, XMFLOAT3(1, 1, 1), 0.0f, false);
 	matRock->AddSampler("BasicSampler", sampler);
 	matRock->AddTextureSRV("SurfaceTexture", rockSRV);
@@ -134,7 +174,7 @@ void Game::LoadAssetsAndCreateEntities()
 	materials.push_back(matCobblestone);
 
 
-	// Create normal mapped materials
+	// Create normal mapped materials ---------------------
 	Material* matRockNormalMap = new Material(normalMapPS, basicVertexShader, XMFLOAT3(1, 1, 1), 0.0f, false);
 	matRockNormalMap->AddSampler("BasicSampler", sampler);
 	matRockNormalMap->AddTextureSRV("SurfaceTexture", rockSRV);
@@ -155,24 +195,33 @@ void Game::LoadAssetsAndCreateEntities()
 	materials.push_back(matCobblestoneNormalMap);
 
 
-	// Load 3D models (not using all of them in this demo - could skip some)
-	Mesh* cubeMesh = new Mesh(GetFullPathTo("../../../Assets/Models/cube.obj").c_str(), device);
-	Mesh* cylinderMesh = new Mesh(GetFullPathTo("../../../Assets/Models/cylinder.obj").c_str(), device);
-	Mesh* helixMesh = new Mesh(GetFullPathTo("../../../Assets/Models/helix.obj").c_str(), device);
-	Mesh* sphereMesh = new Mesh(GetFullPathTo("../../../Assets/Models/sphere.obj").c_str(), device);
-	Mesh* torusMesh = new Mesh(GetFullPathTo("../../../Assets/Models/torus.obj").c_str(), device);
-	Mesh* quadMesh = new Mesh(GetFullPathTo("../../../Assets/Models/quad.obj").c_str(), device);
-	Mesh* quad2sidedMesh = new Mesh(GetFullPathTo("../../../Assets/Models/quad_double_sided.obj").c_str(), device);
+	// Create normal mapped & environment mapped materials ---------------------
+	Material* matRockEnvMap = new Material(envMapPS, basicVertexShader, XMFLOAT3(1, 1, 1), 0.0f, false);
+	matRockEnvMap->AddSampler("BasicSampler", sampler);
+	matRockEnvMap->AddTextureSRV("SurfaceTexture", rockSRV);
+	matRockEnvMap->AddTextureSRV("NormalMap", rockNormalsSRV);
+	matRockEnvMap->AddTextureSRV("EnvironmentMap", sky->GetSkyTexture());
+	materials.push_back(matRockEnvMap);
 
-	meshes.push_back(cubeMesh);
-	meshes.push_back(cylinderMesh);
-	meshes.push_back(helixMesh);
-	meshes.push_back(sphereMesh);
-	meshes.push_back(torusMesh);
-	meshes.push_back(quadMesh);
-	meshes.push_back(quad2sidedMesh);
+	Material* matCushionEnvMap = new Material(envMapPS, basicVertexShader, XMFLOAT3(1, 1, 1), 0.0f, false, XMFLOAT2(2, 2));
+	matCushionEnvMap->AddSampler("BasicSampler", sampler);
+	matCushionEnvMap->AddTextureSRV("SurfaceTexture", cushionSRV);
+	matCushionEnvMap->AddTextureSRV("NormalMap", cushionNormalsSRV);
+	matCushionEnvMap->AddTextureSRV("EnvironmentMap", sky->GetSkyTexture());
+	materials.push_back(matCushionEnvMap);
 
-	// Create two sets of entities - with and without normal maps
+	Material* matCobblestoneEnvMap = new Material(envMapPS, basicVertexShader, XMFLOAT3(1, 1, 1), 0.0f, true);
+	matCobblestoneEnvMap->AddSampler("BasicSampler", sampler);
+	matCobblestoneEnvMap->AddTextureSRV("SurfaceTexture", cobblestoneSRV);
+	matCobblestoneEnvMap->AddTextureSRV("NormalMap", cobblestoneNormalsSRV);
+	matCobblestoneEnvMap->AddTextureSRV("SpecularMap", cobblestoneSpecularSRV);
+	matCobblestoneEnvMap->AddTextureSRV("EnvironmentMap", sky->GetSkyTexture());
+	materials.push_back(matCobblestoneEnvMap);
+
+
+	
+
+	// Create three sets of entities - with and without normal maps and env map
 	entities.push_back(new GameEntity(cubeMesh, matRock));
 	entities.push_back(new GameEntity(sphereMesh, matRock));
 	entities.push_back(new GameEntity(cubeMesh, matCushion));
@@ -185,6 +234,12 @@ void Game::LoadAssetsAndCreateEntities()
 	entities.push_back(new GameEntity(sphereMesh, matCushionNormalMap));
 	entities.push_back(new GameEntity(cubeMesh, matCobblestoneNormalMap));
 	entities.push_back(new GameEntity(sphereMesh, matCobblestoneNormalMap));
+	entities.push_back(new GameEntity(cubeMesh, matRockEnvMap));
+	entities.push_back(new GameEntity(sphereMesh, matRockEnvMap));
+	entities.push_back(new GameEntity(cubeMesh, matCushionEnvMap));
+	entities.push_back(new GameEntity(sphereMesh, matCushionEnvMap));
+	entities.push_back(new GameEntity(cubeMesh, matCobblestoneEnvMap));
+	entities.push_back(new GameEntity(sphereMesh, matCobblestoneEnvMap));
 
 	// Scale all the cubes
 	entities[0]->GetTransform()->Scale(2, 2, 2);
@@ -193,15 +248,20 @@ void Game::LoadAssetsAndCreateEntities()
 	entities[6]->GetTransform()->Scale(2, 2, 2);
 	entities[8]->GetTransform()->Scale(2, 2, 2);
 	entities[10]->GetTransform()->Scale(2, 2, 2);
+	entities[12]->GetTransform()->Scale(2, 2, 2);
+	entities[14]->GetTransform()->Scale(2, 2, 2);
+	entities[16]->GetTransform()->Scale(2, 2, 2);
 
-	// Line up the 12 entities like so:
+	// Line up the 18 entities like so:
 	//
 	//  c  s  c  s  c  s  <-- Regular
 	//
 	//  c  s  c  s  c  s  <-- Normal mapped
 	//
+	//  c  s  c  s  c  s  <-- Environment mapped
+	//
 	int i = 0;
-	for (float y = 1.5f; y >= -1.5f; y -= 3)
+	for (float y = 3; y >= -3; y -= 3)
 	{
 		for (float x = -7.5f; x <= 7.5f; x += 3)
 		{
@@ -253,23 +313,7 @@ void Game::LoadAssetsAndCreateEntities()
 	lights.push_back(pointLight1);
 	lights.push_back(pointLight2);
 
-	// Load sky shaders and create the sky
-	std::shared_ptr<SimpleVertexShader> skyVS = std::make_shared<SimpleVertexShader>(device, context, GetFullPathTo_Wide(L"SkyVS.cso").c_str());
-	std::shared_ptr<SimplePixelShader> skyPS = std::make_shared<SimplePixelShader>(device, context, GetFullPathTo_Wide(L"SkyPS.cso").c_str());
-
-	sky = new Sky(
-		GetFullPathTo_Wide(L"../../../Assets/Skies/Clouds Blue/right.png").c_str(),
-		GetFullPathTo_Wide(L"../../../Assets/Skies/Clouds Blue/left.png").c_str(),
-		GetFullPathTo_Wide(L"../../../Assets/Skies/Clouds Blue/up.png").c_str(),
-		GetFullPathTo_Wide(L"../../../Assets/Skies/Clouds Blue/down.png").c_str(),
-		GetFullPathTo_Wide(L"../../../Assets/Skies/Clouds Blue/front.png").c_str(),
-		GetFullPathTo_Wide(L"../../../Assets/Skies/Clouds Blue/back.png").c_str(),
-		cubeMesh,
-		skyVS,
-		skyPS,
-		sampler,
-		device,
-		context);
+	
 }
 
 

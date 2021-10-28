@@ -32,6 +32,8 @@ static const float TWO_PI = PI * 2.0f;
 static const float HALF_PI = PI / 2.0f;
 static const float QUARTER_PI = PI / 4.0f;
 
+static const float F0_NON_METAL = 0.04f;
+
 
 // === UTILITY FUNCTIONS ============================================
 
@@ -70,6 +72,23 @@ float Attenuate(Light light, float3 worldPos)
 
 	// Soft falloff
 	return att * att;
+}
+
+
+// Fresnel term - Schlick approx.
+// 
+// n - Normal vector
+// v - View vector
+// f0 – Specular value (usually 0.04 for non-metal objects)
+//
+// F(n,v,f0) = f0 + (1-f0)(1 - (n dot v))^5
+float SimpleFresnel(float3 n, float3 v, float f0)
+{
+	// Pre-calculations
+	float NdotV = saturate(dot(n, v));
+
+	// Final value
+	return f0 + (1 - f0) * pow(1 - NdotV, 5);
 }
 
 

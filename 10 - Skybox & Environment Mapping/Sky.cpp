@@ -110,6 +110,8 @@ void Sky::Draw(Camera* camera)
 	context->OMSetDepthStencilState(0, 0);
 }
 
+Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Sky::GetSkyTexture() { return skySRV; }
+
 void Sky::InitRenderStates()
 {
 	// Rasterizer to reverse the cull mode

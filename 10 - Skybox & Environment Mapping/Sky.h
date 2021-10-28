@@ -53,6 +53,8 @@ public:
 
 	void Draw(Camera* camera);
 
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> GetSkyTexture();
+
 private:
 
 	void InitRenderStates();
