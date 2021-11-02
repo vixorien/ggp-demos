@@ -134,7 +134,8 @@ void Game::LoadAssetsAndCreateEntities()
 	std::shared_ptr<SimpleVertexShader> basicVertexShader = std::make_shared<SimpleVertexShader>(device, context, GetFullPathTo_Wide(L"VertexShader.cso").c_str());
 	std::shared_ptr<SimplePixelShader> basicPixelShader = std::make_shared<SimplePixelShader>(device, context, GetFullPathTo_Wide(L"PixelShader.cso").c_str());
 	std::shared_ptr<SimplePixelShader> normalMapPS = std::make_shared<SimplePixelShader>(device, context, GetFullPathTo_Wide(L"NormalMapPS.cso").c_str());
-	std::shared_ptr<SimplePixelShader> envMapPS = std::make_shared<SimplePixelShader>(device, context, GetFullPathTo_Wide(L"EnvironmentMapPS.cso").c_str());
+	std::shared_ptr<SimplePixelShader> lightAndEnvMapPS = std::make_shared<SimplePixelShader>(device, context, GetFullPathTo_Wide(L"LightingAndEnvMapPS.cso").c_str());
+	std::shared_ptr<SimplePixelShader> envMapOnlyPS = std::make_shared<SimplePixelShader>(device, context, GetFullPathTo_Wide(L"EnvMapOnlyPS.cso").c_str());
 	std::shared_ptr<SimpleVertexShader> skyVS = std::make_shared<SimpleVertexShader>(device, context, GetFullPathTo_Wide(L"SkyVS.cso").c_str());
 	std::shared_ptr<SimplePixelShader> skyPS = std::make_shared<SimplePixelShader>(device, context, GetFullPathTo_Wide(L"SkyPS.cso").c_str());
 
@@ -196,25 +197,44 @@ void Game::LoadAssetsAndCreateEntities()
 
 
 	// Create normal mapped & environment mapped materials ---------------------
-	Material* matRockEnvMap = new Material(envMapPS, basicVertexShader, XMFLOAT3(1, 1, 1), 0.0f, false);
+	Material* matRockLitEnvMap = new Material(lightAndEnvMapPS, basicVertexShader, XMFLOAT3(1, 1, 1), 0.0f, false);
+	matRockLitEnvMap->AddSampler("BasicSampler", sampler);
+	matRockLitEnvMap->AddTextureSRV("SurfaceTexture", rockSRV);
+	matRockLitEnvMap->AddTextureSRV("NormalMap", rockNormalsSRV);
+	matRockLitEnvMap->AddTextureSRV("EnvironmentMap", sky->GetSkyTexture());
+	materials.push_back(matRockLitEnvMap);
+
+	Material* matCushionLitEnvMap = new Material(lightAndEnvMapPS, basicVertexShader, XMFLOAT3(1, 1, 1), 0.0f, false, XMFLOAT2(2, 2));
+	matCushionLitEnvMap->AddSampler("BasicSampler", sampler);
+	matCushionLitEnvMap->AddTextureSRV("SurfaceTexture", cushionSRV);
+	matCushionLitEnvMap->AddTextureSRV("NormalMap", cushionNormalsSRV);
+	matCushionLitEnvMap->AddTextureSRV("EnvironmentMap", sky->GetSkyTexture());
+	materials.push_back(matCushionLitEnvMap);
+
+	Material* matCobblestoneLitEnvMap = new Material(lightAndEnvMapPS, basicVertexShader, XMFLOAT3(1, 1, 1), 0.0f, true);
+	matCobblestoneLitEnvMap->AddSampler("BasicSampler", sampler);
+	matCobblestoneLitEnvMap->AddTextureSRV("SurfaceTexture", cobblestoneSRV);
+	matCobblestoneLitEnvMap->AddTextureSRV("NormalMap", cobblestoneNormalsSRV);
+	matCobblestoneLitEnvMap->AddTextureSRV("SpecularMap", cobblestoneSpecularSRV);
+	matCobblestoneLitEnvMap->AddTextureSRV("EnvironmentMap", sky->GetSkyTexture());
+	materials.push_back(matCobblestoneLitEnvMap);
+
+	// Create environment mapped only materials ---------------------
+	Material* matRockEnvMap = new Material(envMapOnlyPS, basicVertexShader, XMFLOAT3(1, 1, 1), 0.0f, false);
 	matRockEnvMap->AddSampler("BasicSampler", sampler);
-	matRockEnvMap->AddTextureSRV("SurfaceTexture", rockSRV);
 	matRockEnvMap->AddTextureSRV("NormalMap", rockNormalsSRV);
 	matRockEnvMap->AddTextureSRV("EnvironmentMap", sky->GetSkyTexture());
 	materials.push_back(matRockEnvMap);
 
-	Material* matCushionEnvMap = new Material(envMapPS, basicVertexShader, XMFLOAT3(1, 1, 1), 0.0f, false, XMFLOAT2(2, 2));
+	Material* matCushionEnvMap = new Material(envMapOnlyPS, basicVertexShader, XMFLOAT3(1, 1, 1), 0.0f, false, XMFLOAT2(2, 2));
 	matCushionEnvMap->AddSampler("BasicSampler", sampler);
-	matCushionEnvMap->AddTextureSRV("SurfaceTexture", cushionSRV);
 	matCushionEnvMap->AddTextureSRV("NormalMap", cushionNormalsSRV);
 	matCushionEnvMap->AddTextureSRV("EnvironmentMap", sky->GetSkyTexture());
 	materials.push_back(matCushionEnvMap);
 
-	Material* matCobblestoneEnvMap = new Material(envMapPS, basicVertexShader, XMFLOAT3(1, 1, 1), 0.0f, true);
+	Material* matCobblestoneEnvMap = new Material(envMapOnlyPS, basicVertexShader, XMFLOAT3(1, 1, 1), 0.0f, true);
 	matCobblestoneEnvMap->AddSampler("BasicSampler", sampler);
-	matCobblestoneEnvMap->AddTextureSRV("SurfaceTexture", cobblestoneSRV);
 	matCobblestoneEnvMap->AddTextureSRV("NormalMap", cobblestoneNormalsSRV);
-	matCobblestoneEnvMap->AddTextureSRV("SpecularMap", cobblestoneSpecularSRV);
 	matCobblestoneEnvMap->AddTextureSRV("EnvironmentMap", sky->GetSkyTexture());
 	materials.push_back(matCobblestoneEnvMap);
 
@@ -234,6 +254,12 @@ void Game::LoadAssetsAndCreateEntities()
 	entities.push_back(new GameEntity(sphereMesh, matCushionNormalMap));
 	entities.push_back(new GameEntity(cubeMesh, matCobblestoneNormalMap));
 	entities.push_back(new GameEntity(sphereMesh, matCobblestoneNormalMap));
+	entities.push_back(new GameEntity(cubeMesh, matRockLitEnvMap));
+	entities.push_back(new GameEntity(sphereMesh, matRockLitEnvMap));
+	entities.push_back(new GameEntity(cubeMesh, matCushionLitEnvMap));
+	entities.push_back(new GameEntity(sphereMesh, matCushionLitEnvMap));
+	entities.push_back(new GameEntity(cubeMesh, matCobblestoneLitEnvMap));
+	entities.push_back(new GameEntity(sphereMesh, matCobblestoneLitEnvMap));
 	entities.push_back(new GameEntity(cubeMesh, matRockEnvMap));
 	entities.push_back(new GameEntity(sphereMesh, matRockEnvMap));
 	entities.push_back(new GameEntity(cubeMesh, matCushionEnvMap));
@@ -242,26 +268,21 @@ void Game::LoadAssetsAndCreateEntities()
 	entities.push_back(new GameEntity(sphereMesh, matCobblestoneEnvMap));
 
 	// Scale all the cubes
-	entities[0]->GetTransform()->Scale(2, 2, 2);
-	entities[2]->GetTransform()->Scale(2, 2, 2);
-	entities[4]->GetTransform()->Scale(2, 2, 2);
-	entities[6]->GetTransform()->Scale(2, 2, 2);
-	entities[8]->GetTransform()->Scale(2, 2, 2);
-	entities[10]->GetTransform()->Scale(2, 2, 2);
-	entities[12]->GetTransform()->Scale(2, 2, 2);
-	entities[14]->GetTransform()->Scale(2, 2, 2);
-	entities[16]->GetTransform()->Scale(2, 2, 2);
+	for (int i = 0; i < entities.size(); i += 2)
+		entities[i]->GetTransform()->Scale(2, 2, 2);
 
-	// Line up the 18 entities like so:
+	// Line up the entities like so:
 	//
 	//  c  s  c  s  c  s  <-- Regular
 	//
 	//  c  s  c  s  c  s  <-- Normal mapped
 	//
-	//  c  s  c  s  c  s  <-- Environment mapped
+	//  c  s  c  s  c  s  <-- Lit & Environment mapped
+	//
+	//  c  s  c  s  c  s  <-- Environment mapped only
 	//
 	int i = 0;
-	for (float y = 3; y >= -3; y -= 3)
+	for (float y = 4.5; y >= -4.5; y -= 3)
 	{
 		for (float x = -7.5f; x <= 7.5f; x += 3)
 		{

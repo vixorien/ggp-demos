@@ -109,7 +109,10 @@
     <FxCompile Include="SkyVS.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="EnvironmentMapPS.hlsl">
+    <FxCompile Include="LightingAndEnvMapPS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="EnvMapOnlyPS.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
   </ItemGroup>
