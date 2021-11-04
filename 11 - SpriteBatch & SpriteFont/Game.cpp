@@ -427,34 +427,62 @@ void Game::Draw(float deltaTime, float totalTime)
 	// SpriteBatch: https://github.com/microsoft/DirectXTK/wiki/SpriteBatch
 	// SpriteFont: https://github.com/microsoft/DirectXTK/wiki/SpriteFont
 	{
-		// Make a rectangle for each of the output images
-		RECT imageRect     = { 10, 10,     128+10, 128+10 };
-		RECT normalMapRect = { 10, 128+20, 128+10, 256+20 };
-		RECT fontSheetRect = { 10, 256+30, 128+10, 384+30 };
-
-		// Grab the SRV of the font from the SpriteFont
-		// Note: It's not great to do this every frame, but 
-		// this is just a demo to show what it looks like!
-		Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> fontSheet;
-		fontArial16->GetSpriteSheet(fontSheet.GetAddressOf());
-
-		// Begin the batch, draw lots of stuff, then end it
+		// Begin the batch, draw lots of stuff, then end it (below)
 		spriteBatch->Begin();
 
-		// Draw a few 2D textures around the screen
-		spriteBatch->Draw(materials[4]->GetTextureSRV("SurfaceTexture").Get(), imageRect);
-		spriteBatch->Draw(materials[4]->GetTextureSRV("NormalMap").Get(), normalMapRect);
-		spriteBatch->Draw(fontSheet.Get(), fontSheetRect);
+		// Variable to track y position of current draw
+		int y = 10;
 
+
+		// --- TEXT ------
 		// Draw some arbitrary text
-		fontArial16->DrawString(spriteBatch.get(), "Press Y to toggle sky: ", XMFLOAT2(128 + 20, 10));
-		fontArial16Bold->DrawString(spriteBatch.get(), skyEnabled ? "Enabled" : "Disabled", XMFLOAT2(360, 10));
+		std::string text = "Press Y to toggle sky: ";
+		fontArial16->DrawString(spriteBatch.get(), text.c_str(), XMFLOAT2(10, y));
+
+		// Draw the "enabled" / "disabled" text to the right of the previous text, using a bold font
+		XMVECTOR color = skyEnabled ? XMVectorSet(0, 1, 0, 1) : XMVectorSet(1, 0, 0, 1);
+		XMVECTOR textSize = fontArial16->MeasureString(text.c_str(), false);
+		fontArial16Bold->DrawString(spriteBatch.get(), skyEnabled ? "Enabled" : "Disabled", XMFLOAT2(XMVectorGetX(textSize), y), color);
+		
 
 		// Draw the mouse position
+		y += 25;
 		int mouseX = Input::GetInstance().GetMouseX();
 		int mouseY = Input::GetInstance().GetMouseY();
-		std::string dynamicText = "Mouse Pos: {" + std::to_string(mouseX) + ", " + std::to_string(mouseY)+  "}";
-		fontArial16->DrawString(spriteBatch.get(), dynamicText.c_str(), XMFLOAT2(128 + 20, 35));
+		std::string dynamicText = "Mouse Pos: {" + std::to_string(mouseX) + ", " + std::to_string(mouseY) + "}";
+		fontArial16->DrawString(spriteBatch.get(), dynamicText.c_str(), XMFLOAT2(10, y));
+		
+
+		// --- IMAGES ------
+		int imageSize = 128;
+
+		// Draw a surface texture (with label)
+		y += 30; 
+		fontArial12->DrawString(spriteBatch.get(), "Surface Texture:", XMFLOAT2(10, y));
+
+		y += 20; 
+		RECT surfaceRect = { 10, y, imageSize + 10, imageSize + y }; // Left, top, right, bottom
+		spriteBatch->Draw(materials[4]->GetTextureSRV("SurfaceTexture").Get(), surfaceRect);
+
+		// Draw a normal map (with label)
+		y += 30 + imageSize; 
+		fontArial12->DrawString(spriteBatch.get(), "Normal Map:", XMFLOAT2(10, y));
+
+		y += 20; 
+		RECT normalRect = { 10, y, imageSize + 10, imageSize + y }; // Left, top, right, bottom
+		spriteBatch->Draw(materials[4]->GetTextureSRV("NormalMap").Get(), normalRect);
+
+		// Draw a sprite font's underlying texture (with label)
+		y += 30 + imageSize; 
+		fontArial12->DrawString(spriteBatch.get(), "'Arial 16' Sprite Font Texture:", XMFLOAT2(10, y));
+
+		y += 20; 
+		RECT fontRect = { 10, y, imageSize + 10, imageSize + y }; // Left, top, right, bottom
+		Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> fontSheet;
+		fontArial16->GetSpriteSheet(fontSheet.GetAddressOf());
+		spriteBatch->Draw(fontSheet.Get(), XMVectorSet(10, y, 0, 0));
+
+
 
 		// Done with the batch
 		spriteBatch->End();
