@@ -139,7 +139,7 @@ float3 SpotLight(Light light, float3 normal, float3 worldPos, float3 camPos, flo
 
 	// Combine with the point light calculation
 	// Note: This could be optimized a bit
-	return PointLight(light, normal, worldPos, camPos, roughness, roughness, surfaceColor) * penumbra;
+	return PointLight(light, normal, worldPos, camPos, roughness, surfaceColor, specularScale) * penumbra;
 }
 
 

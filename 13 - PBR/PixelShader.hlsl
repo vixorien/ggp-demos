@@ -61,7 +61,7 @@ float4 main(VertexToPixel input) : SV_TARGET
 	surfaceColor.rgb = useAlbedoTexture ? surfaceColor.rgb : colorTint.rgb;
 	
 	// Start off with ambient
-	float3 totalLight = ambientColor * surfaceColor;
+	float3 totalLight = ambientColor * surfaceColor.rgb;
 	
 	// Loop and handle all lights
 	for (int i = 0; i < lightCount; i++)
@@ -74,15 +74,15 @@ float4 main(VertexToPixel input) : SV_TARGET
 		switch (lights[i].Type)
 		{
 		case LIGHT_TYPE_DIRECTIONAL: 
-			totalLight += DirLight(light, input.normal, input.worldPos, cameraPosition, 1.0f, surfaceColor, roughness); // Using roughness as spec map in non-PBR
+			totalLight += DirLight(light, input.normal, input.worldPos, cameraPosition, 1.0f, surfaceColor.rgb, roughness); // Using roughness as spec map in non-PBR
 			break;
 
 		case LIGHT_TYPE_POINT: 
-			totalLight += PointLight(light, input.normal, input.worldPos, cameraPosition, 1.0f, surfaceColor, roughness); // Using roughness as spec map in non-PBR
+			totalLight += PointLight(light, input.normal, input.worldPos, cameraPosition, 1.0f, surfaceColor.rgb, roughness); // Using roughness as spec map in non-PBR
 			break;
 
 		case LIGHT_TYPE_SPOT:
-			totalLight += SpotLight(light, input.normal, input.worldPos, cameraPosition, 1.0f, surfaceColor, roughness); // Using roughness as spec map in non-PBR
+			totalLight += SpotLight(light, input.normal, input.worldPos, cameraPosition, 1.0f, surfaceColor.rgb, roughness); // Using roughness as spec map in non-PBR
 			break;
 		}
 	}

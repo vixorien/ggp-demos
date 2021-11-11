@@ -70,7 +70,7 @@ float4 main(VertexToPixel input) : SV_TARGET
 	float3 specColor = lerp(F0_NON_METAL.rrr, surfaceColor.rgb, metal);
 
 	// Start off with ambient
-	float3 totalLight = ambientColor * surfaceColor;
+	float3 totalLight = ambientColor * surfaceColor.rgb;
 
 	// Loop and handle all lights
 	for (int i = 0; i < lightCount; i++)
