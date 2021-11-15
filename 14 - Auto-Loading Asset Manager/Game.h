@@ -36,9 +36,6 @@ private:
 	// Initialization helper methods - feel free to customize, combine, etc.
 	void LoadAssetsAndCreateEntities();
 
-	// Helper for creating a solid color texture & SRV
-	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> CreateSolidColorTextureSRV(int width, int height, DirectX::XMFLOAT4 color);
-
 	// General helpers for setup and drawing
 	void RandomizeEntities();
 	void GenerateLights();

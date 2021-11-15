@@ -11,6 +11,13 @@
 // Singleton requirement
 Assets* Assets::instance;
 
+
+// --------------------------------------------------------------------------
+// Cleans up the asset manager and deletes any resources that are
+// not stored with smart pointers.  Note: Ideally, they probably
+// ALL should be stored with smart pointers, but Meshes are stored
+// with raw pointers to showcase both methods.
+// --------------------------------------------------------------------------
 Assets::~Assets()
 {
 	// Delete all regular pointers
@@ -18,6 +25,12 @@ Assets::~Assets()
 }
 
 
+
+// --------------------------------------------------------------------------
+// Initializes the asset manager with the D3D objects it may need, as 
+// well as the root asset path to check for assets.  Note that shaders
+// are loaded from the executables path by default.
+// --------------------------------------------------------------------------
 void Assets::Initialize(std::string rootAssetPath, Microsoft::WRL::ComPtr<ID3D11Device> device, Microsoft::WRL::ComPtr<ID3D11DeviceContext> context)
 {
 	this->device = device;
@@ -29,6 +42,16 @@ void Assets::Initialize(std::string rootAssetPath, Microsoft::WRL::ComPtr<ID3D11
 }
 
 
+// --------------------------------------------------------------------------
+// Recursively checks all files starting in the root asset path, determines
+// if they are files that can be loaded and loads each one.
+// 
+// Currently, only the following file types are supported:
+//  - Textures: .jpg, .png, .dds
+//  - Meshes: .obj
+//  - Sprite Font: .spritefont
+//  - Shaders: .cso (these are loaded from the executable's path!)
+// --------------------------------------------------------------------------
 void Assets::LoadAllAssets()
 {
 	if (rootAssetPath.empty())
@@ -81,6 +104,16 @@ void Assets::LoadAllAssets()
 
 
 
+// --------------------------------------------------------------------------
+// Gets the specified mesh if it exists in the asset manager.  
+// Otherwise, this method returns null.
+//
+// Notes on file names:
+//  - Do include the path starting at the root asset path
+//  - Do use "/" as the folder separator
+//  - Do NOT include the file extension
+//  - Example: "Models/cube"
+// --------------------------------------------------------------------------
 Mesh* Assets::GetMesh(std::string name)
 {
 	// Search and return mesh if found
@@ -92,6 +125,17 @@ Mesh* Assets::GetMesh(std::string name)
 	return 0;
 }
 
+
+// --------------------------------------------------------------------------
+// Gets the specified sprite font if it exists in the asset manager.  
+// Otherwise, this method returns null.
+// 
+// Notes on file names:
+//  - Do include the path starting at the root asset path
+//  - Do use "/" as the folder separator
+//  - Do NOT include the file extension
+//  - Example: "Fonts/Arial12"
+// --------------------------------------------------------------------------
 std::shared_ptr<DirectX::SpriteFont> Assets::GetSpriteFont(std::string name)
 {
 	// Search and return mesh if found
@@ -103,6 +147,17 @@ std::shared_ptr<DirectX::SpriteFont> Assets::GetSpriteFont(std::string name)
 	return 0;
 }
 
+
+// --------------------------------------------------------------------------
+// Gets the specified pixel shader if it exists in the asset manager.  
+// Otherwise, this method returns null.
+// 
+// Notes on file names:
+//  - Do NOT include the path, unless it is outside the executable's folder
+//  - Do use "/" as the folder separator
+//  - Do NOT include the file extension
+//  - Example: "SkyPS"
+// --------------------------------------------------------------------------
 std::shared_ptr<SimplePixelShader> Assets::GetPixelShader(std::string name)
 {
 	// Search and return shader if found
@@ -114,6 +169,17 @@ std::shared_ptr<SimplePixelShader> Assets::GetPixelShader(std::string name)
 	return 0;
 }
 
+
+// --------------------------------------------------------------------------
+// Gets the specified vertex shader if it exists in the asset manager.  
+// Otherwise, this method returns null.
+// 
+// Notes on file names:
+//  - Do NOT include the path, unless it is outside the executable's folder
+//  - Do use "/" as the folder separator
+//  - Do NOT include the file extension
+//  - Example: "SkyVS"
+// --------------------------------------------------------------------------
 std::shared_ptr<SimpleVertexShader> Assets::GetVertexShader(std::string name)
 {
 	// Search and return shader if found
@@ -126,7 +192,16 @@ std::shared_ptr<SimpleVertexShader> Assets::GetVertexShader(std::string name)
 }
 
 
-
+// --------------------------------------------------------------------------
+// Gets the specified texture if it exists in the asset manager.  
+// Otherwise, this method returns null.
+// 
+// Notes on file names:
+//  - Do include the path starting at the root asset path
+//  - Do use "/" as the folder separator
+//  - Do NOT include the file extension
+//  - Example: "Textures/PBR/cobblestone_albedo"
+// --------------------------------------------------------------------------
 Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Assets::GetTexture(std::string name)
 {
 	// Search and return texture if found
@@ -137,6 +212,7 @@ Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Assets::GetTexture(std::string 
 	// Unsuccessful
 	return 0;
 }
+
 
 // --------------------------------------------------------------------------
 // Adds an existing mesh to the asset manager.
@@ -149,6 +225,7 @@ void Assets::AddMesh(std::string name, Mesh* mesh)
 	meshes.insert({ name, mesh });
 }
 
+
 // --------------------------------------------------------------------------
 // Adds an existing sprite font to the asset manager.
 // --------------------------------------------------------------------------
@@ -156,6 +233,7 @@ void Assets::AddSpriteFont(std::string name, std::shared_ptr<DirectX::SpriteFont
 {
 	spriteFonts.insert({ name, font });
 }
+
 
 // --------------------------------------------------------------------------
 // Adds an existing pixel shader to the asset manager.
@@ -165,6 +243,7 @@ void Assets::AddPixelShader(std::string name, std::shared_ptr<SimplePixelShader>
 	pixelShaders.insert({ name, ps });
 }
 
+
 // --------------------------------------------------------------------------
 // Adds an existing vertex shader to the asset manager.
 // --------------------------------------------------------------------------
@@ -172,6 +251,7 @@ void Assets::AddVertexShader(std::string name, std::shared_ptr<SimpleVertexShade
 {
 	vertexShaders.insert({ name, vs });
 }
+
 
 // --------------------------------------------------------------------------
 // Adds an existing texture to the asset manager.
@@ -182,7 +262,20 @@ void Assets::AddTexture(std::string name, Microsoft::WRL::ComPtr<ID3D11ShaderRes
 }
 
 
+// --------------------------------------------------------------------------
+// Getters for asset counts
+// --------------------------------------------------------------------------
+unsigned int Assets::GetMeshCount() { return meshes.size(); }
+unsigned int Assets::GetSpriteFontCount() { return spriteFonts.size(); }
+unsigned int Assets::GetPixelShaderCount() { return pixelShaders.size(); }
+unsigned int Assets::GetVertexShaderCount() { return vertexShaders.size(); }
+unsigned int Assets::GetTextureCount() { return textures.size(); }
 
+
+
+// --------------------------------------------------------------------------
+// Private helper for loading a mesh from an .obj file
+// --------------------------------------------------------------------------
 void Assets::LoadMesh(std::string path)
 {
 	// Strip out everything before and including the asset root path
@@ -205,7 +298,9 @@ void Assets::LoadMesh(std::string path)
 }
 
 
-
+// --------------------------------------------------------------------------
+// Private helper for loading a .spritefont file
+// --------------------------------------------------------------------------
 void Assets::LoadSpriteFont(std::string path)
 {
 	// Strip out everything before and including the asset root path
@@ -229,6 +324,9 @@ void Assets::LoadSpriteFont(std::string path)
 
 
 
+// --------------------------------------------------------------------------
+// Private helper for loading a standard BMP/PNG/JPG/TIF texture
+// --------------------------------------------------------------------------
 void Assets::LoadTexture(std::string path)
 {
 	// Strip out everything before and including the asset root path
@@ -253,6 +351,9 @@ void Assets::LoadTexture(std::string path)
 
 
 
+// --------------------------------------------------------------------------
+// Private helper for loading a DDS texture
+// --------------------------------------------------------------------------
 void Assets::LoadDDSTexture(std::string path)
 {
 	// Strip out everything before and including the asset root path
@@ -276,6 +377,10 @@ void Assets::LoadDDSTexture(std::string path)
 }
 
 
+// --------------------------------------------------------------------------
+// Private helper for loading a compiled shader object (.cso) of unknown type.
+// Currently, this supports vertex and pixel shaders
+// --------------------------------------------------------------------------
 void Assets::LoadUnknownShader(std::string path)
 {
 	// Load the file into a blob
@@ -312,6 +417,10 @@ void Assets::LoadUnknownShader(std::string path)
 }
 
 
+
+// --------------------------------------------------------------------------
+// Private helper for loading a pixel shader from a .cso file
+// --------------------------------------------------------------------------
 void Assets::LoadPixelShader(std::string path, bool useAssetPath)
 {
 	// Assuming filename and path are the same
@@ -340,6 +449,9 @@ void Assets::LoadPixelShader(std::string path, bool useAssetPath)
 }
 
 
+// --------------------------------------------------------------------------
+// Private helper for loading a vertex shader from a .cso file
+// --------------------------------------------------------------------------
 void Assets::LoadVertexShader(std::string path, bool useAssetPath)
 {
 	// Assuming filename and path are the same
@@ -366,20 +478,24 @@ void Assets::LoadVertexShader(std::string path, bool useAssetPath)
 	vertexShaders.insert({ filename, vs });
 }
 
+
+
 // --------------------------------------------------------------------------
 // Creates a solid color texture of the specified size and adds it to
-// the asset manager using the specified name
+// the asset manager using the specified name.  
+// 
+// Also returns the resulting texture if it is valid, otherwise returns 0.
 //
 // textureName - name to use in the asset manager
 // width - width of the texture
 // height - height of the texture
 // color - color for each pixel of the texture
 // --------------------------------------------------------------------------
-void Assets::CreateSolidColorTexture(std::string textureName, int width, int height, DirectX::XMFLOAT4 color)
+Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Assets::CreateSolidColorTexture(std::string textureName, int width, int height, DirectX::XMFLOAT4 color)
 {
 	// Valid size?
 	if (width <= 0 || height <= 0)
-		return;
+		return 0;
 
 	// Create an array of the color
 	DirectX::XMFLOAT4* pixels = new DirectX::XMFLOAT4[width * height];
@@ -389,27 +505,31 @@ void Assets::CreateSolidColorTexture(std::string textureName, int width, int hei
 	}
 
 	// Create the texture itself
-	CreateTexture(textureName, width, height, pixels);
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> srv = CreateTexture(textureName, width, height, pixels);
 	
-
 	// All done with pixel array
 	delete[] pixels;
+
+	// Return the SRV in the event it is immediately needed
+	return srv;
 }
 
 // --------------------------------------------------------------------------
 // Creates a texture of the specified size, using the specified colors as the
 // texture's pixel colors and adds it to the asset manager using the specified name
+// 
+// Also returns the resulting texture if it is valid, otherwise returns 0.
 //
 // textureName - name to use in the asset manager
 // width - width of the texture
 // height - height of the texture
 // pixels - color array for each pixel of the texture
 // --------------------------------------------------------------------------
-void Assets::CreateTexture(std::string textureName, int width, int height, DirectX::XMFLOAT4* pixels)
+Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Assets::CreateTexture(std::string textureName, int width, int height, DirectX::XMFLOAT4* pixels)
 {
 	// Valid size?
 	if (width <= 0 || height <= 0)
-		return;
+		return 0;
 
 	// Convert to ints
 	unsigned char* intPixels = new unsigned char[width * height * 4];
@@ -456,24 +576,29 @@ void Assets::CreateTexture(std::string textureName, int width, int height, Direc
 
 	// All done with these values
 	delete[] intPixels;
+
+	// Return the SRV in the event it is immediately needed
+	return srv;
 }
 
 // --------------------------------------------------------------------------
 // Creates a texture of the specified size, using the specified colors as the
 // texture's pixel colors and adds it to the asset manager using the specified name.
 // The resulting texture will hold arbitrary float values instead of 0-1 values.
-// The texture format will be DXGI_FORMAT_R32G32B32A32_FLOAT
+// The texture format will be DXGI_FORMAT_R32G32B32A32_FLOAT.
+// 
+// Also returns the resulting texture if it is valid, otherwise returns 0.
 //
 // textureName - name to use in the asset manager
 // width - width of the texture
 // height - height of the texture
 // pixels - color array for each pixel of the texture
 // --------------------------------------------------------------------------
-void Assets::CreateFloatTexture(std::string textureName, int width, int height, DirectX::XMFLOAT4* pixels)
+Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Assets::CreateFloatTexture(std::string textureName, int width, int height, DirectX::XMFLOAT4* pixels)
 {
 	// Valid size?
 	if (width <= 0 || height <= 0)
-		return;
+		return 0;
 
 	// Create a simple texture of the specified size
 	D3D11_TEXTURE2D_DESC td = {};
@@ -506,6 +631,9 @@ void Assets::CreateFloatTexture(std::string textureName, int width, int height, 
 
 	// Add to the asset manager
 	textures.insert({ textureName, srv });
+
+	// Return the SRV in the event it is immediately needed
+	return srv;
 }
 
 

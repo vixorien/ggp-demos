@@ -46,9 +46,9 @@ public:
 	void LoadPixelShader(std::string path, bool useAssetPath = false);
 	void LoadVertexShader(std::string path, bool useAssetPath = false);
 
-	void CreateSolidColorTexture(std::string textureName, int width, int height, DirectX::XMFLOAT4 color);
-	void CreateTexture(std::string textureName, int width, int height, DirectX::XMFLOAT4* pixels);
-	void CreateFloatTexture(std::string textureName, int width, int height, DirectX::XMFLOAT4* pixels);
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> CreateSolidColorTexture(std::string textureName, int width, int height, DirectX::XMFLOAT4 color);
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> CreateTexture(std::string textureName, int width, int height, DirectX::XMFLOAT4* pixels);
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> CreateFloatTexture(std::string textureName, int width, int height, DirectX::XMFLOAT4* pixels);
 
 	Mesh* GetMesh(std::string name);
 	std::shared_ptr<DirectX::SpriteFont> GetSpriteFont(std::string name);
@@ -61,6 +61,12 @@ public:
 	void AddPixelShader(std::string name, std::shared_ptr<SimplePixelShader> ps);
 	void AddVertexShader(std::string name, std::shared_ptr<SimpleVertexShader> vs);
 	void AddTexture(std::string name, Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> texture);
+
+	unsigned int GetMeshCount();
+	unsigned int GetSpriteFontCount();
+	unsigned int GetPixelShaderCount();
+	unsigned int GetVertexShaderCount();
+	unsigned int GetTextureCount();
 
 private:
 

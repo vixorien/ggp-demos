@@ -290,9 +290,10 @@ void Game::LoadAssetsAndCreateEntities()
 
 
 	// === Create a gradient of entities based on roughness & metalness ====
-	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> albedoSRV = CreateSolidColorTextureSRV(2, 2, XMFLOAT4(1, 1, 1, 1));
-	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> metal0SRV = CreateSolidColorTextureSRV(2, 2, XMFLOAT4(0, 0, 0, 1));
-	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> metal1SRV = CreateSolidColorTextureSRV(2, 2, XMFLOAT4(1, 1, 1, 1));
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> whiteAlbedoSRV = assets.CreateSolidColorTexture("Textures/WhiteAlbedo", 2, 2, XMFLOAT4(1, 1, 1, 1));
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> metal0SRV = assets.CreateSolidColorTexture("Textures/Metal0", 2, 2, XMFLOAT4(0, 0, 0, 1));
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> metal1SRV = assets.CreateSolidColorTexture("Textures/Metal1", 2, 2, XMFLOAT4(1, 1, 1, 1));
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> flatNormalsSRV = assets.CreateSolidColorTexture("Textures/FlatNormals", 2, 2, XMFLOAT4(0.5f, 0.5f, 1.0f, 1));
 
 	for (int i = 0; i <= 10; i++)
 	{
@@ -300,22 +301,21 @@ void Game::LoadAssetsAndCreateEntities()
 		float r = i / 10.0f;
 
 		// Create textures
-		Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> roughSRV = CreateSolidColorTextureSRV(2, 2, XMFLOAT4(r, r, r, 1));
-		Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> normalSRV = CreateSolidColorTextureSRV(2, 2, XMFLOAT4(0.5f, 0.5f, 1.0f, 1));
+		Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> roughSRV = assets.CreateSolidColorTexture("Textures/Rough" + std::to_string(r),2, 2, XMFLOAT4(r, r, r, 1));
 
 		// Set up the materials
 		Material* matMetal = new Material(pixelShader, vertexShader, XMFLOAT3(1, 1, 1));
 		matMetal->AddSampler("BasicSampler", sampler);
-		matMetal->AddTextureSRV("Albedo", albedoSRV);
-		matMetal->AddTextureSRV("NormalMap", normalSRV);
+		matMetal->AddTextureSRV("Albedo", whiteAlbedoSRV);
+		matMetal->AddTextureSRV("NormalMap", flatNormalsSRV);
 		matMetal->AddTextureSRV("RoughnessMap", roughSRV);
 		matMetal->AddTextureSRV("MetalMap", metal1SRV);
 		materials.push_back(matMetal);
 
 		Material* matNonMetal = new Material(pixelShader, vertexShader, XMFLOAT3(1, 1, 1));
 		matNonMetal->AddSampler("BasicSampler", sampler);
-		matNonMetal->AddTextureSRV("Albedo", albedoSRV);
-		matNonMetal->AddTextureSRV("NormalMap", normalSRV);
+		matNonMetal->AddTextureSRV("Albedo", whiteAlbedoSRV);
+		matNonMetal->AddTextureSRV("NormalMap", flatNormalsSRV);
 		matNonMetal->AddTextureSRV("RoughnessMap", roughSRV);
 		matNonMetal->AddTextureSRV("MetalMap", metal0SRV);
 		materials.push_back(matNonMetal);
@@ -330,48 +330,6 @@ void Game::LoadAssetsAndCreateEntities()
 		geMetal->GetTransform()->SetPosition(i * 2.0f - 10.0f, 1, 0);
 		geNonMetal->GetTransform()->SetPosition(i * 2.0f - 10.0f, -1, 0);
 	}
-}
-
-Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Game::CreateSolidColorTextureSRV(int width, int height, DirectX::XMFLOAT4 color)
-{
-	// Create an array of the color
-	unsigned char* pixels = new unsigned char[width * height * 4];
-	for (int i = 0; i < width * height * 4;)
-	{
-		pixels[i++] = (unsigned char)(color.x * 255);
-		pixels[i++] = (unsigned char)(color.y * 255);
-		pixels[i++] = (unsigned char)(color.z * 255);
-		pixels[i++] = (unsigned char)(color.w * 255);
-	}
-
-	// Create a simple texture of the specified size
-	D3D11_TEXTURE2D_DESC td = {};
-	td.ArraySize = 1;
-	td.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-	td.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	td.MipLevels = 1;
-	td.Height = height;
-	td.Width = width;
-	td.SampleDesc.Count = 1;
-
-	// Initial data for the texture
-	D3D11_SUBRESOURCE_DATA data = {};
-	data.pSysMem = pixels;
-	data.SysMemPitch = sizeof(unsigned char) * 4 * width;
-
-	// Actually create it
-	Microsoft::WRL::ComPtr<ID3D11Texture2D> texture;
-	device->CreateTexture2D(&td, &data, texture.GetAddressOf());
-
-	// All done with pixel array
-	delete[] pixels;
-
-	// Create the shader resource view for this texture and return
-	// Note: Passing in a null description creates a standard
-	// SRV that has access to the entire resource (all mips, if they exist)
-	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> srv;
-	device->CreateShaderResourceView(texture.Get(), 0, srv.GetAddressOf());
-	return srv;
 }
 
 
@@ -682,7 +640,8 @@ void Game::DrawLightSources()
 void Game::DrawUI()
 {
 	// Grab the font from the asset manager
-	std::shared_ptr<SpriteFont> fontArial12 = Assets::GetInstance().GetSpriteFont("Fonts/Arial12");
+	Assets& assets = Assets::GetInstance();
+	std::shared_ptr<SpriteFont> fontArial12 = assets.GetSpriteFont("Fonts/Arial12");
 
 	spriteBatch->Begin();
 
@@ -720,6 +679,20 @@ void Game::DrawUI()
 	fontArial12->DrawString(spriteBatch.get(), L"(L) Show Point Lights:", XMVectorSet(10, h + 20, 0, 0));
 	fontArial12->DrawString(spriteBatch.get(), drawLights ? L"On" : L"Off", XMVectorSet(180, h + 20, 0, 0), drawLights ? XMVectorSet(0, 1, 0, 1) : XMVectorSet(1, 0, 0, 1));
 	fontArial12->DrawString(spriteBatch.get(), L"Press (1, 2, 3) to change scenes", XMVectorSet(10, h + 60, 0, 0));
+
+	// Asset counts
+	h = 390;
+	fontArial12->DrawString(spriteBatch.get(), L"Asset Manager Counts", XMVectorSet(10, h, 0, 0));
+	fontArial12->DrawString(spriteBatch.get(), L" Meshes: ", XMVectorSet(10, h + 20, 0, 0));
+	fontArial12->DrawString(spriteBatch.get(), std::to_wstring(assets.GetMeshCount()).c_str(), XMVectorSet(180, h + 20, 0, 0));
+	fontArial12->DrawString(spriteBatch.get(), L" Textures: ", XMVectorSet(10, h + 40, 0, 0));
+	fontArial12->DrawString(spriteBatch.get(), std::to_wstring(assets.GetTextureCount()).c_str(), XMVectorSet(180, h + 40, 0, 0));
+	fontArial12->DrawString(spriteBatch.get(), L" Sprite Fonts: ", XMVectorSet(10, h + 60, 0, 0));
+	fontArial12->DrawString(spriteBatch.get(), std::to_wstring(assets.GetSpriteFontCount()).c_str(), XMVectorSet(180, h + 60, 0, 0));
+	fontArial12->DrawString(spriteBatch.get(), L" Pixel Shaders: ", XMVectorSet(10, h + 80, 0, 0));
+	fontArial12->DrawString(spriteBatch.get(), std::to_wstring(assets.GetPixelShaderCount()).c_str(), XMVectorSet(180, h + 80, 0, 0));
+	fontArial12->DrawString(spriteBatch.get(), L" Vertex Shader: ", XMVectorSet(10, h + 100, 0, 0));
+	fontArial12->DrawString(spriteBatch.get(), std::to_wstring(assets.GetVertexShaderCount()).c_str(), XMVectorSet(180, h + 100, 0, 0));
 
 	spriteBatch->End();
 
