@@ -217,7 +217,7 @@ void Game::LoadAssetsAndCreateEntities()
 	floor->GetTransform()->SetPosition(0, -27, 0);
 	entities.push_back(floor);
 
-	GameEntity* sphere = new GameEntity(assets.GetMesh("Models/sphere"), paintMat);
+	GameEntity* sphere = new GameEntity(assets.GetMesh("Models/sphere"), scratchedMat);
 	sphere->GetTransform()->SetPosition(-5, 0, 0);
 	entities.push_back(sphere);
 
@@ -413,8 +413,8 @@ void Game::Update(float deltaTime, float totalTime)
 
 	// Shadow map adjustments
 	bool projChanged = false;
-	if (input.KeyDown(VK_LEFT)) { shadowProjectionSize -= deltaTime * 2.0f; projChanged = true; }
-	if (input.KeyDown(VK_RIGHT)) { shadowProjectionSize += deltaTime * 2.0f; projChanged = true; }
+	if (input.KeyDown(VK_LEFT)) { shadowProjectionSize -= deltaTime * 5.0f; projChanged = true; }
+	if (input.KeyDown(VK_RIGHT)) { shadowProjectionSize += deltaTime * 5.0f; projChanged = true; }
 	if (projChanged)
 	{
 		// Clamp the size and then re-create the shadow "camera" projection
