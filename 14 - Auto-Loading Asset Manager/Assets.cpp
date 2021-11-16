@@ -31,11 +31,12 @@ Assets::~Assets()
 // well as the root asset path to check for assets.  Note that shaders
 // are loaded from the executables path by default.
 // --------------------------------------------------------------------------
-void Assets::Initialize(std::string rootAssetPath, Microsoft::WRL::ComPtr<ID3D11Device> device, Microsoft::WRL::ComPtr<ID3D11DeviceContext> context)
+void Assets::Initialize(std::string rootAssetPath, Microsoft::WRL::ComPtr<ID3D11Device> device, Microsoft::WRL::ComPtr<ID3D11DeviceContext> context, bool printLoadingProgress)
 {
 	this->device = device;
 	this->context = context;
 	this->rootAssetPath = rootAssetPath;
+	this->printLoadingProgress = printLoadingProgress;
 
 	// Replace all "\\" with "/" to ease lookup later
 	std::replace(this->rootAssetPath.begin(), this->rootAssetPath.end(), '\\', '/');
@@ -283,9 +284,12 @@ void Assets::LoadMesh(std::string path)
 	size_t assetPathPosition = path.rfind(rootAssetPath);
 	std::string filename = path.substr(assetPathPosition + assetPathLength);
 
-	printf("Loading mesh: ");
-	printf(filename.c_str());
-	printf("\n");
+	if (printLoadingProgress)
+	{
+		printf("Loading mesh: ");
+		printf(filename.c_str());
+		printf("\n");
+	}
 
 	// Load the mesh
 	Mesh* m = new Mesh(path.c_str(), device);
@@ -308,9 +312,12 @@ void Assets::LoadSpriteFont(std::string path)
 	size_t assetPathPosition = path.rfind(rootAssetPath);
 	std::string filename = path.substr(assetPathPosition + assetPathLength);
 
-	printf("Loading sprite font: ");
-	printf(filename.c_str());
-	printf("\n");
+	if (printLoadingProgress)
+	{
+		printf("Loading sprite font: ");
+		printf(filename.c_str());
+		printf("\n");
+	}
 
 	// Load the mesh
 	std::shared_ptr<DirectX::SpriteFont> font = std::make_shared<DirectX::SpriteFont>(device.Get(), ToWideString(path).c_str());
@@ -334,9 +341,12 @@ void Assets::LoadTexture(std::string path)
 	size_t assetPathPosition = path.rfind(rootAssetPath);
 	std::string filename = path.substr(assetPathPosition + assetPathLength);
 
-	printf("Loading texture: ");
-	printf(filename.c_str());
-	printf("\n");
+	if (printLoadingProgress)
+	{
+		printf("Loading texture: ");
+		printf(filename.c_str());
+		printf("\n");
+	}
 
 	// Load the texture
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> srv;
@@ -361,9 +371,12 @@ void Assets::LoadDDSTexture(std::string path)
 	size_t assetPathPosition = path.rfind(rootAssetPath);
 	std::string filename = path.substr(assetPathPosition + assetPathLength);
 
-	printf("Loading texture: ");
-	printf(filename.c_str());
-	printf("\n");
+	if (printLoadingProgress)
+	{
+		printf("Loading texture: ");
+		printf(filename.c_str());
+		printf("\n");
+	}
 
 	// Load the texture
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> srv;
@@ -435,9 +448,12 @@ void Assets::LoadPixelShader(std::string path, bool useAssetPath)
 		filename = path.substr(assetPathPosition + assetPathLength);
 	}
 
-	printf("Loading pixel shader: ");
-	printf(filename.c_str());
-	printf("\n");
+	if (printLoadingProgress)
+	{
+		printf("Loading pixel shader: ");
+		printf(filename.c_str());
+		printf("\n");
+	}
 
 	// Remove the ".cso" from the end of the filename before using as a key
 	filename = RemoveFileExtension(filename);
@@ -466,9 +482,12 @@ void Assets::LoadVertexShader(std::string path, bool useAssetPath)
 		filename = path.substr(assetPathPosition + assetPathLength);
 	}
 
-	printf("Loading vertex shader: ");
-	printf(filename.c_str());
-	printf("\n");
+	if (printLoadingProgress)
+	{
+		printf("Loading vertex shader: ");
+		printf(filename.c_str());
+		printf("\n");
+	}
 
 	// Remove the ".cso" from the end of the filename before using as a key
 	filename = RemoveFileExtension(filename);

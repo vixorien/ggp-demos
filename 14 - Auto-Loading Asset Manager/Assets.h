@@ -40,7 +40,7 @@ private:
 public:
 	~Assets();
 
-	void Initialize(std::string rootAssetPath, Microsoft::WRL::ComPtr<ID3D11Device> device, Microsoft::WRL::ComPtr<ID3D11DeviceContext> context);
+	void Initialize(std::string rootAssetPath, Microsoft::WRL::ComPtr<ID3D11Device> device, Microsoft::WRL::ComPtr<ID3D11DeviceContext> context, bool printLoadingProgress = false);
 
 	void LoadAllAssets();
 	void LoadPixelShader(std::string path, bool useAssetPath = false);
@@ -79,6 +79,7 @@ private:
 	Microsoft::WRL::ComPtr<ID3D11Device> device;
 	Microsoft::WRL::ComPtr<ID3D11DeviceContext> context;
 	std::string rootAssetPath;
+	bool printLoadingProgress;
 
 	std::unordered_map<std::string, Mesh*> meshes;
 	std::unordered_map<std::string, std::shared_ptr<DirectX::SpriteFont>> spriteFonts;

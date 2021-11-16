@@ -112,7 +112,7 @@ void Game::LoadAssetsAndCreateEntities()
 {
 	// Initialize the asset manager and load all assets
 	Assets& assets = Assets::GetInstance();
-	assets.Initialize("../../../Assets/", device, context);
+	assets.Initialize("../../../Assets/", device, context, true);
 	assets.LoadAllAssets();
 
 	// Set up sprite batch and sprite font
@@ -682,7 +682,7 @@ void Game::DrawUI()
 
 	// Asset counts
 	h = 390;
-	fontArial12->DrawString(spriteBatch.get(), L"Asset Manager Counts", XMVectorSet(10, h, 0, 0));
+	fontArial12->DrawString(spriteBatch.get(), L"Asset Manager Stats", XMVectorSet(10, h, 0, 0));
 	fontArial12->DrawString(spriteBatch.get(), L" Meshes: ", XMVectorSet(10, h + 20, 0, 0));
 	fontArial12->DrawString(spriteBatch.get(), std::to_wstring(assets.GetMeshCount()).c_str(), XMVectorSet(180, h + 20, 0, 0));
 	fontArial12->DrawString(spriteBatch.get(), L" Textures: ", XMVectorSet(10, h + 40, 0, 0));
