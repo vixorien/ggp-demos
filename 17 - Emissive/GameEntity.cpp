@@ -2,18 +2,18 @@
 
 using namespace DirectX;
 
-GameEntity::GameEntity(Mesh* mesh, Material* material) :
+GameEntity::GameEntity(std::shared_ptr<Mesh> mesh, std::shared_ptr<Material> material) :
 	mesh(mesh),
 	material(material)
 {
 }
 
-Mesh* GameEntity::GetMesh() { return mesh; }
-Material* GameEntity::GetMaterial() { return material; }
+std::shared_ptr<Mesh> GameEntity::GetMesh() { return mesh; }
+std::shared_ptr<Material> GameEntity::GetMaterial() { return material; }
 Transform* GameEntity::GetTransform() { return &transform; }
 
-void GameEntity::SetMesh(Mesh* mesh) { this->mesh = mesh; }
-void GameEntity::SetMaterial(Material* material) { this->material = material; }
+void GameEntity::SetMesh(std::shared_ptr<Mesh> mesh) { this->mesh = mesh; }
+void GameEntity::SetMaterial(std::shared_ptr<Material> material) { this->material = material; }
 
 
 void GameEntity::Draw(Microsoft::WRL::ComPtr<ID3D11DeviceContext> context, Camera* camera)

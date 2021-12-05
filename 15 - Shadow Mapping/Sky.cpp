@@ -7,7 +7,7 @@ using namespace DirectX;
 // Constructor that takes an existing cube map SRV
 Sky::Sky(
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> cubeMap,
-	Mesh* mesh,
+	std::shared_ptr<Mesh> mesh,
 	std::shared_ptr<SimpleVertexShader> skyVS,
 	std::shared_ptr<SimplePixelShader> skyPS,
 	Microsoft::WRL::ComPtr<ID3D11SamplerState> samplerOptions,
@@ -29,7 +29,7 @@ Sky::Sky(
 // Constructor that loads a DDS cube map file
 Sky::Sky(
 	const wchar_t* cubemapDDSFile, 
-	Mesh* mesh, 
+	std::shared_ptr<Mesh> mesh,
 	std::shared_ptr<SimpleVertexShader> skyVS,
 	std::shared_ptr<SimplePixelShader> skyPS,
 	Microsoft::WRL::ComPtr<ID3D11SamplerState> samplerOptions, 
@@ -58,7 +58,7 @@ Sky::Sky(
 	const wchar_t* down, 
 	const wchar_t* front, 
 	const wchar_t* back, 
-	Mesh* mesh,
+	std::shared_ptr<Mesh> mesh,
 	std::shared_ptr<SimpleVertexShader> skyVS,
 	std::shared_ptr<SimplePixelShader> skyPS,
 	Microsoft::WRL::ComPtr<ID3D11SamplerState> samplerOptions,

@@ -49,7 +49,6 @@ private:
 	Sky* sky;
 
 	// Vectors for objects we'll need to clean up
-	std::vector<Material*> materials;
 	std::vector<GameEntity*> entities;
 
 	// Lights

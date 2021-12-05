@@ -14,7 +14,7 @@ public:
 	// Constructor that takes an existing cube map SRV
 	Sky(
 		Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> cubeMap,
-		Mesh* mesh,
+		std::shared_ptr<Mesh> mesh,
 		std::shared_ptr<SimpleVertexShader> skyVS,
 		std::shared_ptr<SimplePixelShader> skyPS,
 		Microsoft::WRL::ComPtr<ID3D11SamplerState> samplerOptions,
@@ -25,7 +25,7 @@ public:
 	// Constructor that loads a DDS cube map file
 	Sky(
 		const wchar_t* cubemapDDSFile, 
-		Mesh* mesh, 
+		std::shared_ptr<Mesh> mesh,
 		std::shared_ptr<SimpleVertexShader> skyVS,
 		std::shared_ptr<SimplePixelShader> skyPS,
 		Microsoft::WRL::ComPtr<ID3D11SamplerState> samplerOptions, 	
@@ -41,7 +41,7 @@ public:
 		const wchar_t* down,
 		const wchar_t* front,
 		const wchar_t* back,
-		Mesh* mesh,
+		std::shared_ptr<Mesh> mesh,
 		std::shared_ptr<SimpleVertexShader> skyVS,
 		std::shared_ptr<SimplePixelShader> skyPS,
 		Microsoft::WRL::ComPtr<ID3D11SamplerState> samplerOptions,
@@ -72,7 +72,7 @@ private:
 	std::shared_ptr<SimpleVertexShader> skyVS;
 	std::shared_ptr<SimplePixelShader> skyPS;
 	
-	Mesh* skyMesh;
+	std::shared_ptr<Mesh> skyMesh;
 
 	Microsoft::WRL::ComPtr<ID3D11RasterizerState> skyRasterState;
 	Microsoft::WRL::ComPtr<ID3D11DepthStencilState> skyDepthState;

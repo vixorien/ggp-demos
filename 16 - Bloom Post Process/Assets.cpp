@@ -14,14 +14,10 @@ Assets* Assets::instance;
 
 // --------------------------------------------------------------------------
 // Cleans up the asset manager and deletes any resources that are
-// not stored with smart pointers.  Note: Ideally, they probably
-// ALL should be stored with smart pointers, but Meshes are stored
-// with raw pointers to showcase both methods.
+// not stored with smart pointers.
 // --------------------------------------------------------------------------
 Assets::~Assets()
 {
-	// Delete all regular pointers
-	for (auto& m : meshes) delete m.second;
 }
 
 
@@ -31,15 +27,20 @@ Assets::~Assets()
 // well as the root asset path to check for assets.  Note that shaders
 // are loaded from the executables path by default.
 // --------------------------------------------------------------------------
-void Assets::Initialize(std::string rootAssetPath, Microsoft::WRL::ComPtr<ID3D11Device> device, Microsoft::WRL::ComPtr<ID3D11DeviceContext> context, bool printLoadingProgress)
+void Assets::Initialize(std::string rootAssetPath, Microsoft::WRL::ComPtr<ID3D11Device> device, Microsoft::WRL::ComPtr<ID3D11DeviceContext> context, bool printLoadingProgress, bool allowOnDemandLoading)
 {
 	this->device = device;
 	this->context = context;
 	this->rootAssetPath = rootAssetPath;
 	this->printLoadingProgress = printLoadingProgress;
+	this->allowOnDemandLoading = allowOnDemandLoading;
 
 	// Replace all "\\" with "/" to ease lookup later
 	std::replace(this->rootAssetPath.begin(), this->rootAssetPath.end(), '\\', '/');
+
+	// Ensure the root path ends with a slash
+	if (!EndsWith(rootAssetPath, "/"))
+		rootAssetPath += "/";
 }
 
 
@@ -106,8 +107,9 @@ void Assets::LoadAllAssets()
 
 
 // --------------------------------------------------------------------------
-// Gets the specified mesh if it exists in the asset manager.  
-// Otherwise, this method returns null.
+// Gets the specified mesh if it exists in the asset manager.  If on-demand
+// loading is allowed, this method will attempt to load the mesh if it doesn't
+// exist in the asset manager.  Otherwise, this method returns null.
 //
 // Notes on file names:
 //  - Do include the path starting at the root asset path
@@ -115,12 +117,24 @@ void Assets::LoadAllAssets()
 //  - Do NOT include the file extension
 //  - Example: "Models/cube"
 // --------------------------------------------------------------------------
-Mesh* Assets::GetMesh(std::string name)
+std::shared_ptr<Mesh> Assets::GetMesh(std::string name)
 {
 	// Search and return mesh if found
 	auto it = meshes.find(name);
 	if (it != meshes.end())
 		return it->second;
+
+	// Attempt to load on-demand?
+	if (allowOnDemandLoading)
+	{
+		// See if the file exists and attempt to load
+		std::string filePath = GetFullPathTo(rootAssetPath + name + ".obj");
+		if (std::experimental::filesystem::exists(filePath))
+		{
+			// Do the load now and return the result
+			return LoadMesh(filePath);
+		}
+	}
 
 	// Unsuccessful
 	return 0;
@@ -128,8 +142,9 @@ Mesh* Assets::GetMesh(std::string name)
 
 
 // --------------------------------------------------------------------------
-// Gets the specified sprite font if it exists in the asset manager.  
-// Otherwise, this method returns null.
+// Gets the specified sprite font if it exists in the asset manager.  If on-demand
+// loading is allowed, this method will attempt to load the sprite font if it doesn't
+// exist in the asset manager.  Otherwise, this method returns null.
 // 
 // Notes on file names:
 //  - Do include the path starting at the root asset path
@@ -144,27 +159,17 @@ std::shared_ptr<DirectX::SpriteFont> Assets::GetSpriteFont(std::string name)
 	if (it != spriteFonts.end())
 		return it->second;
 
-	// Unsuccessful
-	return 0;
-}
-
-
-// --------------------------------------------------------------------------
-// Gets the specified pixel shader if it exists in the asset manager.  
-// Otherwise, this method returns null.
-// 
-// Notes on file names:
-//  - Do NOT include the path, unless it is outside the executable's folder
-//  - Do use "/" as the folder separator
-//  - Do NOT include the file extension
-//  - Example: "SkyPS"
-// --------------------------------------------------------------------------
-std::shared_ptr<SimplePixelShader> Assets::GetPixelShader(std::string name)
-{
-	// Search and return shader if found
-	auto it = pixelShaders.find(name);
-	if (it != pixelShaders.end())
-		return it->second;
+	// Attempt to load on-demand?
+	if (allowOnDemandLoading)
+	{
+		// See if the file exists and attempt to load
+		std::string filePath = GetFullPathTo(rootAssetPath + name + ".spritefont");
+		if (std::experimental::filesystem::exists(filePath))
+		{
+			// Do the load now and return the result
+			return LoadSpriteFont(filePath);
+		}
+	}
 
 	// Unsuccessful
 	return 0;
@@ -172,30 +177,9 @@ std::shared_ptr<SimplePixelShader> Assets::GetPixelShader(std::string name)
 
 
 // --------------------------------------------------------------------------
-// Gets the specified vertex shader if it exists in the asset manager.  
-// Otherwise, this method returns null.
-// 
-// Notes on file names:
-//  - Do NOT include the path, unless it is outside the executable's folder
-//  - Do use "/" as the folder separator
-//  - Do NOT include the file extension
-//  - Example: "SkyVS"
-// --------------------------------------------------------------------------
-std::shared_ptr<SimpleVertexShader> Assets::GetVertexShader(std::string name)
-{
-	// Search and return shader if found
-	auto it = vertexShaders.find(name);
-	if (it != vertexShaders.end())
-		return it->second;
-
-	// Unsuccessful
-	return 0;
-}
-
-
-// --------------------------------------------------------------------------
-// Gets the specified texture if it exists in the asset manager.  
-// Otherwise, this method returns null.
+// Gets the specified texture if it exists in the asset manager.  If on-demand
+// loading is allowed, this method will attempt to load the texture if it doesn't
+// exist in the asset manager.  Otherwise, this method returns null.
 // 
 // Notes on file names:
 //  - Do include the path starting at the root asset path
@@ -210,6 +194,94 @@ Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Assets::GetTexture(std::string 
 	if (it != textures.end())
 		return it->second;
 
+	// Attempt to load on-demand?
+	if (allowOnDemandLoading)
+	{
+		// Is it a JPG?
+		std::string filePathJPG = GetFullPathTo(rootAssetPath + name + ".jpg");
+		if (std::experimental::filesystem::exists(filePathJPG)) { return LoadTexture(filePathJPG); }
+
+		// Is it a PNG?
+		std::string filePathPNG = GetFullPathTo(rootAssetPath + name + ".png");
+		if (std::experimental::filesystem::exists(filePathPNG)) { return LoadTexture(filePathPNG); }
+
+		// Is it a DDS?
+		std::string filePathDDS = GetFullPathTo(rootAssetPath + name + ".dds");
+		if (std::experimental::filesystem::exists(filePathDDS)) { return LoadDDSTexture(filePathDDS); }
+	}
+
+	// Unsuccessful
+	return 0;
+}
+
+
+// --------------------------------------------------------------------------
+// Gets the specified pixel shader if it exists in the asset manager.  If on-demand
+// loading is allowed, this method will attempt to load the pixel shader if it doesn't
+// exist in the asset manager.  Otherwise, this method returns null.
+// 
+// Notes on file names:
+//  - Do NOT include the path, unless it is outside the executable's folder
+//  - Do use "/" as the folder separator
+//  - Do NOT include the file extension
+//  - Example: "SkyPS"
+// --------------------------------------------------------------------------
+std::shared_ptr<SimplePixelShader> Assets::GetPixelShader(std::string name)
+{
+	// Search and return shader if found
+	auto it = pixelShaders.find(name);
+	if (it != pixelShaders.end())
+		return it->second;
+
+	// Attempt to load on-demand?
+	if (allowOnDemandLoading)
+	{
+		// See if the file exists and attempt to load
+		std::string filePath = name + ".cso";
+		if (std::experimental::filesystem::exists(GetFullPathTo(filePath)))
+		{
+			// Attempt to load the pixel shader and return it if successful
+			std::shared_ptr<SimplePixelShader> ps = LoadPixelShader(filePath);
+			if (ps) { return ps; }
+		}
+	}
+
+	// Unsuccessful
+	return 0;
+}
+
+
+// --------------------------------------------------------------------------
+// Gets the specified vertex shader if it exists in the asset manager.  If on-demand
+// loading is allowed, this method will attempt to load the vertex shader if it doesn't
+// exist in the asset manager.  Otherwise, this method returns null.
+// 
+// Notes on file names:
+//  - Do NOT include the path, unless it is outside the executable's folder
+//  - Do use "/" as the folder separator
+//  - Do NOT include the file extension
+//  - Example: "SkyVS"
+// --------------------------------------------------------------------------
+std::shared_ptr<SimpleVertexShader> Assets::GetVertexShader(std::string name)
+{
+	// Search and return shader if found
+	auto it = vertexShaders.find(name);
+	if (it != vertexShaders.end())
+		return it->second;
+
+	// Attempt to load on-demand?
+	if (allowOnDemandLoading)
+	{
+		// See if the file exists and attempt to load
+		std::string filePath = name + ".cso";
+		if (std::experimental::filesystem::exists(GetFullPathTo(filePath)))
+		{
+			// Attempt to load the pixel shader and return it if successful
+			std::shared_ptr<SimpleVertexShader> vs = LoadVertexShader(filePath);
+			if (vs) { return vs; }
+		}
+	}
+
 	// Unsuccessful
 	return 0;
 }
@@ -221,7 +293,7 @@ Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Assets::GetTexture(std::string 
 // Note: The asset manager will clean up (delete) this mesh at shut down.
 // Make sure you're not also deleting it yourself later.
 // --------------------------------------------------------------------------
-void Assets::AddMesh(std::string name, Mesh* mesh)
+void Assets::AddMesh(std::string name, std::shared_ptr<Mesh> mesh)
 {
 	meshes.insert({ name, mesh });
 }
@@ -277,7 +349,7 @@ unsigned int Assets::GetTextureCount() { return (unsigned int)textures.size(); }
 // --------------------------------------------------------------------------
 // Private helper for loading a mesh from an .obj file
 // --------------------------------------------------------------------------
-void Assets::LoadMesh(std::string path)
+std::shared_ptr<Mesh> Assets::LoadMesh(std::string path)
 {
 	// Strip out everything before and including the asset root path
 	size_t assetPathLength = rootAssetPath.size();
@@ -292,20 +364,21 @@ void Assets::LoadMesh(std::string path)
 	}
 
 	// Load the mesh
-	Mesh* m = new Mesh(path.c_str(), device);
+	std::shared_ptr<Mesh> m = std::make_shared<Mesh>(path.c_str(), device);
 	
 	// Remove the file extension the end of the filename before using as a key
 	filename = RemoveFileExtension(filename);
 
 	// Add to the dictionary
 	meshes.insert({ filename, m });
+	return m;
 }
 
 
 // --------------------------------------------------------------------------
 // Private helper for loading a .spritefont file
 // --------------------------------------------------------------------------
-void Assets::LoadSpriteFont(std::string path)
+std::shared_ptr<DirectX::SpriteFont> Assets::LoadSpriteFont(std::string path)
 {
 	// Strip out everything before and including the asset root path
 	size_t assetPathLength = rootAssetPath.size();
@@ -327,6 +400,7 @@ void Assets::LoadSpriteFont(std::string path)
 
 	// Add to the dictionary
 	spriteFonts.insert({ filename, font });
+	return font;
 }
 
 
@@ -334,7 +408,7 @@ void Assets::LoadSpriteFont(std::string path)
 // --------------------------------------------------------------------------
 // Private helper for loading a standard BMP/PNG/JPG/TIF texture
 // --------------------------------------------------------------------------
-void Assets::LoadTexture(std::string path)
+Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Assets::LoadTexture(std::string path)
 {
 	// Strip out everything before and including the asset root path
 	size_t assetPathLength = rootAssetPath.size();
@@ -357,6 +431,7 @@ void Assets::LoadTexture(std::string path)
 
 	// Add to the dictionary
 	textures.insert({ filename, srv });
+	return srv;
 }
 
 
@@ -364,7 +439,7 @@ void Assets::LoadTexture(std::string path)
 // --------------------------------------------------------------------------
 // Private helper for loading a DDS texture
 // --------------------------------------------------------------------------
-void Assets::LoadDDSTexture(std::string path)
+Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Assets::LoadDDSTexture(std::string path)
 {
 	// Strip out everything before and including the asset root path
 	size_t assetPathLength = rootAssetPath.size();
@@ -387,6 +462,7 @@ void Assets::LoadDDSTexture(std::string path)
 
 	// Add to the dictionary
 	textures.insert({ filename, srv });
+	return srv;
 }
 
 
@@ -434,7 +510,7 @@ void Assets::LoadUnknownShader(std::string path)
 // --------------------------------------------------------------------------
 // Private helper for loading a pixel shader from a .cso file
 // --------------------------------------------------------------------------
-void Assets::LoadPixelShader(std::string path, bool useAssetPath)
+std::shared_ptr<SimplePixelShader> Assets::LoadPixelShader(std::string path, bool useAssetPath)
 {
 	// Assuming filename and path are the same
 	std::string filename = path;
@@ -458,9 +534,13 @@ void Assets::LoadPixelShader(std::string path, bool useAssetPath)
 	// Remove the ".cso" from the end of the filename before using as a key
 	filename = RemoveFileExtension(filename);
 
-	// Create the simple shader and add to dictionary
+	// Create the simple shader and verify it actually worked
 	std::shared_ptr<SimplePixelShader> ps = std::make_shared<SimplePixelShader>(device, context, GetFullPathTo_Wide(ToWideString(path)).c_str());
+	if (!ps->IsShaderValid()) { return 0; }
+
+	// Success
 	pixelShaders.insert({ filename, ps });
+	return ps;
 
 }
 
@@ -468,7 +548,7 @@ void Assets::LoadPixelShader(std::string path, bool useAssetPath)
 // --------------------------------------------------------------------------
 // Private helper for loading a vertex shader from a .cso file
 // --------------------------------------------------------------------------
-void Assets::LoadVertexShader(std::string path, bool useAssetPath)
+std::shared_ptr<SimpleVertexShader> Assets::LoadVertexShader(std::string path, bool useAssetPath)
 {
 	// Assuming filename and path are the same
 	std::string filename = path;
@@ -492,9 +572,13 @@ void Assets::LoadVertexShader(std::string path, bool useAssetPath)
 	// Remove the ".cso" from the end of the filename before using as a key
 	filename = RemoveFileExtension(filename);
 
-	// Create the simple shader and add to dictionary
+	// Create the simple shader and verify it actually worked
 	std::shared_ptr<SimpleVertexShader> vs = std::make_shared<SimpleVertexShader>(device, context, GetFullPathTo_Wide(ToWideString(path)).c_str());
+	if (!vs->IsShaderValid()) { return 0; }
+
+	// Success
 	vertexShaders.insert({ filename, vs });
+	return vs;
 }
 
 

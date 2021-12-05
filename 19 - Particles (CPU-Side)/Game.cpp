@@ -56,7 +56,6 @@ Game::~Game()
 {
 	// Since we've created these objects within this class (Game),
 	// this is also where we should delete them!
-	for (auto& m : materials) delete m;
 	for (auto& e : entities) delete e;
 	for (auto& e : emitters) delete e;
 
@@ -97,10 +96,9 @@ void Game::Init()
 // --------------------------------------------------------
 void Game::LoadAssetsAndCreateEntities()
 {
-	// Initialize the asset manager and load all assets
+	// Initialize the asset manager and set up for on-demand loading
 	Assets& assets = Assets::GetInstance();
-	assets.Initialize("../../../Assets/", device, context, true);
-	assets.LoadAllAssets();
+	assets.Initialize("../../../Assets/", device, context, true, true);
 
 	// Set up sprite batch and sprite font
 	spriteBatch = std::make_unique<SpriteBatch>(context.Get());
@@ -138,71 +136,61 @@ void Game::LoadAssetsAndCreateEntities()
 	std::shared_ptr<SimplePixelShader> pixelShader = assets.GetPixelShader("PixelShaderPBR");
 
 	// Create basic materials
-	Material* cobbleMat2x = new Material(pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(4, 2));
+	std::shared_ptr<Material> cobbleMat2x = std::make_shared<Material>(pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(4, 2));
 	cobbleMat2x->AddSampler("BasicSampler", sampler);
 	cobbleMat2x->AddTextureSRV("Albedo", assets.GetTexture("Textures/PBR/cobblestone_albedo"));
 	cobbleMat2x->AddTextureSRV("NormalMap", assets.GetTexture("Textures/PBR/cobblestone_normals"));
 	cobbleMat2x->AddTextureSRV("RoughnessMap", assets.GetTexture("Textures/PBR/cobblestone_roughness"));
 	cobbleMat2x->AddTextureSRV("MetalMap", assets.GetTexture("Textures/PBR/cobblestone_metal"));
-	
-	Material* cobbleMat4x = new Material(pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(4, 4));
+
+	std::shared_ptr<Material> cobbleMat4x = std::make_shared<Material>(pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(4, 4));
 	cobbleMat4x->AddSampler("BasicSampler", sampler);
 	cobbleMat4x->AddTextureSRV("Albedo", assets.GetTexture("Textures/PBR/cobblestone_albedo"));
 	cobbleMat4x->AddTextureSRV("NormalMap", assets.GetTexture("Textures/PBR/cobblestone_normals"));
 	cobbleMat4x->AddTextureSRV("RoughnessMap", assets.GetTexture("Textures/PBR/cobblestone_roughness"));
 	cobbleMat4x->AddTextureSRV("MetalMap", assets.GetTexture("Textures/PBR/cobblestone_metal"));
 
-	Material* floorMat = new Material(pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(4, 2));
+	std::shared_ptr<Material> floorMat = std::make_shared<Material>(pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(4, 2));
 	floorMat->AddSampler("BasicSampler", sampler);
 	floorMat->AddTextureSRV("Albedo", assets.GetTexture("Textures/PBR/floor_albedo"));
 	floorMat->AddTextureSRV("NormalMap", assets.GetTexture("Textures/PBR/floor_normals"));
 	floorMat->AddTextureSRV("RoughnessMap", assets.GetTexture("Textures/PBR/floor_roughness"));
 	floorMat->AddTextureSRV("MetalMap", assets.GetTexture("Textures/PBR/floor_metal"));
 
-	Material* paintMat = new Material(pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(4, 2));
+	std::shared_ptr<Material> paintMat = std::make_shared<Material>(pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(4, 2));
 	paintMat->AddSampler("BasicSampler", sampler);
 	paintMat->AddTextureSRV("Albedo", assets.GetTexture("Textures/PBR/paint_albedo"));
 	paintMat->AddTextureSRV("NormalMap", assets.GetTexture("Textures/PBR/paint_normals"));
 	paintMat->AddTextureSRV("RoughnessMap", assets.GetTexture("Textures/PBR/paint_roughness"));
 	paintMat->AddTextureSRV("MetalMap", assets.GetTexture("Textures/PBR/paint_metal"));
 
-	Material* scratchedMat = new Material(pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(4, 2));
+	std::shared_ptr<Material> scratchedMat = std::make_shared<Material>(pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(4, 2));
 	scratchedMat->AddSampler("BasicSampler", sampler);
 	scratchedMat->AddTextureSRV("Albedo", assets.GetTexture("Textures/PBR/scratched_albedo"));
 	scratchedMat->AddTextureSRV("NormalMap", assets.GetTexture("Textures/PBR/scratched_normals"));
 	scratchedMat->AddTextureSRV("RoughnessMap", assets.GetTexture("Textures/PBR/scratched_roughness"));
 	scratchedMat->AddTextureSRV("MetalMap", assets.GetTexture("Textures/PBR/scratched_metal"));
 
-	Material* bronzeMat = new Material(pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(4, 2));
+	std::shared_ptr<Material> bronzeMat = std::make_shared<Material>(pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(4, 2));
 	bronzeMat->AddSampler("BasicSampler", sampler);
 	bronzeMat->AddTextureSRV("Albedo", assets.GetTexture("Textures/PBR/bronze_albedo"));
 	bronzeMat->AddTextureSRV("NormalMap", assets.GetTexture("Textures/PBR/bronze_normals"));
 	bronzeMat->AddTextureSRV("RoughnessMap", assets.GetTexture("Textures/PBR/bronze_roughness"));
 	bronzeMat->AddTextureSRV("MetalMap", assets.GetTexture("Textures/PBR/bronze_metal"));
 
-	Material* roughMat = new Material(pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(4, 2));
+	std::shared_ptr<Material> roughMat = std::make_shared<Material>(pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(4, 2));
 	roughMat->AddSampler("BasicSampler", sampler);
 	roughMat->AddTextureSRV("Albedo", assets.GetTexture("Textures/PBR/rough_albedo"));
 	roughMat->AddTextureSRV("NormalMap", assets.GetTexture("Textures/PBR/rough_normals"));
 	roughMat->AddTextureSRV("RoughnessMap", assets.GetTexture("Textures/PBR/rough_roughness"));
 	roughMat->AddTextureSRV("MetalMap", assets.GetTexture("Textures/PBR/rough_metal"));
 
-	Material* woodMat = new Material(pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(1, 1));
+	std::shared_ptr<Material> woodMat = std::make_shared<Material>(pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(4, 2));
 	woodMat->AddSampler("BasicSampler", sampler);
 	woodMat->AddTextureSRV("Albedo", assets.GetTexture("Textures/PBR/wood_albedo"));
 	woodMat->AddTextureSRV("NormalMap", assets.GetTexture("Textures/PBR/wood_normals"));
 	woodMat->AddTextureSRV("RoughnessMap", assets.GetTexture("Textures/PBR/wood_roughness"));
 	woodMat->AddTextureSRV("MetalMap", assets.GetTexture("Textures/PBR/wood_metal"));
-
-
-	materials.push_back(cobbleMat2x);
-	materials.push_back(cobbleMat4x);
-	materials.push_back(floorMat);
-	materials.push_back(paintMat);
-	materials.push_back(scratchedMat);
-	materials.push_back(bronzeMat);
-	materials.push_back(roughMat);
-	materials.push_back(woodMat);
 
 
 	// === Create the scene ===
@@ -218,14 +206,14 @@ void Game::LoadAssetsAndCreateEntities()
 	cube->GetTransform()->SetScale(2, 2, 2);
 	entities.push_back(cube);
 
-	// Particle states
+	// Particle states ====
+	
 	// A depth state for the particles
 	D3D11_DEPTH_STENCIL_DESC dsDesc = {};
 	dsDesc.DepthEnable = true;
 	dsDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ZERO; // Turns off depth writing
 	dsDesc.DepthFunc = D3D11_COMPARISON_LESS;
 	device->CreateDepthStencilState(&dsDesc, particleDepthState.GetAddressOf());
-
 
 	// Blend for particles (additive)
 	D3D11_BLEND_DESC blend = {};
@@ -248,32 +236,28 @@ void Game::LoadAssetsAndCreateEntities()
 	rd.FillMode = D3D11_FILL_WIREFRAME;
 	device->CreateRasterizerState(&rd, particleDebugRasterState.GetAddressOf());
 
+
 	// Grab loaded particle resources
 	std::shared_ptr<SimpleVertexShader> particleVS = assets.GetVertexShader("ParticleVS");
 	std::shared_ptr<SimplePixelShader> particlePS = assets.GetPixelShader("ParticlePS");
 
 	// Create particle materials
-	Material* fireParticle = new Material(particlePS, particleVS, XMFLOAT3(1, 1, 1));
+	std::shared_ptr<Material> fireParticle = std::make_shared<Material>(particlePS, particleVS, XMFLOAT3(1, 1, 1));
 	fireParticle->AddSampler("BasicSampler", sampler);
 	fireParticle->AddTextureSRV("Particle", assets.GetTexture("Textures/Particles/Black/fire_01"));
 
-	Material* twirlParticle = new Material(particlePS, particleVS, XMFLOAT3(1, 1, 1));
+	std::shared_ptr<Material> twirlParticle = std::make_shared<Material>(particlePS, particleVS, XMFLOAT3(1, 1, 1));
 	twirlParticle->AddSampler("BasicSampler", sampler);
 	twirlParticle->AddTextureSRV("Particle", assets.GetTexture("Textures/Particles/Black/twirl_02"));
 
-	Material* starParticle = new Material(particlePS, particleVS, XMFLOAT3(1, 1, 1));
+	std::shared_ptr<Material> starParticle = std::make_shared<Material>(particlePS, particleVS, XMFLOAT3(1, 1, 1));
 	starParticle->AddSampler("BasicSampler", sampler);
 	starParticle->AddTextureSRV("Particle", assets.GetTexture("Textures/Particles/Black/star_04"));
 
-	Material* animParticle = new Material(particlePS, particleVS, XMFLOAT3(1, 1, 1));
+	std::shared_ptr<Material> animParticle = std::make_shared<Material>(particlePS, particleVS, XMFLOAT3(1, 1, 1));
 	animParticle->AddSampler("BasicSampler", sampler);
 	animParticle->AddTextureSRV("Particle", assets.GetTexture("Textures/Particles/flame_animated"));
 
-	// Save for cleanup
-	materials.push_back(fireParticle);
-	materials.push_back(twirlParticle);
-	materials.push_back(starParticle);
-	materials.push_back(animParticle);
 
 	// Create example emitters
 	

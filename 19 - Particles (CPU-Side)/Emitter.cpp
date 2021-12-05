@@ -17,7 +17,7 @@ Emitter::Emitter(
 	DirectX::XMFLOAT4 rotationRandomRanges,
 	DirectX::XMFLOAT3 emitterAcceleration,
 	Microsoft::WRL::ComPtr<ID3D11Device> device,
-	Material* material,
+	std::shared_ptr<Material> material,
 	bool isSpriteSheet,
 	unsigned int spriteSheetWidth,
 	unsigned int spriteSheetHeight
@@ -119,8 +119,8 @@ Emitter::~Emitter()
 }
 
 Transform* Emitter::GetTransform() { return &transform; }
-Material* Emitter::GetMaterial() { return material; }
-void Emitter::SetMaterial(Material* material) { this->material = material; }
+std::shared_ptr<Material> Emitter::GetMaterial() { return material; }
+void Emitter::SetMaterial(std::shared_ptr<Material> material) { this->material = material; }
 
 void Emitter::Update(float dt)
 {

@@ -54,7 +54,6 @@ private:
 
 	// A vector to hold any number of meshes
 	// - This makes things easy to draw and clean up, too!
-	std::vector<Material*> materials;
 	std::vector<GameEntity*> entities;
 
 	// Lights

@@ -72,7 +72,6 @@ Game::~Game()
 {
 	// Since we've created these objects within this class (Game),
 	// this is also where we should delete them!
-	for (auto& m : materials) delete m;
 	for (auto& e : entities) delete e;
 
 	delete camera;
@@ -112,10 +111,9 @@ void Game::Init()
 // --------------------------------------------------------
 void Game::LoadAssetsAndCreateEntities()
 {
-	// Initialize the asset manager and load all assets
+	// Initialize the asset manager and set up for on-demand loading
 	Assets& assets = Assets::GetInstance();
-	assets.Initialize("../../../Assets/", device, context, true);
-	assets.LoadAllAssets();
+	assets.Initialize("../../../Assets/", device, context, true, true);
 
 	// Set up the initial post process resources
 	ResizePostProcessResources();
@@ -174,42 +172,42 @@ void Game::LoadAssetsAndCreateEntities()
 	std::shared_ptr<SimplePixelShader> toonPS = assets.GetPixelShader("ToonPS");
 
 	// Create materials
-	Material* whiteMat = new Material(toonPS, vertexShader, XMFLOAT3(1, 1, 1));
+	std::shared_ptr<Material> whiteMat = std::make_shared<Material>(toonPS, vertexShader, XMFLOAT3(1, 1, 1));
 	whiteMat->AddSampler("BasicSampler", sampler);
 	whiteMat->AddSampler("ClampSampler", clampSampler);
 	whiteMat->AddTextureSRV("Albedo", whiteSRV);
 	whiteMat->AddTextureSRV("NormalMap", flatNormalsSRV);
 	whiteMat->AddTextureSRV("RoughnessMap", blackSRV);
 
-	Material* redMat = new Material(toonPS, vertexShader, XMFLOAT3(0.8f, 0, 0));
+	std::shared_ptr<Material> redMat = std::make_shared<Material>(toonPS, vertexShader, XMFLOAT3(0.8f, 0, 0));
 	redMat->AddSampler("BasicSampler", sampler);
 	redMat->AddSampler("ClampSampler", clampSampler);
 	redMat->AddTextureSRV("Albedo", whiteSRV);
 	redMat->AddTextureSRV("NormalMap", flatNormalsSRV);
 	redMat->AddTextureSRV("RoughnessMap", blackSRV);
 
-	Material* detailedMat = new Material(toonPS, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(4, 2));
+	std::shared_ptr<Material> detailedMat = std::make_shared<Material>(toonPS, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(4, 2));
 	detailedMat->AddSampler("BasicSampler", sampler);
 	detailedMat->AddSampler("ClampSampler", clampSampler);
 	detailedMat->AddTextureSRV("Albedo", assets.GetTexture("Textures/cushion"));
 	detailedMat->AddTextureSRV("NormalMap", assets.GetTexture("Textures/cushion_normals"));
 	detailedMat->AddTextureSRV("RoughnessMap", blackSRV);
 
-	Material* crateMat = new Material(toonPS, vertexShader, XMFLOAT3(1, 1, 1));
+	std::shared_ptr<Material> crateMat = std::make_shared<Material>(toonPS, vertexShader, XMFLOAT3(1, 1, 1));
 	crateMat->AddSampler("BasicSampler", sampler);
 	crateMat->AddSampler("ClampSampler", clampSampler);
 	crateMat->AddTextureSRV("Albedo", assets.GetTexture("Textures/PBR/crate_wood_albedo"));
 	crateMat->AddTextureSRV("NormalMap", flatNormalsSRV);
 	crateMat->AddTextureSRV("RoughnessMap", greySRV);
 
-	Material* mandoMat = new Material(toonPS, vertexShader, XMFLOAT3(1, 1, 1));
+	std::shared_ptr<Material> mandoMat = std::make_shared<Material>(toonPS, vertexShader, XMFLOAT3(1, 1, 1));
 	mandoMat->AddSampler("BasicSampler", sampler);
 	mandoMat->AddSampler("ClampSampler", clampSampler);
 	mandoMat->AddTextureSRV("Albedo", assets.GetTexture("Textures/mando"));
 	mandoMat->AddTextureSRV("NormalMap", flatNormalsSRV);
 	mandoMat->AddTextureSRV("RoughnessMap", blackSRV);
 
-	Material* containerMat = new Material(toonPS, vertexShader, XMFLOAT3(1, 1, 1));
+	std::shared_ptr<Material> containerMat = std::make_shared<Material>(toonPS, vertexShader, XMFLOAT3(1, 1, 1));
 	containerMat->AddSampler("BasicSampler", sampler);
 	containerMat->AddSampler("ClampSampler", clampSampler);
 	containerMat->AddTextureSRV("Albedo", assets.GetTexture("Textures/container"));
@@ -217,20 +215,12 @@ void Game::LoadAssetsAndCreateEntities()
 	containerMat->AddTextureSRV("RoughnessMap", greySRV);
 
 
-	materials.push_back(whiteMat);
-	materials.push_back(redMat);
-	materials.push_back(crateMat);
-	materials.push_back(detailedMat);
-	materials.push_back(mandoMat);
-	materials.push_back(containerMat);
-
-
 	// Grab meshes
-	Mesh* sphereMesh = assets.GetMesh("Models/sphere");
-	Mesh* torusMesh = assets.GetMesh("Models/torus");
-	Mesh* crateMesh = assets.GetMesh("Models/crate_wood");
-	Mesh* mandoMesh = assets.GetMesh("Models/mando");
-	Mesh* containerMesh = assets.GetMesh("Models/container");
+	std::shared_ptr<Mesh> sphereMesh = assets.GetMesh("Models/sphere");
+	std::shared_ptr<Mesh> torusMesh = assets.GetMesh("Models/torus");
+	std::shared_ptr<Mesh> crateMesh = assets.GetMesh("Models/crate_wood");
+	std::shared_ptr<Mesh> mandoMesh = assets.GetMesh("Models/mando");
+	std::shared_ptr<Mesh> containerMesh = assets.GetMesh("Models/container");
 
 	// === Create the line up entities =====================================
 	GameEntity* sphere = new GameEntity(sphereMesh, whiteMat);
@@ -693,7 +683,7 @@ void Game::DrawUI()
 		fontArial12->DrawString(spriteBatch.get(), "Normal & Depth Post Process", XMFLOAT2(120, 240), Colors::Green);
 		fontArial12->DrawString(spriteBatch.get(), "This mode uses multiple active render\ntargets to capture not only the colors\nof the scene, but the normals and depths,\ntoo.  A post process then compares\nneighboring normals & depths.", XMFLOAT2(10, 270), Colors::Black);
 		fontArial12->DrawString(spriteBatch.get(), "The post process used by this technique\nworks similarly to the Sobel filter, except\nit compares normals of surrounding pixels\nas well as the depths of surrounding pixels.", XMFLOAT2(10, 370), Colors::Black);
-		fontArial12->DrawString(spriteBatch.get(), "A large enough discrepancy in either the\nnormals or the depths of surrounding pixels\ncauses an outline to appear.", XMFLOAT2(10, 430), Colors::Black);
+		fontArial12->DrawString(spriteBatch.get(), "A large enough discrepancy in either the\nnormals or the depths of surrounding pixels\ncauses an outline to appear.", XMFLOAT2(10, 450), Colors::Black);
 
 		break;
 	}

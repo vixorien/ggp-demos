@@ -48,7 +48,7 @@ public:
 		DirectX::XMFLOAT4 rotationRandomRanges,
 		DirectX::XMFLOAT3 emitterAcceleration,
 		Microsoft::WRL::ComPtr<ID3D11Device> device,
-		Material* material,
+		std::shared_ptr<Material> material,
 		bool isSpriteSheet = false,
 		unsigned int spriteSheetWidth = 1,
 		unsigned int spriteSheetHeight = 1
@@ -62,8 +62,8 @@ public:
 		bool debugWireframe);
 
 	Transform* GetTransform();
-	Material* GetMaterial();
-	void SetMaterial(Material* material);
+	std::shared_ptr<Material> GetMaterial();
+	void SetMaterial(std::shared_ptr<Material> material);
 
 private:
 	// Emission properties
@@ -107,7 +107,7 @@ private:
 
 	// Material & transform
 	Transform transform;
-	Material* material;
+	std::shared_ptr<Material> material;
 
 	// Update Methods
 	void UpdateSingleParticle(float dt, int index);
