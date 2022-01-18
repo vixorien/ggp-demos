@@ -473,21 +473,18 @@ Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Assets::LoadDDSTexture(std::str
 void Assets::LoadUnknownShader(std::string path)
 {
 	// Load the file into a blob
-	ID3DBlob* shaderBlob;
-	HRESULT hr = D3DReadFileToBlob(GetFullPathTo_Wide(ToWideString(path)).c_str(), &shaderBlob);
-	if (hr != S_OK)
-	{
+	Microsoft::WRL::ComPtr<ID3DBlob> shaderBlob;
+	if (D3DReadFileToBlob(GetFullPathTo_Wide(ToWideString(path)).c_str(), shaderBlob.GetAddressOf()) != S_OK)
 		return;
-	}
 
 	// Set up shader reflection to get information about
 	// this shader and its variables,  buffers, etc.
-	ID3D11ShaderReflection* refl;
+	Microsoft::WRL::ComPtr<ID3D11ShaderReflection> refl;
 	D3DReflect(
 		shaderBlob->GetBufferPointer(),
 		shaderBlob->GetBufferSize(),
 		IID_ID3D11ShaderReflection,
-		(void**)&refl);
+		(void**)refl.GetAddressOf());
 
 	// Get the description of the shader
 	D3D11_SHADER_DESC shaderDesc;
@@ -499,10 +496,6 @@ void Assets::LoadUnknownShader(std::string path)
 	case D3D11_SHVER_VERTEX_SHADER: LoadVertexShader(path); break;
 	case D3D11_SHVER_PIXEL_SHADER: LoadPixelShader(path); break;
 	}
-
-	// Clean up
-	refl->Release();
-	shaderBlob->Release();
 }
 
 
