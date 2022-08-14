@@ -3,12 +3,14 @@
 
 using namespace DirectX;
 
-GameEntity::GameEntity(Mesh* mesh)
+GameEntity::GameEntity(std::shared_ptr<Mesh> mesh)
 	: mesh(mesh)
 {
 }
 
-Mesh* GameEntity::GetMesh() { return mesh; }
+std::shared_ptr<Mesh> GameEntity::GetMesh() { return mesh; }
+void GameEntity::SetMesh(std::shared_ptr<Mesh> mesh) { this->mesh = mesh; }
+
 Transform* GameEntity::GetTransform() { return &transform; }
 
 
@@ -19,7 +21,7 @@ void GameEntity::Draw(Microsoft::WRL::ComPtr<ID3D11DeviceContext> context, Micro
 	//     for directly accessing cbuffer variables in GPU memory
 	//  - So, instead, we're filling up a struct that has the same
 	//     layout as the cbuffer, so we can copy it in one step
-	VertexShaderExternalData vsData;
+	VertexShaderExternalData vsData = {};
 	vsData.colorTint = XMFLOAT4(1.0f, 0.5f, 0.5f, 1.0f);
 	vsData.worldMatrix = transform.GetWorldMatrix();
 

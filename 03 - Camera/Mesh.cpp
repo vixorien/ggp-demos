@@ -14,7 +14,7 @@ using namespace DirectX;
 // numIndices - The number of indices in the index array
 // device     - The D3D device to use for buffer creation
 // --------------------------------------------------------
-Mesh::Mesh(Vertex* vertArray, int numVerts, unsigned int* indexArray, int numIndices, Microsoft::WRL::ComPtr<ID3D11Device> device)
+Mesh::Mesh(Vertex* vertArray, size_t numVerts, unsigned int* indexArray, size_t numIndices, Microsoft::WRL::ComPtr<ID3D11Device> device)
 {
 	CreateBuffers(vertArray, numVerts, indexArray, numIndices, device);
 }
@@ -27,6 +27,14 @@ Mesh::~Mesh() { }
 
 
 // --------------------------------------------------------
+// Getters for private variables
+// --------------------------------------------------------
+Microsoft::WRL::ComPtr<ID3D11Buffer> Mesh::GetVertexBuffer() { return vb; }
+Microsoft::WRL::ComPtr<ID3D11Buffer> Mesh::GetIndexBuffer() { return ib; }
+unsigned int Mesh::GetIndexCount() { return numIndices; }
+
+
+// --------------------------------------------------------
 // Helper for creating the actually D3D buffers
 // 
 // vertArray  - An array of vertices
@@ -35,34 +43,34 @@ Mesh::~Mesh() { }
 // numIndices - The number of indices in the index array
 // device     - The D3D device to use for buffer creation
 // --------------------------------------------------------
-void Mesh::CreateBuffers(Vertex* vertArray, int numVerts, unsigned int* indexArray, int numIndices, Microsoft::WRL::ComPtr<ID3D11Device> device)
+void Mesh::CreateBuffers(Vertex* vertArray, size_t numVerts, unsigned int* indexArray, size_t numIndices, Microsoft::WRL::ComPtr<ID3D11Device> device)
 {
 	// Create the vertex buffer
-	D3D11_BUFFER_DESC vbd;
-	vbd.Usage = D3D11_USAGE_IMMUTABLE;
-	vbd.ByteWidth = sizeof(Vertex) * numVerts; // Number of vertices
-	vbd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-	vbd.CPUAccessFlags = 0;
-	vbd.MiscFlags = 0;
+	D3D11_BUFFER_DESC vbd	= {};
+	vbd.Usage				= D3D11_USAGE_IMMUTABLE;
+	vbd.ByteWidth			= sizeof(Vertex) * (UINT)numVerts; // Number of vertices
+	vbd.BindFlags			= D3D11_BIND_VERTEX_BUFFER;
+	vbd.CPUAccessFlags		= 0;
+	vbd.MiscFlags			= 0;
 	vbd.StructureByteStride = 0;
-	D3D11_SUBRESOURCE_DATA initialVertexData;
+	D3D11_SUBRESOURCE_DATA initialVertexData = {};
 	initialVertexData.pSysMem = vertArray;
 	device->CreateBuffer(&vbd, &initialVertexData, vb.GetAddressOf());
 
 	// Create the index buffer
-	D3D11_BUFFER_DESC ibd;
-	ibd.Usage = D3D11_USAGE_IMMUTABLE;
-	ibd.ByteWidth = sizeof(unsigned int) * numIndices; // Number of indices
-	ibd.BindFlags = D3D11_BIND_INDEX_BUFFER;
-	ibd.CPUAccessFlags = 0;
-	ibd.MiscFlags = 0;
+	D3D11_BUFFER_DESC ibd	= {};
+	ibd.Usage				= D3D11_USAGE_IMMUTABLE;
+	ibd.ByteWidth			= sizeof(unsigned int) * (UINT)numIndices; // Number of indices
+	ibd.BindFlags			= D3D11_BIND_INDEX_BUFFER;
+	ibd.CPUAccessFlags		= 0;
+	ibd.MiscFlags			= 0;
 	ibd.StructureByteStride = 0;
-	D3D11_SUBRESOURCE_DATA initialIndexData;
+	D3D11_SUBRESOURCE_DATA initialIndexData = {};
 	initialIndexData.pSysMem = indexArray;
 	device->CreateBuffer(&ibd, &initialIndexData, ib.GetAddressOf());
 
 	// Save the indices
-	this->numIndices = numIndices;
+	this->numIndices = (unsigned int)numIndices;
 }
 
 

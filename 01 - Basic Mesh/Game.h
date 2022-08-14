@@ -6,6 +6,7 @@
 #include <vector>
 #include <DirectXMath.h>
 #include <wrl/client.h> // Used for ComPtr - a smart pointer for COM objects
+#include <memory>
 
 class Game 
 	: public DXCore
@@ -26,15 +27,11 @@ private:
 
 	// Initialization helper methods - feel free to customize, combine, etc.
 	void LoadShaders(); 
-	void CreateBasicGeometry();
+	void CreateGeometry();
 
 	// A vector to hold any number of meshes
 	// - This makes things easy to draw and clean up, too!
-	std::vector<Mesh*> meshes;
-
-	// Buffers to hold actual geometry data
-	Microsoft::WRL::ComPtr<ID3D11Buffer> vertexBuffer;
-	Microsoft::WRL::ComPtr<ID3D11Buffer> indexBuffer;
+	std::vector<std::shared_ptr<Mesh>> meshes;
 	
 	// Shaders and shader-related constructs
 	Microsoft::WRL::ComPtr<ID3D11PixelShader> pixelShader;
