@@ -90,7 +90,7 @@ float4 main(VertexToPixel input) : SV_TARGET
 	}
 
 	// Add emissive to the total light
-	float3 emissiveColor = EmissiveMap.Sample(BasicSampler, input.uv);
+	float3 emissiveColor = EmissiveMap.Sample(BasicSampler, input.uv).rgb;
 	totalLight += useEmissiveMap ? pow(emissiveColor.rgb, 2.2) : float3(0, 0, 0);
 
 	// Should have the complete light contribution at this point. 
