@@ -24,7 +24,7 @@ public:
 	void SetColorTint(DirectX::XMFLOAT3 tint);
 	void SetRoughness(float rough);
 
-	void PrepareMaterial(Transform* transform, Camera* camera);
+	void PrepareMaterial(Transform* transform, std::shared_ptr<Camera> camera);
 
 private:
 

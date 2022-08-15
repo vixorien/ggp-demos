@@ -29,22 +29,20 @@ public:
 private:
 
 	// Initialization helper methods - feel free to customize, combine, etc.
-	void LoadShaders(); 
-	void CreateBasicGeometry();
+	void LoadShaders();
+	void CreateGeometry();
 
 	// Camera for the 3D scene
-	Camera* camera;
+	std::shared_ptr<Camera> camera;
 
-	// A vector to hold any number of meshes
+	// A vector to hold entities
 	// - This makes things easy to draw and clean up, too!
-	std::vector<Mesh*> meshes;
-	std::vector<Material*> materials;
-	std::vector<GameEntity*> entities;
+	std::vector<std::shared_ptr<GameEntity>> entities;
 
 	// Shaders and shader-related constructs
-	SimplePixelShader* basicPixelShader;
-	SimplePixelShader* fancyPixelShader;
-	SimpleVertexShader* basicVertexShader;
+	std::shared_ptr<SimplePixelShader> basicPixelShader;
+	std::shared_ptr<SimplePixelShader> fancyPixelShader;
+	std::shared_ptr<SimpleVertexShader> basicVertexShader;
 
 };
 

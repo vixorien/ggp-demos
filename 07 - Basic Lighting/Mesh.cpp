@@ -14,7 +14,7 @@ using namespace DirectX;
 // numIndices - The number of indices in the index array
 // device     - The D3D device to use for buffer creation
 // --------------------------------------------------------
-Mesh::Mesh(Vertex* vertArray, int numVerts, unsigned int* indexArray, int numIndices, Microsoft::WRL::ComPtr<ID3D11Device> device)
+Mesh::Mesh(Vertex* vertArray, size_t numVerts, unsigned int* indexArray, size_t numIndices, Microsoft::WRL::ComPtr<ID3D11Device> device)
 {
 	CreateBuffers(vertArray, numVerts, indexArray, numIndices, device);
 }
@@ -26,8 +26,11 @@ Mesh::Mesh(Vertex* vertArray, int numVerts, unsigned int* indexArray, int numInd
 // objFile  - Path to the .obj 3D model file to load
 // device   - The D3D device to use for buffer creation
 // --------------------------------------------------------
-Mesh::Mesh(const char* objFile, Microsoft::WRL::ComPtr<ID3D11Device> device)
+Mesh::Mesh(const std::wstring& objFile, Microsoft::WRL::ComPtr<ID3D11Device> device)
 {
+	// Set indicies to 0 in the event the file reading fails
+	numIndices = 0;
+
 	// File input object
 	std::ifstream obj(objFile);
 
@@ -54,7 +57,7 @@ Mesh::Mesh(const char* objFile, Microsoft::WRL::ComPtr<ID3D11Device> device)
 		if (chars[0] == 'v' && chars[1] == 'n')
 		{
 			// Read the 3 numbers directly into an XMFLOAT3
-			XMFLOAT3 norm;
+			XMFLOAT3 norm = { 0, 0, 0 };
 			sscanf_s(
 				chars,
 				"vn %f %f %f",
@@ -66,7 +69,7 @@ Mesh::Mesh(const char* objFile, Microsoft::WRL::ComPtr<ID3D11Device> device)
 		else if (chars[0] == 'v' && chars[1] == 't')
 		{
 			// Read the 2 numbers directly into an XMFLOAT2
-			XMFLOAT2 uv;
+			XMFLOAT2 uv = { 0, 0 };
 			sscanf_s(
 				chars,
 				"vt %f %f",
@@ -78,7 +81,7 @@ Mesh::Mesh(const char* objFile, Microsoft::WRL::ComPtr<ID3D11Device> device)
 		else if (chars[0] == 'v')
 		{
 			// Read the 3 numbers directly into an XMFLOAT3
-			XMFLOAT3 pos;
+			XMFLOAT3 pos = { 0, 0, 0 };
 			sscanf_s(
 				chars,
 				"v %f %f %f",
@@ -94,7 +97,7 @@ Mesh::Mesh(const char* objFile, Microsoft::WRL::ComPtr<ID3D11Device> device)
 			//  vertex positions, uv coordinates AND normals.
 			//  If the model is missing any of these, this 
 			//  code will not handle the file correctly!
-			unsigned int i[12];
+			unsigned int i[12] = {};
 			int facesRead = sscanf_s(
 				chars,
 				"f %d/%d/%d %d/%d/%d %d/%d/%d %d/%d/%d",
@@ -107,20 +110,20 @@ Mesh::Mesh(const char* objFile, Microsoft::WRL::ComPtr<ID3D11Device> device)
 			//    corresponding data from vectors
 			// - OBJ File indices are 1-based, so
 			//    they need to be adusted
-			Vertex v1;
-			v1.Position = positions[i[0] - 1];
-			v1.UV = uvs[i[1] - 1];
-			v1.Normal = normals[i[2] - 1];
+			Vertex v1 = {};
+			v1.Position = positions[max(i[0] - 1, 0)];
+			v1.UV = uvs[max(i[1] - 1, 0)];
+			v1.Normal = normals[max(i[2] - 1, 0)];
 
-			Vertex v2;
-			v2.Position = positions[i[3] - 1];
-			v2.UV = uvs[i[4] - 1];
-			v2.Normal = normals[i[5] - 1];
+			Vertex v2 = {};
+			v2.Position = positions[max(i[3] - 1, 0)];
+			v2.UV = uvs[max(i[4] - 1, 0)];
+			v2.Normal = normals[max(i[5] - 1, 0)];
 
-			Vertex v3;
-			v3.Position = positions[i[6] - 1];
-			v3.UV = uvs[i[7] - 1];
-			v3.Normal = normals[i[8] - 1];
+			Vertex v3 = {};
+			v3.Position = positions[max(i[6] - 1, 0)];
+			v3.UV = uvs[max(i[7] - 1, 0)];
+			v3.Normal = normals[max(i[8] - 1, 0)];
 
 			// The model is most likely in a right-handed space,
 			// especially if it came from Maya.  We want to convert
@@ -162,10 +165,10 @@ Mesh::Mesh(const char* objFile, Microsoft::WRL::ComPtr<ID3D11Device> device)
 			if (facesRead == 12)
 			{
 				// Make the last vertex
-				Vertex v4;
-				v4.Position = positions[i[9] - 1];
-				v4.UV = uvs[i[10] - 1];
-				v4.Normal = normals[i[11] - 1];
+				Vertex v4 = {};
+				v4.Position = positions[max(i[9] - 1, 0)];
+				v4.UV = uvs[max(i[10] - 1, 0)];
+				v4.Normal = normals[max(i[11] - 1, 0)];
 
 				// Flip the UV, Z pos and normal
 				v4.UV.y = 1.0f - v4.UV.y;
@@ -200,6 +203,14 @@ Mesh::~Mesh() { }
 
 
 // --------------------------------------------------------
+// Getters for private variables
+// --------------------------------------------------------
+Microsoft::WRL::ComPtr<ID3D11Buffer> Mesh::GetVertexBuffer() { return vb; }
+Microsoft::WRL::ComPtr<ID3D11Buffer> Mesh::GetIndexBuffer() { return ib; }
+unsigned int Mesh::GetIndexCount() { return numIndices; }
+
+
+// --------------------------------------------------------
 // Helper for creating the actually D3D buffers
 // 
 // vertArray  - An array of vertices
@@ -208,34 +219,34 @@ Mesh::~Mesh() { }
 // numIndices - The number of indices in the index array
 // device     - The D3D device to use for buffer creation
 // --------------------------------------------------------
-void Mesh::CreateBuffers(Vertex* vertArray, int numVerts, unsigned int* indexArray, int numIndices, Microsoft::WRL::ComPtr<ID3D11Device> device)
+void Mesh::CreateBuffers(Vertex* vertArray, size_t numVerts, unsigned int* indexArray, size_t numIndices, Microsoft::WRL::ComPtr<ID3D11Device> device)
 {
 	// Create the vertex buffer
-	D3D11_BUFFER_DESC vbd;
+	D3D11_BUFFER_DESC vbd = {};
 	vbd.Usage = D3D11_USAGE_IMMUTABLE;
-	vbd.ByteWidth = sizeof(Vertex) * numVerts; // Number of vertices
+	vbd.ByteWidth = sizeof(Vertex) * (UINT)numVerts; // Number of vertices
 	vbd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
 	vbd.CPUAccessFlags = 0;
 	vbd.MiscFlags = 0;
 	vbd.StructureByteStride = 0;
-	D3D11_SUBRESOURCE_DATA initialVertexData;
+	D3D11_SUBRESOURCE_DATA initialVertexData = {};
 	initialVertexData.pSysMem = vertArray;
 	device->CreateBuffer(&vbd, &initialVertexData, vb.GetAddressOf());
 
 	// Create the index buffer
-	D3D11_BUFFER_DESC ibd;
+	D3D11_BUFFER_DESC ibd = {};
 	ibd.Usage = D3D11_USAGE_IMMUTABLE;
-	ibd.ByteWidth = sizeof(unsigned int) * numIndices; // Number of indices
+	ibd.ByteWidth = sizeof(unsigned int) * (UINT)numIndices; // Number of indices
 	ibd.BindFlags = D3D11_BIND_INDEX_BUFFER;
 	ibd.CPUAccessFlags = 0;
 	ibd.MiscFlags = 0;
 	ibd.StructureByteStride = 0;
-	D3D11_SUBRESOURCE_DATA initialIndexData;
+	D3D11_SUBRESOURCE_DATA initialIndexData = {};
 	initialIndexData.pSysMem = indexArray;
 	device->CreateBuffer(&ibd, &initialIndexData, ib.GetAddressOf());
 
 	// Save the indices
-	this->numIndices = numIndices;
+	this->numIndices = (unsigned int)numIndices;
 }
 
 

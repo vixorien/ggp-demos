@@ -19,7 +19,7 @@ void Material::SetVertexShader(std::shared_ptr<SimpleVertexShader> vs) { this->v
 void Material::SetColorTint(DirectX::XMFLOAT3 tint) { this->colorTint = tint; }
 void Material::SetRoughness(float rough) { roughness = rough; }
 
-void Material::PrepareMaterial(Transform* transform, Camera* camera)
+void Material::PrepareMaterial(Transform* transform, std::shared_ptr<Camera> camera)
 {
 	// Turn on these shaders
 	vs->SetShader();

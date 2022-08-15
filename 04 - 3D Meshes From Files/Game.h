@@ -28,16 +28,14 @@ private:
 
 	// Initialization helper methods - feel free to customize, combine, etc.
 	void LoadShaders(); 
-	void CreateBasicGeometry();
+	void CreateGeometry();
 
 	// Camera for the 3D scene
-	Camera* camera;
+	std::shared_ptr<Camera> camera;
 
-	// A vector to hold any number of meshes
+	// A vector to hold any number of entities
 	// - This makes things easy to draw and clean up, too!
-	std::vector<Mesh*> meshes;
-	std::vector<GameEntity*> entities;
-	
+	std::vector<std::shared_ptr<GameEntity>> entities;
 	
 	// Constant buffer to hold data being sent to variables in the vertex shader
 	// - This is a buffer on the GPU

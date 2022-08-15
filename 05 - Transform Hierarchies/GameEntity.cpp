@@ -3,25 +3,25 @@
 
 using namespace DirectX;
 
-GameEntity::GameEntity(Mesh* mesh) :
-	mesh(mesh)
+GameEntity::GameEntity(std::shared_ptr<Mesh> mesh)
+	: mesh(mesh)
 {
 }
 
-Mesh* GameEntity::GetMesh() { return mesh; }
-void GameEntity::SetMesh(Mesh* mesh) { this->mesh = mesh; } 
+std::shared_ptr<Mesh> GameEntity::GetMesh() { return mesh; }
+void GameEntity::SetMesh(std::shared_ptr<Mesh> mesh) { this->mesh = mesh; }
 
 Transform* GameEntity::GetTransform() { return &transform; }
 
 
-void GameEntity::Draw(Microsoft::WRL::ComPtr<ID3D11DeviceContext> context, Microsoft::WRL::ComPtr<ID3D11Buffer> vsConstantBuffer, Camera* camera)
+void GameEntity::Draw(Microsoft::WRL::ComPtr<ID3D11DeviceContext> context, Microsoft::WRL::ComPtr<ID3D11Buffer> vsConstantBuffer, std::shared_ptr<Camera> camera)
 {
 	// Create a place to collect the vertex shader data locally
 	//  - We need to do this because there is no built-in mechanism
 	//     for directly accessing cbuffer variables in GPU memory
 	//  - So, instead, we're filling up a struct that has the same
 	//     layout as the cbuffer, so we can copy it in one step
-	VertexShaderExternalData vsData;
+	VertexShaderExternalData vsData = {};
 	vsData.worldMatrix = transform.GetWorldMatrix();
 	vsData.viewMatrix = camera->GetView();
 	vsData.projectionMatrix = camera->GetProjection();

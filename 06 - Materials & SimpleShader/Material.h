@@ -3,6 +3,7 @@
 #include <d3d11.h>
 #include <wrl/client.h>
 #include <DirectXMath.h>
+#include <memory>
 
 #include "SimpleShader.h"
 #include "Camera.h"
@@ -11,22 +12,22 @@
 class Material
 {
 public:
-	Material(SimplePixelShader* ps, SimpleVertexShader* vs, DirectX::XMFLOAT3 tint);
+	Material(std::shared_ptr<SimplePixelShader> ps, std::shared_ptr<SimpleVertexShader> vs, DirectX::XMFLOAT3 tint);
 
-	SimplePixelShader* GetPixelShader();
-	SimpleVertexShader* GetVertexShader();
+	std::shared_ptr<SimplePixelShader> GetPixelShader();
+	std::shared_ptr<SimpleVertexShader> GetVertexShader();
 	DirectX::XMFLOAT3 GetColorTint();
 
-	void SetPixelShader(SimplePixelShader* ps);
-	void SetVertexShader(SimpleVertexShader* ps);
+	void SetPixelShader(std::shared_ptr<SimplePixelShader> ps);
+	void SetVertexShader(std::shared_ptr<SimpleVertexShader> ps);
 	void SetColorTint(DirectX::XMFLOAT3 tint);
 
-	void PrepareMaterial(Transform* transform, Camera* camera);
+	void PrepareMaterial(Transform* transform, std::shared_ptr<Camera> camera);
 
 private:
 
-	SimplePixelShader* ps;
-	SimpleVertexShader* vs;
+	std::shared_ptr<SimplePixelShader> ps;
+	std::shared_ptr<SimpleVertexShader> vs;
 	DirectX::XMFLOAT3 colorTint;
 };
 
