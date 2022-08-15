@@ -1,8 +1,9 @@
 #include "Assets.h"
+#include "Helpers.h"
 
 #define _SILENCE_EXPERIMENTAL_FILESYSTEM_DEPRECATION_WARNING
 #include <experimental/filesystem>
-// If using C++17, remove the "experimental" portion above and anywhere filesystem is used!
+// If using C++17, remove the L"experimental" portion above and anywhere filesystem is used!
 
 #include <DDSTextureLoader.h>
 #include <WICTextureLoader.h>
@@ -27,20 +28,22 @@ Assets::~Assets()
 // well as the root asset path to check for assets.  Note that shaders
 // are loaded from the executables path by default.
 // --------------------------------------------------------------------------
-void Assets::Initialize(std::string rootAssetPath, Microsoft::WRL::ComPtr<ID3D11Device> device, Microsoft::WRL::ComPtr<ID3D11DeviceContext> context, bool printLoadingProgress, bool allowOnDemandLoading)
+void Assets::Initialize(std::wstring rootAssetPath, std::wstring rootShaderPath, Microsoft::WRL::ComPtr<ID3D11Device> device, Microsoft::WRL::ComPtr<ID3D11DeviceContext> context, bool printLoadingProgress, bool allowOnDemandLoading)
 {
 	this->device = device;
 	this->context = context;
 	this->rootAssetPath = rootAssetPath;
+	this->rootShaderPath = rootShaderPath;
 	this->printLoadingProgress = printLoadingProgress;
 	this->allowOnDemandLoading = allowOnDemandLoading;
 
-	// Replace all "\\" with "/" to ease lookup later
+	// Replace all L"\\" with L"/" to ease lookup later
 	std::replace(this->rootAssetPath.begin(), this->rootAssetPath.end(), '\\', '/');
+	std::replace(this->rootShaderPath.begin(), this->rootShaderPath.end(), '\\', '/');
 
-	// Ensure the root path ends with a slash
-	if (!EndsWith(rootAssetPath, "/"))
-		rootAssetPath += "/";
+	// Ensure the root paths end with slashes
+	if (!EndsWith(rootAssetPath, L"/")) rootAssetPath += L"/";
+	if (!EndsWith(rootShaderPath, L"/")) rootShaderPath += L"/";
 }
 
 
@@ -56,48 +59,50 @@ void Assets::Initialize(std::string rootAssetPath, Microsoft::WRL::ComPtr<ID3D11
 // --------------------------------------------------------------------------
 void Assets::LoadAllAssets()
 {
-	if (rootAssetPath.empty())
-		return;
+	if (rootAssetPath.empty()) return;
+	if (rootShaderPath.empty()) return;
 	
 	// Recursively go through all directories starting at the root
-	for (auto& item : std::experimental::filesystem::recursive_directory_iterator(GetFullPathTo(rootAssetPath)))
+	for (auto& item : std::experimental::filesystem::recursive_directory_iterator(FixPath(rootAssetPath)))
 	{
 		// Is this a regular file?
 		if (item.status().type() == std::experimental::filesystem::file_type::regular)
 		{
-			std::string itemPath = item.path().string();
+			std::wstring itemPath = item.path().wstring();
 
-			// Replace all "\\" with "/" to ease lookup later
+			// Replace all L"\\" with L"/" to ease lookup later
 			std::replace(itemPath.begin(), itemPath.end(), '\\', '/');
 
 			// Determine the file type
-			if (EndsWith(itemPath, ".obj"))
+			if (EndsWith(itemPath, L".obj"))
 			{
 				LoadMesh(itemPath);
 			}
-			else if (EndsWith(itemPath, ".jpg") || EndsWith(itemPath, ".png"))
+			else if (EndsWith(itemPath, L".jpg") || EndsWith(itemPath, L".png"))
 			{
 				LoadTexture(itemPath);
 			}
-			else if (EndsWith(itemPath, ".dds"))
+			else if (EndsWith(itemPath, L".dds"))
 			{
 				LoadDDSTexture(itemPath);
 			}
-			else if (EndsWith(itemPath, ".spritefont"))
+			else if (EndsWith(itemPath, L".spritefont"))
 			{
 				LoadSpriteFont(itemPath);
 			}
 		}
 	}
 
-	// Search and load all shaders in the exe directory
-	for (auto& item : std::experimental::filesystem::directory_iterator(GetFullPathTo(".")))
+	// Search and load all shaders in the shader path
+	for (auto& item : std::experimental::filesystem::directory_iterator(FixPath(rootShaderPath)))
 	{
-		// Assume we're just using the filename for shaders due to being in the .exe path
-		std::string itemPath = item.path().filename().string();
+		std::wstring itemPath = item.path().wstring();
+
+		// Replace all L"\\" with L"/" to ease lookup later
+		std::replace(itemPath.begin(), itemPath.end(), '\\', '/');
 
 		// Is this a Compiled Shader Object?
-		if (EndsWith(itemPath, ".cso"))
+		if (EndsWith(itemPath, L".cso"))
 		{
 			LoadUnknownShader(itemPath);
 		}
@@ -113,11 +118,11 @@ void Assets::LoadAllAssets()
 //
 // Notes on file names:
 //  - Do include the path starting at the root asset path
-//  - Do use "/" as the folder separator
+//  - Do use L"/" as the folder separator
 //  - Do NOT include the file extension
-//  - Example: "Models/cube"
+//  - Example: L"Models/cube"
 // --------------------------------------------------------------------------
-std::shared_ptr<Mesh> Assets::GetMesh(std::string name)
+std::shared_ptr<Mesh> Assets::GetMesh(std::wstring name)
 {
 	// Search and return mesh if found
 	auto it = meshes.find(name);
@@ -128,7 +133,7 @@ std::shared_ptr<Mesh> Assets::GetMesh(std::string name)
 	if (allowOnDemandLoading)
 	{
 		// See if the file exists and attempt to load
-		std::string filePath = GetFullPathTo(rootAssetPath + name + ".obj");
+		std::wstring filePath = FixPath(rootAssetPath + name + L".obj");
 		if (std::experimental::filesystem::exists(filePath))
 		{
 			// Do the load now and return the result
@@ -148,11 +153,11 @@ std::shared_ptr<Mesh> Assets::GetMesh(std::string name)
 // 
 // Notes on file names:
 //  - Do include the path starting at the root asset path
-//  - Do use "/" as the folder separator
+//  - Do use L"/" as the folder separator
 //  - Do NOT include the file extension
-//  - Example: "Fonts/Arial12"
+//  - Example: L"Fonts/Arial12"
 // --------------------------------------------------------------------------
-std::shared_ptr<DirectX::SpriteFont> Assets::GetSpriteFont(std::string name)
+std::shared_ptr<DirectX::SpriteFont> Assets::GetSpriteFont(std::wstring name)
 {
 	// Search and return mesh if found
 	auto it = spriteFonts.find(name);
@@ -163,7 +168,7 @@ std::shared_ptr<DirectX::SpriteFont> Assets::GetSpriteFont(std::string name)
 	if (allowOnDemandLoading)
 	{
 		// See if the file exists and attempt to load
-		std::string filePath = GetFullPathTo(rootAssetPath + name + ".spritefont");
+		std::wstring filePath = FixPath(rootAssetPath + name + L".spritefont");
 		if (std::experimental::filesystem::exists(filePath))
 		{
 			// Do the load now and return the result
@@ -183,11 +188,11 @@ std::shared_ptr<DirectX::SpriteFont> Assets::GetSpriteFont(std::string name)
 // 
 // Notes on file names:
 //  - Do include the path starting at the root asset path
-//  - Do use "/" as the folder separator
+//  - Do use L"/" as the folder separator
 //  - Do NOT include the file extension
-//  - Example: "Textures/PBR/cobblestone_albedo"
+//  - Example: L"Textures/PBR/cobblestone_albedo"
 // --------------------------------------------------------------------------
-Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Assets::GetTexture(std::string name)
+Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Assets::GetTexture(std::wstring name)
 {
 	// Search and return texture if found
 	auto it = textures.find(name);
@@ -198,15 +203,15 @@ Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Assets::GetTexture(std::string 
 	if (allowOnDemandLoading)
 	{
 		// Is it a JPG?
-		std::string filePathJPG = GetFullPathTo(rootAssetPath + name + ".jpg");
+		std::wstring filePathJPG = FixPath(rootAssetPath + name + L".jpg");
 		if (std::experimental::filesystem::exists(filePathJPG)) { return LoadTexture(filePathJPG); }
 
 		// Is it a PNG?
-		std::string filePathPNG = GetFullPathTo(rootAssetPath + name + ".png");
+		std::wstring filePathPNG = FixPath(rootAssetPath + name + L".png");
 		if (std::experimental::filesystem::exists(filePathPNG)) { return LoadTexture(filePathPNG); }
 
 		// Is it a DDS?
-		std::string filePathDDS = GetFullPathTo(rootAssetPath + name + ".dds");
+		std::wstring filePathDDS = FixPath(rootAssetPath + name + L".dds");
 		if (std::experimental::filesystem::exists(filePathDDS)) { return LoadDDSTexture(filePathDDS); }
 	}
 
@@ -222,11 +227,11 @@ Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Assets::GetTexture(std::string 
 // 
 // Notes on file names:
 //  - Do NOT include the path, unless it is outside the executable's folder
-//  - Do use "/" as the folder separator
+//  - Do use L"/" as the folder separator
 //  - Do NOT include the file extension
-//  - Example: "SkyPS"
+//  - Example: L"SkyPS"
 // --------------------------------------------------------------------------
-std::shared_ptr<SimplePixelShader> Assets::GetPixelShader(std::string name)
+std::shared_ptr<SimplePixelShader> Assets::GetPixelShader(std::wstring name)
 {
 	// Search and return shader if found
 	auto it = pixelShaders.find(name);
@@ -237,8 +242,8 @@ std::shared_ptr<SimplePixelShader> Assets::GetPixelShader(std::string name)
 	if (allowOnDemandLoading)
 	{
 		// See if the file exists and attempt to load
-		std::string filePath = name + ".cso";
-		if (std::experimental::filesystem::exists(GetFullPathTo(filePath)))
+		std::wstring filePath = FixPath(rootShaderPath + name + L".cso");
+		if (std::experimental::filesystem::exists(filePath))
 		{
 			// Attempt to load the pixel shader and return it if successful
 			std::shared_ptr<SimplePixelShader> ps = LoadPixelShader(filePath);
@@ -258,11 +263,11 @@ std::shared_ptr<SimplePixelShader> Assets::GetPixelShader(std::string name)
 // 
 // Notes on file names:
 //  - Do NOT include the path, unless it is outside the executable's folder
-//  - Do use "/" as the folder separator
+//  - Do use L"/" as the folder separator
 //  - Do NOT include the file extension
-//  - Example: "SkyVS"
+//  - Example: L"SkyVS"
 // --------------------------------------------------------------------------
-std::shared_ptr<SimpleVertexShader> Assets::GetVertexShader(std::string name)
+std::shared_ptr<SimpleVertexShader> Assets::GetVertexShader(std::wstring name)
 {
 	// Search and return shader if found
 	auto it = vertexShaders.find(name);
@@ -273,8 +278,8 @@ std::shared_ptr<SimpleVertexShader> Assets::GetVertexShader(std::string name)
 	if (allowOnDemandLoading)
 	{
 		// See if the file exists and attempt to load
-		std::string filePath = name + ".cso";
-		if (std::experimental::filesystem::exists(GetFullPathTo(filePath)))
+		std::wstring filePath = FixPath(rootShaderPath + name + L".cso");
+		if (std::experimental::filesystem::exists(filePath))
 		{
 			// Attempt to load the pixel shader and return it if successful
 			std::shared_ptr<SimpleVertexShader> vs = LoadVertexShader(filePath);
@@ -293,7 +298,7 @@ std::shared_ptr<SimpleVertexShader> Assets::GetVertexShader(std::string name)
 // Note: The asset manager will clean up (delete) this mesh at shut down.
 // Make sure you're not also deleting it yourself later.
 // --------------------------------------------------------------------------
-void Assets::AddMesh(std::string name, std::shared_ptr<Mesh> mesh)
+void Assets::AddMesh(std::wstring name, std::shared_ptr<Mesh> mesh)
 {
 	meshes.insert({ name, mesh });
 }
@@ -302,7 +307,7 @@ void Assets::AddMesh(std::string name, std::shared_ptr<Mesh> mesh)
 // --------------------------------------------------------------------------
 // Adds an existing sprite font to the asset manager.
 // --------------------------------------------------------------------------
-void Assets::AddSpriteFont(std::string name, std::shared_ptr<DirectX::SpriteFont> font)
+void Assets::AddSpriteFont(std::wstring name, std::shared_ptr<DirectX::SpriteFont> font)
 {
 	spriteFonts.insert({ name, font });
 }
@@ -311,7 +316,7 @@ void Assets::AddSpriteFont(std::string name, std::shared_ptr<DirectX::SpriteFont
 // --------------------------------------------------------------------------
 // Adds an existing pixel shader to the asset manager.
 // --------------------------------------------------------------------------
-void Assets::AddPixelShader(std::string name, std::shared_ptr<SimplePixelShader> ps)
+void Assets::AddPixelShader(std::wstring name, std::shared_ptr<SimplePixelShader> ps)
 {
 	pixelShaders.insert({ name, ps });
 }
@@ -320,7 +325,7 @@ void Assets::AddPixelShader(std::string name, std::shared_ptr<SimplePixelShader>
 // --------------------------------------------------------------------------
 // Adds an existing vertex shader to the asset manager.
 // --------------------------------------------------------------------------
-void Assets::AddVertexShader(std::string name, std::shared_ptr<SimpleVertexShader> vs)
+void Assets::AddVertexShader(std::wstring name, std::shared_ptr<SimpleVertexShader> vs)
 {
 	vertexShaders.insert({ name, vs });
 }
@@ -329,7 +334,7 @@ void Assets::AddVertexShader(std::string name, std::shared_ptr<SimpleVertexShade
 // --------------------------------------------------------------------------
 // Adds an existing texture to the asset manager.
 // --------------------------------------------------------------------------
-void Assets::AddTexture(std::string name, Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> texture)
+void Assets::AddTexture(std::wstring name, Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> texture)
 {
 	textures.insert({ name, texture });
 }
@@ -349,17 +354,17 @@ unsigned int Assets::GetTextureCount() { return (unsigned int)textures.size(); }
 // --------------------------------------------------------------------------
 // Private helper for loading a mesh from an .obj file
 // --------------------------------------------------------------------------
-std::shared_ptr<Mesh> Assets::LoadMesh(std::string path)
+std::shared_ptr<Mesh> Assets::LoadMesh(std::wstring path)
 {
 	// Strip out everything before and including the asset root path
 	size_t assetPathLength = rootAssetPath.size();
 	size_t assetPathPosition = path.rfind(rootAssetPath);
-	std::string filename = path.substr(assetPathPosition + assetPathLength);
+	std::wstring filename = path.substr(assetPathPosition + assetPathLength);
 
 	if (printLoadingProgress)
 	{
 		printf("Loading mesh: ");
-		printf(filename.c_str());
+		wprintf(filename.c_str());
 		printf("\n");
 	}
 
@@ -378,22 +383,22 @@ std::shared_ptr<Mesh> Assets::LoadMesh(std::string path)
 // --------------------------------------------------------------------------
 // Private helper for loading a .spritefont file
 // --------------------------------------------------------------------------
-std::shared_ptr<DirectX::SpriteFont> Assets::LoadSpriteFont(std::string path)
+std::shared_ptr<DirectX::SpriteFont> Assets::LoadSpriteFont(std::wstring path)
 {
 	// Strip out everything before and including the asset root path
 	size_t assetPathLength = rootAssetPath.size();
 	size_t assetPathPosition = path.rfind(rootAssetPath);
-	std::string filename = path.substr(assetPathPosition + assetPathLength);
+	std::wstring filename = path.substr(assetPathPosition + assetPathLength);
 
 	if (printLoadingProgress)
 	{
 		printf("Loading sprite font: ");
-		printf(filename.c_str());
+		wprintf(filename.c_str());
 		printf("\n");
 	}
 
 	// Load the mesh
-	std::shared_ptr<DirectX::SpriteFont> font = std::make_shared<DirectX::SpriteFont>(device.Get(), ToWideString(path).c_str());
+	std::shared_ptr<DirectX::SpriteFont> font = std::make_shared<DirectX::SpriteFont>(device.Get(), path.c_str());
 
 	// Remove the file extension the end of the filename before using as a key
 	filename = RemoveFileExtension(filename);
@@ -408,23 +413,23 @@ std::shared_ptr<DirectX::SpriteFont> Assets::LoadSpriteFont(std::string path)
 // --------------------------------------------------------------------------
 // Private helper for loading a standard BMP/PNG/JPG/TIF texture
 // --------------------------------------------------------------------------
-Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Assets::LoadTexture(std::string path)
+Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Assets::LoadTexture(std::wstring path)
 {
 	// Strip out everything before and including the asset root path
 	size_t assetPathLength = rootAssetPath.size();
 	size_t assetPathPosition = path.rfind(rootAssetPath);
-	std::string filename = path.substr(assetPathPosition + assetPathLength);
+	std::wstring filename = path.substr(assetPathPosition + assetPathLength);
 
 	if (printLoadingProgress)
 	{
 		printf("Loading texture: ");
-		printf(filename.c_str());
+		wprintf(filename.c_str());
 		printf("\n");
 	}
 
 	// Load the texture
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> srv;
-	DirectX::CreateWICTextureFromFile(device.Get(), context.Get(), ToWideString(path).c_str(), 0, srv.GetAddressOf());
+	DirectX::CreateWICTextureFromFile(device.Get(), context.Get(), path.c_str(), 0, srv.GetAddressOf());
 
 	// Remove the file extension the end of the filename before using as a key
 	filename = RemoveFileExtension(filename);
@@ -439,23 +444,23 @@ Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Assets::LoadTexture(std::string
 // --------------------------------------------------------------------------
 // Private helper for loading a DDS texture
 // --------------------------------------------------------------------------
-Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Assets::LoadDDSTexture(std::string path)
+Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Assets::LoadDDSTexture(std::wstring path)
 {
 	// Strip out everything before and including the asset root path
 	size_t assetPathLength = rootAssetPath.size();
 	size_t assetPathPosition = path.rfind(rootAssetPath);
-	std::string filename = path.substr(assetPathPosition + assetPathLength);
+	std::wstring filename = path.substr(assetPathPosition + assetPathLength);
 
 	if (printLoadingProgress)
 	{
 		printf("Loading texture: ");
-		printf(filename.c_str());
+		wprintf(filename.c_str());
 		printf("\n");
 	}
 
 	// Load the texture
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> srv;
-	DirectX::CreateDDSTextureFromFile(device.Get(), context.Get(), ToWideString(path).c_str(), 0, srv.GetAddressOf());
+	DirectX::CreateDDSTextureFromFile(device.Get(), context.Get(), path.c_str(), 0, srv.GetAddressOf());
 
 	// Remove the file extension the end of the filename before using as a key
 	filename = RemoveFileExtension(filename);
@@ -470,11 +475,11 @@ Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Assets::LoadDDSTexture(std::str
 // Private helper for loading a compiled shader object (.cso) of unknown type.
 // Currently, this supports vertex and pixel shaders
 // --------------------------------------------------------------------------
-void Assets::LoadUnknownShader(std::string path)
+void Assets::LoadUnknownShader(std::wstring path)
 {
 	// Load the file into a blob
 	Microsoft::WRL::ComPtr<ID3DBlob> shaderBlob;
-	if (D3DReadFileToBlob(GetFullPathTo_Wide(ToWideString(path)).c_str(), shaderBlob.GetAddressOf()) != S_OK)
+	if (D3DReadFileToBlob(path.c_str(), shaderBlob.GetAddressOf()) != S_OK)
 		return;
 
 	// Set up shader reflection to get information about
@@ -503,24 +508,17 @@ void Assets::LoadUnknownShader(std::string path)
 // --------------------------------------------------------------------------
 // Private helper for loading a pixel shader from a .cso file
 // --------------------------------------------------------------------------
-std::shared_ptr<SimplePixelShader> Assets::LoadPixelShader(std::string path, bool useAssetPath)
+std::shared_ptr<SimplePixelShader> Assets::LoadPixelShader(std::wstring path)
 {
-	// Assuming filename and path are the same
-	std::string filename = path;
-
-	// Unless we need to check asset folder
-	if (useAssetPath)
-	{
-		// Strip out everything before and including the asset root path
-		size_t assetPathLength = rootAssetPath.size();
-		size_t assetPathPosition = path.rfind(rootAssetPath);
-		filename = path.substr(assetPathPosition + assetPathLength);
-	}
+	// Strip out everything before and including the asset root path
+	size_t shaderPathLength = rootShaderPath.size();
+	size_t shaderPathPosition = path.rfind(rootShaderPath);
+	std::wstring filename = path.substr(shaderPathPosition + shaderPathLength);
 
 	if (printLoadingProgress)
 	{
 		printf("Loading pixel shader: ");
-		printf(filename.c_str());
+		wprintf(filename.c_str());
 		printf("\n");
 	}
 
@@ -528,7 +526,7 @@ std::shared_ptr<SimplePixelShader> Assets::LoadPixelShader(std::string path, boo
 	filename = RemoveFileExtension(filename);
 
 	// Create the simple shader and verify it actually worked
-	std::shared_ptr<SimplePixelShader> ps = std::make_shared<SimplePixelShader>(device, context, GetFullPathTo_Wide(ToWideString(path)).c_str());
+	std::shared_ptr<SimplePixelShader> ps = std::make_shared<SimplePixelShader>(device, context, path.c_str());
 	if (!ps->IsShaderValid()) { return 0; }
 
 	// Success
@@ -541,24 +539,17 @@ std::shared_ptr<SimplePixelShader> Assets::LoadPixelShader(std::string path, boo
 // --------------------------------------------------------------------------
 // Private helper for loading a vertex shader from a .cso file
 // --------------------------------------------------------------------------
-std::shared_ptr<SimpleVertexShader> Assets::LoadVertexShader(std::string path, bool useAssetPath)
+std::shared_ptr<SimpleVertexShader> Assets::LoadVertexShader(std::wstring path)
 {
-	// Assuming filename and path are the same
-	std::string filename = path;
-
-	// Unless we need to check asset folder
-	if (useAssetPath)
-	{
-		// Strip out everything before and including the asset root path
-		size_t assetPathLength = rootAssetPath.size();
-		size_t assetPathPosition = path.rfind(rootAssetPath);
-		filename = path.substr(assetPathPosition + assetPathLength);
-	}
+	// Strip out everything before and including the asset root path
+	size_t shaderPathLength = rootShaderPath.size();
+	size_t shaderPathPosition = path.rfind(rootShaderPath);
+	std::wstring filename = path.substr(shaderPathPosition + shaderPathLength);
 
 	if (printLoadingProgress)
 	{
 		printf("Loading vertex shader: ");
-		printf(filename.c_str());
+		wprintf(filename.c_str());
 		printf("\n");
 	}
 
@@ -566,7 +557,7 @@ std::shared_ptr<SimpleVertexShader> Assets::LoadVertexShader(std::string path, b
 	filename = RemoveFileExtension(filename);
 
 	// Create the simple shader and verify it actually worked
-	std::shared_ptr<SimpleVertexShader> vs = std::make_shared<SimpleVertexShader>(device, context, GetFullPathTo_Wide(ToWideString(path)).c_str());
+	std::shared_ptr<SimpleVertexShader> vs = std::make_shared<SimpleVertexShader>(device, context, path.c_str());
 	if (!vs->IsShaderValid()) { return 0; }
 
 	// Success
@@ -587,7 +578,7 @@ std::shared_ptr<SimpleVertexShader> Assets::LoadVertexShader(std::string path, b
 // height - height of the texture
 // color - color for each pixel of the texture
 // --------------------------------------------------------------------------
-Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Assets::CreateSolidColorTexture(std::string textureName, int width, int height, DirectX::XMFLOAT4 color)
+Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Assets::CreateSolidColorTexture(std::wstring textureName, int width, int height, DirectX::XMFLOAT4 color)
 {
 	// Valid size?
 	if (width <= 0 || height <= 0)
@@ -621,7 +612,7 @@ Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Assets::CreateSolidColorTexture
 // height - height of the texture
 // pixels - color array for each pixel of the texture
 // --------------------------------------------------------------------------
-Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Assets::CreateTexture(std::string textureName, int width, int height, DirectX::XMFLOAT4* pixels)
+Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Assets::CreateTexture(std::wstring textureName, int width, int height, DirectX::XMFLOAT4* pixels)
 {
 	// Valid size?
 	if (width <= 0 || height <= 0)
@@ -690,7 +681,7 @@ Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Assets::CreateTexture(std::stri
 // height - height of the texture
 // pixels - color array for each pixel of the texture
 // --------------------------------------------------------------------------
-Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Assets::CreateFloatTexture(std::string textureName, int width, int height, DirectX::XMFLOAT4* pixels)
+Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Assets::CreateFloatTexture(std::wstring textureName, int width, int height, DirectX::XMFLOAT4* pixels)
 {
 	// Valid size?
 	if (width <= 0 || height <= 0)
@@ -733,109 +724,12 @@ Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Assets::CreateFloatTexture(std:
 }
 
 
-// --------------------------------------------------------------------------
-// Gets the actual path to this executable
-//
-// - As it turns out, the relative path for a program is different when 
-//    running through VS and when running the .exe directly, which makes 
-//    it a pain to properly load files external files (like textures)
-//    - Running through VS: Current Dir is the *project folder*
-//    - Running from .exe:  Current Dir is the .exe's folder
-// - This has nothing to do with DEBUG and RELEASE modes - it's purely a 
-//    Visual Studio "thing", and isn't obvious unless you know to look 
-//    for it.  In fact, it could be fixed by changing a setting in VS, but
-//    the option is stored in a user file (.suo), which is ignored by most
-//    version control packages by default.  Meaning: the option must be
-//    changed every on every PC.  Ugh.  So instead, here's a helper.
-// --------------------------------------------------------------------------
-std::string Assets::GetExePath()
-{
-	// Assume the path is just the "current directory" for now
-	std::string path = ".\\";
-
-	// Get the real, full path to this executable
-	char currentDir[1024] = {};
-	GetModuleFileName(0, currentDir, 1024);
-
-	// Find the location of the last slash charaacter
-	char* lastSlash = strrchr(currentDir, '\\');
-	if (lastSlash)
-	{
-		// End the string at the last slash character, essentially
-		// chopping off the exe's file name.  Remember, c-strings
-		// are null-terminated, so putting a "zero" character in 
-		// there simply denotes the end of the string.
-		*lastSlash = 0;
-
-		// Set the remainder as the path
-		path = currentDir;
-	}
-
-	// Toss back whatever we've found
-	return path;
-}
-
-
-// ---------------------------------------------------
-//  Same as GetExePath(), except it returns a wide character
-//  string, which most of the Windows API requires.
-// ---------------------------------------------------
-std::wstring Assets::GetExePath_Wide()
-{
-	// Grab the path as a standard string
-	std::string path = GetExePath();
-
-	// Convert to a wide string
-	wchar_t widePath[1024] = {};
-	mbstowcs_s(0, widePath, path.c_str(), 1024);
-
-	// Create a wstring for it and return
-	return std::wstring(widePath);
-}
-
-
-// ----------------------------------------------------
-//  Gets the full path to a given file.  NOTE: This does 
-//  NOT "find" the file, it simply concatenates the given
-//  relative file path onto the executable's path
-// ----------------------------------------------------
-std::string Assets::GetFullPathTo(std::string relativeFilePath)
-{
-	return GetExePath() + "\\" + relativeFilePath;
-}
-
-
-
-// ----------------------------------------------------
-//  Same as GetFullPathTo, but with wide char strings.
-// 
-//  Gets the full path to a given file.  NOTE: This does 
-//  NOT "find" the file, it simply concatenates the given
-//  relative file path onto the executable's path
-// ----------------------------------------------------
-std::wstring Assets::GetFullPathTo_Wide(std::wstring relativeFilePath)
-{
-	return GetExePath_Wide() + L"\\" + relativeFilePath;
-}
-
-
 // ----------------------------------------------------
 // Determines if the given string ends with the given ending
 // ----------------------------------------------------
-bool Assets::EndsWith(std::string str, std::string ending)
+bool Assets::EndsWith(std::wstring str, std::wstring ending)
 {
 	return std::equal(ending.rbegin(), ending.rend(), str.rbegin());
-}
-
-
-
-// ----------------------------------------------------
-// Converts a standard string to a wide character string
-// ----------------------------------------------------
-std::wstring Assets::ToWideString(std::string str)
-{
-	std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-	return converter.from_bytes(str);
 }
 
 
@@ -843,7 +737,7 @@ std::wstring Assets::ToWideString(std::string str)
 // Remove the file extension by searching for the last 
 // period character and removing everything afterwards
 // ----------------------------------------------------
-std::string Assets::RemoveFileExtension(std::string str)
+std::wstring Assets::RemoveFileExtension(std::wstring str)
 {
 	size_t found = str.find_last_of('.');
 	return str.substr(0, found);
