@@ -46,19 +46,16 @@ private:
 	void DrawUI();
 
 	// Camera for the 3D scene
-	Camera* camera;
+	std::shared_ptr<Camera> camera;
 
 	// The sky box
-	Sky* sky;
+	std::shared_ptr<Sky> sky;
 
-	// A vector to hold any number of meshes
-	// - This makes things easy to draw and clean up, too!
-	std::vector<Mesh*> meshes;
-	std::vector<Material*> materials;
-	std::vector<GameEntity*>* currentScene;
-	std::vector<GameEntity*> entitiesRandom;
-	std::vector<GameEntity*> entitiesLineup;
-	std::vector<GameEntity*> entitiesGradient;
+	// Storage for scene data
+	std::vector<std::shared_ptr<GameEntity>> entitiesRandom;
+	std::vector<std::shared_ptr<GameEntity>> entitiesLineup;
+	std::vector<std::shared_ptr<GameEntity>> entitiesGradient;
+	std::vector<std::shared_ptr<GameEntity>>* currentScene;
 
 	// Lights
 	std::vector<Light> lights;
@@ -72,7 +69,7 @@ private:
 	bool usePBR;
 	bool freezeLightMovement;
 	bool drawLights;
-	Mesh* lightMesh;
+	std::shared_ptr<Mesh> lightMesh;
 
 	// Shaders (for shader swapping between pbr and non-pbr)
 	std::shared_ptr<SimplePixelShader> pixelShader;

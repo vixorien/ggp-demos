@@ -37,17 +37,14 @@ private:
 	void LoadAssetsAndCreateEntities();
 
 	// Camera for the 3D scene
-	Camera* camera;
+	std::shared_ptr<Camera> camera;
 
 	// The sky box
-	Sky* sky;
+	std::shared_ptr<Sky> sky;
 	bool skyEnabled;
 
-	// A vector to hold any number of meshes
-	// - This makes things easy to draw and clean up, too!
-	std::vector<Mesh*> meshes;
-	std::vector<Material*> materials;
-	std::vector<GameEntity*> entities;
+	// Storage for scene data
+	std::vector<std::shared_ptr<GameEntity>> entities;
 	std::vector<Light> lights;
 	DirectX::XMFLOAT3 ambientColor;
 

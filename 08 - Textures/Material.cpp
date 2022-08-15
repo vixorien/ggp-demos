@@ -82,7 +82,7 @@ void Material::RemoveSampler(std::string name)
 }
 
 
-void Material::PrepareMaterial(Transform* transform, Camera* camera)
+void Material::PrepareMaterial(Transform* transform, std::shared_ptr<Camera> camera)
 {
 	// Turn on these shaders
 	vs->SetShader();

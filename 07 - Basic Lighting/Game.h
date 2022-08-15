@@ -35,8 +35,7 @@ private:
 	// Camera for the 3D scene
 	std::shared_ptr<Camera> camera;
 
-	// A vector to hold any number of meshes
-	// - This makes things easy to draw and clean up, too!
+	// Storage for scene data
 	std::vector<std::shared_ptr<GameEntity>> entities;
 	std::vector<Light> lights;
 	DirectX::XMFLOAT3 ambientColor;

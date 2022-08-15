@@ -2,6 +2,7 @@
 
 #include <d3d11.h>
 #include <wrl/client.h>
+#include <string>
 
 #include "Vertex.h"
 
@@ -9,14 +10,14 @@
 class Mesh
 {
 public:
-	Mesh(Vertex* vertArray, int numVerts, unsigned int* indexArray, int numIndices, Microsoft::WRL::ComPtr<ID3D11Device> device);
-	Mesh(const char* objFile, Microsoft::WRL::ComPtr<ID3D11Device> device);
+	Mesh(Vertex* vertArray, size_t numVerts, unsigned int* indexArray, size_t numIndices, Microsoft::WRL::ComPtr<ID3D11Device> device);
+	Mesh(const std::wstring& objFile, Microsoft::WRL::ComPtr<ID3D11Device> device);
 	~Mesh();
 
 	// Getters for mesh data
-	Microsoft::WRL::ComPtr<ID3D11Buffer> GetVertexBuffer() { return vb; }
-	Microsoft::WRL::ComPtr<ID3D11Buffer> GetIndexBuffer() { return ib; }
-	int GetIndexCount() { return numIndices; }
+	Microsoft::WRL::ComPtr<ID3D11Buffer> GetVertexBuffer();
+	Microsoft::WRL::ComPtr<ID3D11Buffer> GetIndexBuffer();
+	unsigned int GetIndexCount();
 
 	// Basic mesh drawing
 	void SetBuffersAndDraw(Microsoft::WRL::ComPtr<ID3D11DeviceContext> context);
@@ -27,10 +28,9 @@ private:
 	Microsoft::WRL::ComPtr<ID3D11Buffer> ib;
 
 	// Total indices in this mesh
-	int numIndices;
+	unsigned int numIndices;
 
 	// Helper for creating buffers (in the event we add more constructor overloads)
-	void CreateBuffers(Vertex* vertArray, int numVerts, unsigned int* indexArray, int numIndices, Microsoft::WRL::ComPtr<ID3D11Device> device);
+	void CreateBuffers(Vertex* vertArray, size_t numVerts, unsigned int* indexArray, size_t numIndices, Microsoft::WRL::ComPtr<ID3D11Device> device);
 
 };
-

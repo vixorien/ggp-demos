@@ -1,6 +1,7 @@
 #include "Game.h"
 #include "Vertex.h"
 #include "Input.h"
+#include "Helpers.h"
 
 #include "WICTextureLoader.h"
 
@@ -21,12 +22,12 @@ using namespace DirectX;
 // --------------------------------------------------------
 Game::Game(HINSTANCE hInstance)
 	: DXCore(
-		hInstance,		   // The application's handle
-		"DirectX Game",	   // Text for the window's title bar
-		1280,			   // Width of the window's client area
-		720,			   // Height of the window's client area
-		true),			   // Show extra stats (fps) in title bar?
-	camera(0),
+		hInstance,			// The application's handle
+		L"DirectX Game",	// Text for the window's title bar (as a wide-character string)
+		1280,				// Width of the window's client area
+		720,				// Height of the window's client area
+		false,				// Sync the framerate to the monitor refresh? (lock framerate)
+		true),				// Show extra stats (fps) in title bar?
 	ambientColor(0.1f, 0.1f, 0.25f)
 {
 
@@ -45,13 +46,12 @@ Game::Game(HINSTANCE hInstance)
 // --------------------------------------------------------
 Game::~Game()
 {
-	// Since we've created the Mesh objects within this class (Game),
-	// this is also where we should delete them!
-	for (auto& m : meshes) { delete m; }
-	for (auto& e : entities) { delete e; }
-	for (auto& m : materials) { delete m; }
+	// Call delete or delete[] on any objects or arrays you've
+	// created using new or new[] within this class
+	// - Note: this is unnecessary if using smart pointers
 
-	delete camera;
+	// Call Release() on any Direct3D objects made within this class
+	// - Note: this is unnecessary for D3D objects stored in ComPtrs
 }
 
 // --------------------------------------------------------
@@ -62,13 +62,25 @@ void Game::Init()
 {
 	LoadAssetsAndCreateEntities();
 	
-	// Tell the input assembler stage of the pipeline what kind of
-	// geometric primitives (points, lines or triangles) we want to draw.  
-	// Essentially: "What kind of shape should the GPU draw with our data?"
-	context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	// Set initial graphics API state
+		//  - These settings persist until we change them
+	{
+		// Tell the input assembler (IA) stage of the pipeline what kind of
+		// geometric primitives (points, lines or triangles) we want to draw.  
+		// Essentially: "What kind of shape should the GPU draw with our vertices?"
+		context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	}
 
 	// Create the camera
-	camera = new Camera(0, 0, -15, 5.0f, 5.0f, XM_PIDIV4, (float)width / height, 0.01f, 100.0f, CameraProjectionType::Perspective);
+	camera = std::make_shared<Camera>(
+		0.0f, 0.0f, -15.0f,	// Position
+		5.0f,				// Move speed
+		5.0f,				// Look speed
+		XM_PIDIV4,			// Field of view
+		(float)windowWidth / windowHeight,  // Aspect ratio
+		0.01f,				// Near clip
+		100.0f,				// Far clip
+		CameraProjectionType::Perspective);
 }
 
 
@@ -96,62 +108,51 @@ void Game::LoadAssetsAndCreateEntities()
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> cobblestoneSRV;
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> cobblestoneSpecularSRV;
 
-	CreateWICTextureFromFile(device.Get(), context.Get(), GetFullPathTo_Wide(L"../../../Assets/Textures/brokentiles.png").c_str(), 0, brokenTilesSRV.GetAddressOf());
-	CreateWICTextureFromFile(device.Get(), context.Get(), GetFullPathTo_Wide(L"../../../Assets/Textures/brokentiles_specular.png").c_str(), 0, brokenTilesSpecularSRV.GetAddressOf());
-	CreateWICTextureFromFile(device.Get(), context.Get(), GetFullPathTo_Wide(L"../../../Assets/Textures/tiles.png").c_str(), 0, tilesSRV.GetAddressOf());
-	CreateWICTextureFromFile(device.Get(), context.Get(), GetFullPathTo_Wide(L"../../../Assets/Textures/tiles_specular.png").c_str(), 0, tilesSpecularSRV.GetAddressOf());
-	CreateWICTextureFromFile(device.Get(), context.Get(), GetFullPathTo_Wide(L"../../../Assets/Textures/cobblestone.png").c_str(), 0, cobblestoneSRV.GetAddressOf());
-	CreateWICTextureFromFile(device.Get(), context.Get(), GetFullPathTo_Wide(L"../../../Assets/Textures/cobblestone_specular.png").c_str(), 0, cobblestoneSpecularSRV.GetAddressOf());
+	CreateWICTextureFromFile(device.Get(), context.Get(), FixPath(L"../../../Assets/Textures/brokentiles.png").c_str(), 0, brokenTilesSRV.GetAddressOf());
+	CreateWICTextureFromFile(device.Get(), context.Get(), FixPath(L"../../../Assets/Textures/brokentiles_specular.png").c_str(), 0, brokenTilesSpecularSRV.GetAddressOf());
+	CreateWICTextureFromFile(device.Get(), context.Get(), FixPath(L"../../../Assets/Textures/tiles.png").c_str(), 0, tilesSRV.GetAddressOf());
+	CreateWICTextureFromFile(device.Get(), context.Get(), FixPath(L"../../../Assets/Textures/tiles_specular.png").c_str(), 0, tilesSpecularSRV.GetAddressOf());
+	CreateWICTextureFromFile(device.Get(), context.Get(), FixPath(L"../../../Assets/Textures/cobblestone.png").c_str(), 0, cobblestoneSRV.GetAddressOf());
+	CreateWICTextureFromFile(device.Get(), context.Get(), FixPath(L"../../../Assets/Textures/cobblestone_specular.png").c_str(), 0, cobblestoneSpecularSRV.GetAddressOf());
 
 
 	// Load shaders and create materials
-	std::shared_ptr<SimpleVertexShader> basicVertexShader = std::make_shared<SimpleVertexShader>(device, context, GetFullPathTo_Wide(L"VertexShader.cso").c_str());
-	std::shared_ptr<SimplePixelShader> basicPixelShader = std::make_shared<SimplePixelShader>(device, context, GetFullPathTo_Wide(L"PixelShader.cso").c_str());
+	std::shared_ptr<SimpleVertexShader> basicVertexShader = std::make_shared<SimpleVertexShader>(device, context, FixPath(L"VertexShader.cso").c_str());
+	std::shared_ptr<SimplePixelShader> basicPixelShader = std::make_shared<SimplePixelShader>(device, context, FixPath(L"PixelShader.cso").c_str());
 
 	// Create several different materials
-	Material* matTiles = new Material(basicPixelShader, basicVertexShader, XMFLOAT3(1, 1, 1), 0.0f, XMFLOAT2(5, 5));
+	std::shared_ptr<Material> matTiles = std::make_shared<Material>(basicPixelShader, basicVertexShader, XMFLOAT3(1, 1, 1), 0.0f, XMFLOAT2(5, 5));
 	matTiles->AddSampler("BasicSampler", sampler);
 	matTiles->AddTextureSRV("SurfaceTexture", tilesSRV);
 	matTiles->AddTextureSRV("SpecularMap", tilesSpecularSRV);
-	materials.push_back(matTiles);
 	
-	Material* matBrokenTiles = new Material(basicPixelShader, basicVertexShader, XMFLOAT3(1, 1, 1), 0.0f, XMFLOAT2(2, 2));
+	std::shared_ptr<Material> matBrokenTiles = std::make_shared<Material>(basicPixelShader, basicVertexShader, XMFLOAT3(1, 1, 1), 0.0f, XMFLOAT2(2, 2));
 	matBrokenTiles->AddSampler("BasicSampler", sampler);
 	matBrokenTiles->AddTextureSRV("SurfaceTexture", brokenTilesSRV);
 	matBrokenTiles->AddTextureSRV("SpecularMap", brokenTilesSpecularSRV);
-	materials.push_back(matBrokenTiles);
 
-	Material* matCobblestone = new Material(basicPixelShader, basicVertexShader, XMFLOAT3(1, 1, 1), 0.0f);
+	std::shared_ptr<Material> matCobblestone = std::make_shared<Material>(basicPixelShader, basicVertexShader, XMFLOAT3(1, 1, 1), 0.0f);
 	matCobblestone->AddSampler("BasicSampler", sampler);
 	matCobblestone->AddTextureSRV("SurfaceTexture", cobblestoneSRV);
 	matCobblestone->AddTextureSRV("SpecularMap", cobblestoneSpecularSRV);
-	materials.push_back(matCobblestone);
 
 	// Load 3D models	
-	Mesh* cubeMesh = new Mesh(GetFullPathTo("../../../Assets/Models/cube.obj").c_str(), device);
-	Mesh* cylinderMesh = new Mesh(GetFullPathTo("../../../Assets/Models/cylinder.obj").c_str(), device);
-	Mesh* helixMesh = new Mesh(GetFullPathTo("../../../Assets/Models/helix.obj").c_str(), device);
-	Mesh* sphereMesh = new Mesh(GetFullPathTo("../../../Assets/Models/sphere.obj").c_str(), device);
-	Mesh* torusMesh = new Mesh(GetFullPathTo("../../../Assets/Models/torus.obj").c_str(), device);
-	Mesh* quadMesh = new Mesh(GetFullPathTo("../../../Assets/Models/quad.obj").c_str(), device);
-	Mesh* quad2sidedMesh = new Mesh(GetFullPathTo("../../../Assets/Models/quad_double_sided.obj").c_str(), device);
-
-	meshes.push_back(cubeMesh);
-	meshes.push_back(cylinderMesh);
-	meshes.push_back(helixMesh);
-	meshes.push_back(sphereMesh);
-	meshes.push_back(torusMesh);
-	meshes.push_back(quadMesh);
-	meshes.push_back(quad2sidedMesh);
+	std::shared_ptr<Mesh> cubeMesh = std::make_shared<Mesh>(FixPath(L"../../../Assets/Models/cube.obj").c_str(), device);
+	std::shared_ptr<Mesh> cylinderMesh = std::make_shared<Mesh>(FixPath(L"../../../Assets/Models/cylinder.obj").c_str(), device);
+	std::shared_ptr<Mesh> helixMesh = std::make_shared<Mesh>(FixPath(L"../../../Assets/Models/helix.obj").c_str(), device);
+	std::shared_ptr<Mesh> sphereMesh = std::make_shared<Mesh>(FixPath(L"../../../Assets/Models/sphere.obj").c_str(), device);
+	std::shared_ptr<Mesh> torusMesh = std::make_shared<Mesh>(FixPath(L"../../../Assets/Models/torus.obj").c_str(), device);
+	std::shared_ptr<Mesh> quadMesh = std::make_shared<Mesh>(FixPath(L"../../../Assets/Models/quad.obj").c_str(), device);
+	std::shared_ptr<Mesh> quad2sidedMesh = std::make_shared<Mesh>(FixPath(L"../../../Assets/Models/quad_double_sided.obj").c_str(), device);
 
 	// Create the game entities
-	entities.push_back(new GameEntity(cubeMesh, matCobblestone));
-	entities.push_back(new GameEntity(cylinderMesh, matBrokenTiles));
-	entities.push_back(new GameEntity(helixMesh, matBrokenTiles));
-	entities.push_back(new GameEntity(sphereMesh, matTiles));
-	entities.push_back(new GameEntity(torusMesh, matTiles));
-	entities.push_back(new GameEntity(quadMesh, matTiles));
-	entities.push_back(new GameEntity(quad2sidedMesh, matBrokenTiles));
+	entities.push_back(std::make_shared<GameEntity>(cubeMesh, matCobblestone));
+	entities.push_back(std::make_shared<GameEntity>(cylinderMesh, matBrokenTiles));
+	entities.push_back(std::make_shared<GameEntity>(helixMesh, matBrokenTiles));
+	entities.push_back(std::make_shared<GameEntity>(sphereMesh, matTiles));
+	entities.push_back(std::make_shared<GameEntity>(torusMesh, matTiles));
+	entities.push_back(std::make_shared<GameEntity>(quadMesh, matTiles));
+	entities.push_back(std::make_shared<GameEntity>(quad2sidedMesh, matBrokenTiles));
 
 	// Adjust transforms
 	entities[0]->GetTransform()->Scale(2, 2, 2);
@@ -217,7 +218,7 @@ void Game::OnResize()
 	DXCore::OnResize();
 
 	// Update the camera's projection to match the new aspect ratio
-	if (camera) camera->UpdateProjectionMatrix((float)width / height);
+	if (camera) camera->UpdateProjectionMatrix((float)windowWidth / windowHeight);
 }
 
 // --------------------------------------------------------
@@ -245,20 +246,20 @@ void Game::Update(float deltaTime, float totalTime)
 // --------------------------------------------------------
 void Game::Draw(float deltaTime, float totalTime)
 {
-	// Background color (Cornflower Blue in this case) for clearing
-	const float color[4] = { 0.4f, 0.6f, 0.75f, 0.0f };
+	// Frame START
+	// - These things should happen ONCE PER FRAME
+	// - At the beginning of Game::Draw() before drawing *anything*
+	{
+		// Clear the back buffer (erases what's on the screen)
+		const float bgColor[4] = { 0.4f, 0.6f, 0.75f, 1.0f }; // Cornflower Blue
+		context->ClearRenderTargetView(backBufferRTV.Get(), bgColor);
 
-	// Clear the render target and depth buffer (erases what's on the screen)
-	//  - Do this ONCE PER FRAME
-	//  - At the beginning of Draw (before drawing *anything*)
-	context->ClearRenderTargetView(backBufferRTV.Get(), color);
-	context->ClearDepthStencilView(
-		depthStencilView.Get(),
-		D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL,
-		1.0f,
-		0);
+		// Clear the depth buffer (resets per-pixel occlusion information)
+		context->ClearDepthStencilView(depthBufferDSV.Get(), D3D11_CLEAR_DEPTH, 1.0f, 0);
+	}
 
 
+	// DRAW geometry
 	// Loop through the game entities and draw
 	for (auto& e : entities)
 	{
@@ -274,12 +275,16 @@ void Game::Draw(float deltaTime, float totalTime)
 	}
 
 
-	// Present the back buffer to the user
-	//  - Puts the final frame we're drawing into the window so the user can see it
-	//  - Do this exactly ONCE PER FRAME (always at the very end of the frame)
-	swapChain->Present(0, 0);
+	// Frame END
+	// - These should happen exactly ONCE PER FRAME
+	// - At the very end of the frame (after drawing *everything*)
+	{
+		// Present the back buffer to the user
+		//  - Puts the results of what we've drawn onto the window
+		//  - Without this, the user never sees anything
+		swapChain->Present(vsync ? 1 : 0, 0);
 
-	// Due to the usage of a more sophisticated swap chain,
-	// the render target must be re-bound after every call to Present()
-	context->OMSetRenderTargets(1, backBufferRTV.GetAddressOf(), depthStencilView.Get());
+		// Must re-bind buffers after presenting, as they become unbound
+		context->OMSetRenderTargets(1, backBufferRTV.GetAddressOf(), depthBufferDSV.Get());
+	}
 }

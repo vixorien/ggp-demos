@@ -1,6 +1,7 @@
 #include "Game.h"
 #include "Vertex.h"
 #include "Input.h"
+#include "Helpers.h"
 
 #include "WICTextureLoader.h"
 
@@ -22,12 +23,12 @@ using namespace DirectX;
 // --------------------------------------------------------
 Game::Game(HINSTANCE hInstance)
 	: DXCore(
-		hInstance,		   // The application's handle
-		"DirectX Game",	   // Text for the window's title bar
-		1280,			   // Width of the window's client area
-		720,			   // Height of the window's client area
-		true),			   // Show extra stats (fps) in title bar?
-	camera(0),
+		hInstance,			// The application's handle
+		L"DirectX Game",	// Text for the window's title bar (as a wide-character string)
+		1280,				// Width of the window's client area
+		720,				// Height of the window's client area
+		false,				// Sync the framerate to the monitor refresh? (lock framerate)
+		true),				// Show extra stats (fps) in title bar?
 	ambientColor(0.1f, 0.15f, 0.25f),
 	skyEnabled(true)
 {
@@ -47,14 +48,12 @@ Game::Game(HINSTANCE hInstance)
 // --------------------------------------------------------
 Game::~Game()
 {
-	// Since we've created the Mesh objects within this class (Game),
-	// this is also where we should delete them!
-	for (auto& m : meshes) { delete m; }
-	for (auto& e : entities) { delete e; }
-	for (auto& m : materials) { delete m; }
+	// Call delete or delete[] on any objects or arrays you've
+	// created using new or new[] within this class
+	// - Note: this is unnecessary if using smart pointers
 
-	delete camera;
-	delete sky;
+	// Call Release() on any Direct3D objects made within this class
+	// - Note: this is unnecessary for D3D objects stored in ComPtrs
 }
 
 // --------------------------------------------------------
@@ -65,13 +64,25 @@ void Game::Init()
 {
 	LoadAssetsAndCreateEntities();
 	
-	// Tell the input assembler stage of the pipeline what kind of
-	// geometric primitives (points, lines or triangles) we want to draw.  
-	// Essentially: "What kind of shape should the GPU draw with our data?"
-	context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	// Set initial graphics API state
+	//  - These settings persist until we change them
+	{
+		// Tell the input assembler (IA) stage of the pipeline what kind of
+		// geometric primitives (points, lines or triangles) we want to draw.  
+		// Essentially: "What kind of shape should the GPU draw with our vertices?"
+		context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	}
 
 	// Create the camera
-	camera = new Camera(0, 0, -15, 5.0f, 5.0f, XM_PIDIV4, (float)width / height, 0.01f, 100.0f, CameraProjectionType::Perspective);
+	camera = std::make_shared<Camera>(
+		0.0f, 0.0f, -15.0f,	// Position
+		5.0f,				// Move speed
+		5.0f,				// Look speed
+		XM_PIDIV4,			// Field of view
+		(float)windowWidth / windowHeight,  // Aspect ratio
+		0.01f,				// Near clip
+		100.0f,				// Far clip
+		CameraProjectionType::Perspective);
 }
 
 
@@ -81,28 +92,20 @@ void Game::Init()
 void Game::LoadAssetsAndCreateEntities()
 {
 	// Set up sprite batch and sprite font
-	spriteBatch = std::make_unique<SpriteBatch>(context.Get());
-	fontArial12     = std::make_unique<SpriteFont>(device.Get(), GetFullPathTo_Wide(L"../../../Assets/Fonts/Arial12.spritefont").c_str());
-	fontArial12Bold = std::make_unique<SpriteFont>(device.Get(), GetFullPathTo_Wide(L"../../../Assets/Fonts/Arial12Bold.spritefont").c_str());
-	fontArial16	    = std::make_unique<SpriteFont>(device.Get(), GetFullPathTo_Wide(L"../../../Assets/Fonts/Arial16.spritefont").c_str());
-	fontArial16Bold	= std::make_unique<SpriteFont>(device.Get(), GetFullPathTo_Wide(L"../../../Assets/Fonts/Arial16Bold.spritefont").c_str());
+	spriteBatch		= std::make_shared<SpriteBatch>(context.Get());
+	fontArial12     = std::make_shared<SpriteFont>(device.Get(), FixPath(L"../../../Assets/Fonts/Arial12.spritefont").c_str());
+	fontArial12Bold = std::make_shared<SpriteFont>(device.Get(), FixPath(L"../../../Assets/Fonts/Arial12Bold.spritefont").c_str());
+	fontArial16	    = std::make_shared<SpriteFont>(device.Get(), FixPath(L"../../../Assets/Fonts/Arial16.spritefont").c_str());
+	fontArial16Bold	= std::make_shared<SpriteFont>(device.Get(), FixPath(L"../../../Assets/Fonts/Arial16Bold.spritefont").c_str());
 
-	// Load 3D models (not using all of them in this demo - could skip some)
-	Mesh* cubeMesh = new Mesh(GetFullPathTo("../../../Assets/Models/cube.obj").c_str(), device);
-	Mesh* cylinderMesh = new Mesh(GetFullPathTo("../../../Assets/Models/cylinder.obj").c_str(), device);
-	Mesh* helixMesh = new Mesh(GetFullPathTo("../../../Assets/Models/helix.obj").c_str(), device);
-	Mesh* sphereMesh = new Mesh(GetFullPathTo("../../../Assets/Models/sphere.obj").c_str(), device);
-	Mesh* torusMesh = new Mesh(GetFullPathTo("../../../Assets/Models/torus.obj").c_str(), device);
-	Mesh* quadMesh = new Mesh(GetFullPathTo("../../../Assets/Models/quad.obj").c_str(), device);
-	Mesh* quad2sidedMesh = new Mesh(GetFullPathTo("../../../Assets/Models/quad_double_sided.obj").c_str(), device);
-
-	meshes.push_back(cubeMesh);
-	meshes.push_back(cylinderMesh);
-	meshes.push_back(helixMesh);
-	meshes.push_back(sphereMesh);
-	meshes.push_back(torusMesh);
-	meshes.push_back(quadMesh);
-	meshes.push_back(quad2sidedMesh);
+	// Load 3D models	
+	std::shared_ptr<Mesh> cubeMesh = std::make_shared<Mesh>(FixPath(L"../../../Assets/Models/cube.obj").c_str(), device);
+	std::shared_ptr<Mesh> cylinderMesh = std::make_shared<Mesh>(FixPath(L"../../../Assets/Models/cylinder.obj").c_str(), device);
+	std::shared_ptr<Mesh> helixMesh = std::make_shared<Mesh>(FixPath(L"../../../Assets/Models/helix.obj").c_str(), device);
+	std::shared_ptr<Mesh> sphereMesh = std::make_shared<Mesh>(FixPath(L"../../../Assets/Models/sphere.obj").c_str(), device);
+	std::shared_ptr<Mesh> torusMesh = std::make_shared<Mesh>(FixPath(L"../../../Assets/Models/torus.obj").c_str(), device);
+	std::shared_ptr<Mesh> quadMesh = std::make_shared<Mesh>(FixPath(L"../../../Assets/Models/quad.obj").c_str(), device);
+	std::shared_ptr<Mesh> quad2sidedMesh = std::make_shared<Mesh>(FixPath(L"../../../Assets/Models/quad_double_sided.obj").c_str(), device);
 
 	// Create a sampler state for texture sampling options
 	Microsoft::WRL::ComPtr<ID3D11SamplerState> sampler;
@@ -118,17 +121,17 @@ void Game::LoadAssetsAndCreateEntities()
 	// Load textures
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>
 		rockSRV,
-		rockNormalsSRV; 
+		rockNormalsSRV;
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>
 		cushionSRV,
 		cushionNormalsSRV;
-	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> 
-		cobblestoneSRV, 
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>
+		cobblestoneSRV,
 		cobblestoneNormalsSRV,
 		cobblestoneSpecularSRV;
 
-// Quick pre-processor macro for simplifying texture loading calls below
-#define LoadTexture(path, srv) CreateWICTextureFromFile(device.Get(), context.Get(), GetFullPathTo_Wide(path).c_str(), 0, srv.GetAddressOf());
+	// Quick pre-processor macro for simplifying texture loading calls below
+#define LoadTexture(path, srv) CreateWICTextureFromFile(device.Get(), context.Get(), FixPath(path).c_str(), 0, srv.GetAddressOf());
 
 	LoadTexture(L"../../../Assets/Textures/rock.png", rockSRV);
 	LoadTexture(L"../../../Assets/Textures/rock_normals.png", rockNormalsSRV);
@@ -140,22 +143,22 @@ void Game::LoadAssetsAndCreateEntities()
 
 
 	// Load shaders and create materials
-	std::shared_ptr<SimpleVertexShader> basicVertexShader = std::make_shared<SimpleVertexShader>(device, context, GetFullPathTo_Wide(L"VertexShader.cso").c_str());
-	std::shared_ptr<SimplePixelShader> basicPixelShader = std::make_shared<SimplePixelShader>(device, context, GetFullPathTo_Wide(L"PixelShader.cso").c_str());
-	std::shared_ptr<SimplePixelShader> normalMapPS = std::make_shared<SimplePixelShader>(device, context, GetFullPathTo_Wide(L"NormalMapPS.cso").c_str());
-	std::shared_ptr<SimplePixelShader> lightAndEnvMapPS = std::make_shared<SimplePixelShader>(device, context, GetFullPathTo_Wide(L"LightingAndEnvMapPS.cso").c_str());
-	std::shared_ptr<SimplePixelShader> envMapOnlyPS = std::make_shared<SimplePixelShader>(device, context, GetFullPathTo_Wide(L"EnvMapOnlyPS.cso").c_str());
-	std::shared_ptr<SimpleVertexShader> skyVS = std::make_shared<SimpleVertexShader>(device, context, GetFullPathTo_Wide(L"SkyVS.cso").c_str());
-	std::shared_ptr<SimplePixelShader> skyPS = std::make_shared<SimplePixelShader>(device, context, GetFullPathTo_Wide(L"SkyPS.cso").c_str());
+	std::shared_ptr<SimpleVertexShader> basicVertexShader = std::make_shared<SimpleVertexShader>(device, context, FixPath(L"VertexShader.cso").c_str());
+	std::shared_ptr<SimplePixelShader> basicPixelShader = std::make_shared<SimplePixelShader>(device, context, FixPath(L"PixelShader.cso").c_str());
+	std::shared_ptr<SimplePixelShader> normalMapPS = std::make_shared<SimplePixelShader>(device, context, FixPath(L"NormalMapPS.cso").c_str());
+	std::shared_ptr<SimplePixelShader> lightAndEnvMapPS = std::make_shared<SimplePixelShader>(device, context, FixPath(L"LightingAndEnvMapPS.cso").c_str());
+	std::shared_ptr<SimplePixelShader> envMapOnlyPS = std::make_shared<SimplePixelShader>(device, context, FixPath(L"EnvMapOnlyPS.cso").c_str());
+	std::shared_ptr<SimpleVertexShader> skyVS = std::make_shared<SimpleVertexShader>(device, context, FixPath(L"SkyVS.cso").c_str());
+	std::shared_ptr<SimplePixelShader> skyPS = std::make_shared<SimplePixelShader>(device, context, FixPath(L"SkyPS.cso").c_str());
 
 	// Create the sky
-	sky = new Sky(
-		GetFullPathTo_Wide(L"../../../Assets/Skies/Clouds Blue/right.png").c_str(),
-		GetFullPathTo_Wide(L"../../../Assets/Skies/Clouds Blue/left.png").c_str(),
-		GetFullPathTo_Wide(L"../../../Assets/Skies/Clouds Blue/up.png").c_str(),
-		GetFullPathTo_Wide(L"../../../Assets/Skies/Clouds Blue/down.png").c_str(),
-		GetFullPathTo_Wide(L"../../../Assets/Skies/Clouds Blue/front.png").c_str(),
-		GetFullPathTo_Wide(L"../../../Assets/Skies/Clouds Blue/back.png").c_str(),
+	sky = std::make_shared<Sky>(
+		FixPath(L"../../../Assets/Skies/Clouds Blue/right.png").c_str(),
+		FixPath(L"../../../Assets/Skies/Clouds Blue/left.png").c_str(),
+		FixPath(L"../../../Assets/Skies/Clouds Blue/up.png").c_str(),
+		FixPath(L"../../../Assets/Skies/Clouds Blue/down.png").c_str(),
+		FixPath(L"../../../Assets/Skies/Clouds Blue/front.png").c_str(),
+		FixPath(L"../../../Assets/Skies/Clouds Blue/back.png").c_str(),
 		cubeMesh,
 		skyVS,
 		skyPS,
@@ -164,117 +167,102 @@ void Game::LoadAssetsAndCreateEntities()
 		context);
 
 
-
-
 	// Create basic materials (no normal maps) ---------------------
-	Material* matRock = new Material(basicPixelShader, basicVertexShader, XMFLOAT3(1, 1, 1), 0.0f, false);
+	std::shared_ptr<Material> matRock = std::make_shared<Material>(basicPixelShader, basicVertexShader, XMFLOAT3(1, 1, 1), 0.0f, false);
 	matRock->AddSampler("BasicSampler", sampler);
 	matRock->AddTextureSRV("SurfaceTexture", rockSRV);
-	materials.push_back(matRock); 
-	
-	Material* matCushion = new Material(basicPixelShader, basicVertexShader, XMFLOAT3(1, 1, 1), 0.0f, false, XMFLOAT2(2, 2));
+
+	std::shared_ptr<Material> matCushion = std::make_shared<Material>(basicPixelShader, basicVertexShader, XMFLOAT3(1, 1, 1), 0.0f, false, XMFLOAT2(2, 2));
 	matCushion->AddSampler("BasicSampler", sampler);
 	matCushion->AddTextureSRV("SurfaceTexture", cushionSRV);
-	materials.push_back(matCushion);
 
-	Material* matCobblestone = new Material(basicPixelShader, basicVertexShader, XMFLOAT3(1, 1, 1), 0.0f, true);
+	std::shared_ptr<Material> matCobblestone = std::make_shared<Material>(basicPixelShader, basicVertexShader, XMFLOAT3(1, 1, 1), 0.0f, true);
 	matCobblestone->AddSampler("BasicSampler", sampler);
 	matCobblestone->AddTextureSRV("SurfaceTexture", cobblestoneSRV);
 	matCobblestone->AddTextureSRV("SpecularMap", cobblestoneSpecularSRV);
-	materials.push_back(matCobblestone);
 
 
 	// Create normal mapped materials ---------------------
-	Material* matRockNormalMap = new Material(normalMapPS, basicVertexShader, XMFLOAT3(1, 1, 1), 0.0f, false);
+	std::shared_ptr<Material> matRockNormalMap = std::make_shared<Material>(normalMapPS, basicVertexShader, XMFLOAT3(1, 1, 1), 0.0f, false);
 	matRockNormalMap->AddSampler("BasicSampler", sampler);
 	matRockNormalMap->AddTextureSRV("SurfaceTexture", rockSRV);
 	matRockNormalMap->AddTextureSRV("NormalMap", rockNormalsSRV);
-	materials.push_back(matRockNormalMap);
 
-	Material* matCushionNormalMap = new Material(normalMapPS, basicVertexShader, XMFLOAT3(1, 1, 1), 0.0f, false, XMFLOAT2(2, 2));
+	std::shared_ptr<Material> matCushionNormalMap = std::make_shared<Material>(normalMapPS, basicVertexShader, XMFLOAT3(1, 1, 1), 0.0f, false, XMFLOAT2(2, 2));
 	matCushionNormalMap->AddSampler("BasicSampler", sampler);
 	matCushionNormalMap->AddTextureSRV("SurfaceTexture", cushionSRV);
 	matCushionNormalMap->AddTextureSRV("NormalMap", cushionNormalsSRV);
-	materials.push_back(matCushionNormalMap);
 
-	Material* matCobblestoneNormalMap = new Material(normalMapPS, basicVertexShader, XMFLOAT3(1, 1, 1), 0.0f, true);
+	std::shared_ptr<Material> matCobblestoneNormalMap = std::make_shared<Material>(normalMapPS, basicVertexShader, XMFLOAT3(1, 1, 1), 0.0f, true);
 	matCobblestoneNormalMap->AddSampler("BasicSampler", sampler);
 	matCobblestoneNormalMap->AddTextureSRV("SurfaceTexture", cobblestoneSRV);
 	matCobblestoneNormalMap->AddTextureSRV("NormalMap", cobblestoneNormalsSRV);
 	matCobblestoneNormalMap->AddTextureSRV("SpecularMap", cobblestoneSpecularSRV);
-	materials.push_back(matCobblestoneNormalMap);
 
 
 	// Create normal mapped & environment mapped materials ---------------------
-	Material* matRockLitEnvMap = new Material(lightAndEnvMapPS, basicVertexShader, XMFLOAT3(1, 1, 1), 0.0f, false);
+	std::shared_ptr<Material> matRockLitEnvMap = std::make_shared<Material>(lightAndEnvMapPS, basicVertexShader, XMFLOAT3(1, 1, 1), 0.0f, false);
 	matRockLitEnvMap->AddSampler("BasicSampler", sampler);
 	matRockLitEnvMap->AddTextureSRV("SurfaceTexture", rockSRV);
 	matRockLitEnvMap->AddTextureSRV("NormalMap", rockNormalsSRV);
 	matRockLitEnvMap->AddTextureSRV("EnvironmentMap", sky->GetSkyTexture());
-	materials.push_back(matRockLitEnvMap);
 
-	Material* matCushionLitEnvMap = new Material(lightAndEnvMapPS, basicVertexShader, XMFLOAT3(1, 1, 1), 0.0f, false, XMFLOAT2(2, 2));
+	std::shared_ptr<Material> matCushionLitEnvMap = std::make_shared<Material>(lightAndEnvMapPS, basicVertexShader, XMFLOAT3(1, 1, 1), 0.0f, false, XMFLOAT2(2, 2));
 	matCushionLitEnvMap->AddSampler("BasicSampler", sampler);
 	matCushionLitEnvMap->AddTextureSRV("SurfaceTexture", cushionSRV);
 	matCushionLitEnvMap->AddTextureSRV("NormalMap", cushionNormalsSRV);
 	matCushionLitEnvMap->AddTextureSRV("EnvironmentMap", sky->GetSkyTexture());
-	materials.push_back(matCushionLitEnvMap);
 
-	Material* matCobblestoneLitEnvMap = new Material(lightAndEnvMapPS, basicVertexShader, XMFLOAT3(1, 1, 1), 0.0f, true);
+	std::shared_ptr<Material> matCobblestoneLitEnvMap = std::make_shared<Material>(lightAndEnvMapPS, basicVertexShader, XMFLOAT3(1, 1, 1), 0.0f, true);
 	matCobblestoneLitEnvMap->AddSampler("BasicSampler", sampler);
 	matCobblestoneLitEnvMap->AddTextureSRV("SurfaceTexture", cobblestoneSRV);
 	matCobblestoneLitEnvMap->AddTextureSRV("NormalMap", cobblestoneNormalsSRV);
 	matCobblestoneLitEnvMap->AddTextureSRV("SpecularMap", cobblestoneSpecularSRV);
 	matCobblestoneLitEnvMap->AddTextureSRV("EnvironmentMap", sky->GetSkyTexture());
-	materials.push_back(matCobblestoneLitEnvMap);
 
 	// Create environment mapped only materials ---------------------
-	Material* matRockEnvMap = new Material(envMapOnlyPS, basicVertexShader, XMFLOAT3(1, 1, 1), 0.0f, false);
+	std::shared_ptr<Material> matRockEnvMap = std::make_shared<Material>(envMapOnlyPS, basicVertexShader, XMFLOAT3(1, 1, 1), 0.0f, false);
 	matRockEnvMap->AddSampler("BasicSampler", sampler);
 	matRockEnvMap->AddTextureSRV("NormalMap", rockNormalsSRV);
 	matRockEnvMap->AddTextureSRV("EnvironmentMap", sky->GetSkyTexture());
-	materials.push_back(matRockEnvMap);
 
-	Material* matCushionEnvMap = new Material(envMapOnlyPS, basicVertexShader, XMFLOAT3(1, 1, 1), 0.0f, false, XMFLOAT2(2, 2));
+	std::shared_ptr<Material> matCushionEnvMap = std::make_shared<Material>(envMapOnlyPS, basicVertexShader, XMFLOAT3(1, 1, 1), 0.0f, false, XMFLOAT2(2, 2));
 	matCushionEnvMap->AddSampler("BasicSampler", sampler);
 	matCushionEnvMap->AddTextureSRV("NormalMap", cushionNormalsSRV);
 	matCushionEnvMap->AddTextureSRV("EnvironmentMap", sky->GetSkyTexture());
-	materials.push_back(matCushionEnvMap);
 
-	Material* matCobblestoneEnvMap = new Material(envMapOnlyPS, basicVertexShader, XMFLOAT3(1, 1, 1), 0.0f, true);
+	std::shared_ptr<Material> matCobblestoneEnvMap = std::make_shared<Material>(envMapOnlyPS, basicVertexShader, XMFLOAT3(1, 1, 1), 0.0f, true);
 	matCobblestoneEnvMap->AddSampler("BasicSampler", sampler);
 	matCobblestoneEnvMap->AddTextureSRV("NormalMap", cobblestoneNormalsSRV);
 	matCobblestoneEnvMap->AddTextureSRV("EnvironmentMap", sky->GetSkyTexture());
-	materials.push_back(matCobblestoneEnvMap);
 
 
-	
 
 	// Create three sets of entities - with and without normal maps and env map
-	entities.push_back(new GameEntity(cubeMesh, matRock));
-	entities.push_back(new GameEntity(sphereMesh, matRock));
-	entities.push_back(new GameEntity(cubeMesh, matCushion));
-	entities.push_back(new GameEntity(sphereMesh, matCushion));
-	entities.push_back(new GameEntity(cubeMesh, matCobblestone));
-	entities.push_back(new GameEntity(sphereMesh, matCobblestone));
-	entities.push_back(new GameEntity(cubeMesh, matRockNormalMap));
-	entities.push_back(new GameEntity(sphereMesh, matRockNormalMap));
-	entities.push_back(new GameEntity(cubeMesh, matCushionNormalMap));
-	entities.push_back(new GameEntity(sphereMesh, matCushionNormalMap));
-	entities.push_back(new GameEntity(cubeMesh, matCobblestoneNormalMap));
-	entities.push_back(new GameEntity(sphereMesh, matCobblestoneNormalMap));
-	entities.push_back(new GameEntity(cubeMesh, matRockLitEnvMap));
-	entities.push_back(new GameEntity(sphereMesh, matRockLitEnvMap));
-	entities.push_back(new GameEntity(cubeMesh, matCushionLitEnvMap));
-	entities.push_back(new GameEntity(sphereMesh, matCushionLitEnvMap));
-	entities.push_back(new GameEntity(cubeMesh, matCobblestoneLitEnvMap));
-	entities.push_back(new GameEntity(sphereMesh, matCobblestoneLitEnvMap));
-	entities.push_back(new GameEntity(cubeMesh, matRockEnvMap));
-	entities.push_back(new GameEntity(sphereMesh, matRockEnvMap));
-	entities.push_back(new GameEntity(cubeMesh, matCushionEnvMap));
-	entities.push_back(new GameEntity(sphereMesh, matCushionEnvMap));
-	entities.push_back(new GameEntity(cubeMesh, matCobblestoneEnvMap));
-	entities.push_back(new GameEntity(sphereMesh, matCobblestoneEnvMap));
+	entities.push_back(std::make_shared<GameEntity>(cubeMesh, matRock));
+	entities.push_back(std::make_shared<GameEntity>(sphereMesh, matRock));
+	entities.push_back(std::make_shared<GameEntity>(cubeMesh, matCushion));
+	entities.push_back(std::make_shared<GameEntity>(sphereMesh, matCushion));
+	entities.push_back(std::make_shared<GameEntity>(cubeMesh, matCobblestone));
+	entities.push_back(std::make_shared<GameEntity>(sphereMesh, matCobblestone));
+	entities.push_back(std::make_shared<GameEntity>(cubeMesh, matRockNormalMap));
+	entities.push_back(std::make_shared<GameEntity>(sphereMesh, matRockNormalMap));
+	entities.push_back(std::make_shared<GameEntity>(cubeMesh, matCushionNormalMap));
+	entities.push_back(std::make_shared<GameEntity>(sphereMesh, matCushionNormalMap));
+	entities.push_back(std::make_shared<GameEntity>(cubeMesh, matCobblestoneNormalMap));
+	entities.push_back(std::make_shared<GameEntity>(sphereMesh, matCobblestoneNormalMap));
+	entities.push_back(std::make_shared<GameEntity>(cubeMesh, matRockLitEnvMap));
+	entities.push_back(std::make_shared<GameEntity>(sphereMesh, matRockLitEnvMap));
+	entities.push_back(std::make_shared<GameEntity>(cubeMesh, matCushionLitEnvMap));
+	entities.push_back(std::make_shared<GameEntity>(sphereMesh, matCushionLitEnvMap));
+	entities.push_back(std::make_shared<GameEntity>(cubeMesh, matCobblestoneLitEnvMap));
+	entities.push_back(std::make_shared<GameEntity>(sphereMesh, matCobblestoneLitEnvMap));
+	entities.push_back(std::make_shared<GameEntity>(cubeMesh, matRockEnvMap));
+	entities.push_back(std::make_shared<GameEntity>(sphereMesh, matRockEnvMap));
+	entities.push_back(std::make_shared<GameEntity>(cubeMesh, matCushionEnvMap));
+	entities.push_back(std::make_shared<GameEntity>(sphereMesh, matCushionEnvMap));
+	entities.push_back(std::make_shared<GameEntity>(cubeMesh, matCobblestoneEnvMap));
+	entities.push_back(std::make_shared<GameEntity>(sphereMesh, matCobblestoneEnvMap));
 
 	// Scale all the cubes
 	for (int i = 0; i < entities.size(); i += 2)
@@ -318,12 +306,12 @@ void Game::LoadAssetsAndCreateEntities()
 	dirLight3.Color = XMFLOAT3(0.8f, 0.9f, 1);
 	dirLight3.Type = LIGHT_TYPE_DIRECTIONAL;
 	dirLight3.Intensity = 1.0f;
-	dirLight3.Direction = XMFLOAT3(-1, 1,-0.5f);
+	dirLight3.Direction = XMFLOAT3(-1, 1, -0.5f);
 
 	// Point lights set to zero intensity for this demo
 	// Alternatively, they could be removed entirely
 	Light pointLight1 = {};
-	pointLight1.Color = XMFLOAT3(1,1,1);
+	pointLight1.Color = XMFLOAT3(1, 1, 1);
 	pointLight1.Type = LIGHT_TYPE_POINT;
 	pointLight1.Intensity = 0.0f;
 	pointLight1.Position = XMFLOAT3(-1.5f, 0, 0);
@@ -342,8 +330,6 @@ void Game::LoadAssetsAndCreateEntities()
 	lights.push_back(dirLight3);
 	lights.push_back(pointLight1);
 	lights.push_back(pointLight2);
-
-	
 }
 
 
@@ -357,7 +343,7 @@ void Game::OnResize()
 	DXCore::OnResize();
 
 	// Update the camera's projection to match the new aspect ratio
-	if (camera) camera->UpdateProjectionMatrix((float)width / height);
+	if (camera) camera->UpdateProjectionMatrix((float)windowWidth / windowHeight);
 }
 
 // --------------------------------------------------------
@@ -389,20 +375,20 @@ void Game::Update(float deltaTime, float totalTime)
 // --------------------------------------------------------
 void Game::Draw(float deltaTime, float totalTime)
 {
-	// Background color (Black in this case) for clearing
-	const float color[4] = { 0, 0, 0, 0 };
+	// Frame START
+	// - These things should happen ONCE PER FRAME
+	// - At the beginning of Game::Draw() before drawing *anything*
+	{
+		// Clear the back buffer (erases what's on the screen)
+		const float bgColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f }; // Black
+		context->ClearRenderTargetView(backBufferRTV.Get(), bgColor);
 
-	// Clear the render target and depth buffer (erases what's on the screen)
-	//  - Do this ONCE PER FRAME
-	//  - At the beginning of Draw (before drawing *anything*)
-	context->ClearRenderTargetView(backBufferRTV.Get(), color);
-	context->ClearDepthStencilView(
-		depthStencilView.Get(),
-		D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL,
-		1.0f,
-		0);
+		// Clear the depth buffer (resets per-pixel occlusion information)
+		context->ClearDepthStencilView(depthBufferDSV.Get(), D3D11_CLEAR_DEPTH, 1.0f, 0);
+	}
 
 
+	// DRAW geometry
 	// Loop through the game entities and draw
 	for (auto& e : entities)
 	{
@@ -437,12 +423,12 @@ void Game::Draw(float deltaTime, float totalTime)
 		// --- TEXT ------
 		// Draw some arbitrary text
 		std::string text = "Press Y to toggle sky: ";
-		fontArial16->DrawString(spriteBatch.get(), text.c_str(), XMFLOAT2(10, y));
+		fontArial16->DrawString(spriteBatch.get(), text.c_str(), XMFLOAT2(10, (float)y));
 
 		// Draw the "enabled" / "disabled" text to the right of the previous text, using a bold font
 		XMVECTOR color = skyEnabled ? XMVectorSet(0, 1, 0, 1) : XMVectorSet(1, 0, 0, 1);
 		XMVECTOR textSize = fontArial16->MeasureString(text.c_str(), false);
-		fontArial16Bold->DrawString(spriteBatch.get(), skyEnabled ? "Enabled" : "Disabled", XMFLOAT2(XMVectorGetX(textSize), y), color);
+		fontArial16Bold->DrawString(spriteBatch.get(), skyEnabled ? "Enabled" : "Disabled", XMFLOAT2(XMVectorGetX(textSize), (float)y), color);
 		
 
 		// Draw the mouse position
@@ -450,7 +436,7 @@ void Game::Draw(float deltaTime, float totalTime)
 		int mouseX = Input::GetInstance().GetMouseX();
 		int mouseY = Input::GetInstance().GetMouseY();
 		std::string dynamicText = "Mouse Pos: {" + std::to_string(mouseX) + ", " + std::to_string(mouseY) + "}";
-		fontArial16->DrawString(spriteBatch.get(), dynamicText.c_str(), XMFLOAT2(10, y));
+		fontArial16->DrawString(spriteBatch.get(), dynamicText.c_str(), XMFLOAT2(10, (float)y));
 		
 
 		// --- IMAGES ------
@@ -458,29 +444,29 @@ void Game::Draw(float deltaTime, float totalTime)
 
 		// Draw a surface texture (with label)
 		y += 30; 
-		fontArial12->DrawString(spriteBatch.get(), "Surface Texture:", XMFLOAT2(10, y));
+		fontArial12->DrawString(spriteBatch.get(), "Surface Texture:", XMFLOAT2(10, (float)y));
 
 		y += 20; 
 		RECT surfaceRect = { 10, y, imageSize + 10, imageSize + y }; // Left, top, right, bottom
-		spriteBatch->Draw(materials[4]->GetTextureSRV("SurfaceTexture").Get(), surfaceRect);
+		spriteBatch->Draw(entities[6]->GetMaterial()->GetTextureSRV("SurfaceTexture").Get(), surfaceRect);
 
 		// Draw a normal map (with label)
 		y += 30 + imageSize; 
-		fontArial12->DrawString(spriteBatch.get(), "Normal Map:", XMFLOAT2(10, y));
+		fontArial12->DrawString(spriteBatch.get(), "Normal Map:", XMFLOAT2(10, (float)y));
 
 		y += 20; 
 		RECT normalRect = { 10, y, imageSize + 10, imageSize + y }; // Left, top, right, bottom
-		spriteBatch->Draw(materials[4]->GetTextureSRV("NormalMap").Get(), normalRect);
+		spriteBatch->Draw(entities[6]->GetMaterial()->GetTextureSRV("NormalMap").Get(), normalRect);
 
 		// Draw a sprite font's underlying texture (with label)
 		y += 30 + imageSize; 
-		fontArial12->DrawString(spriteBatch.get(), "'Arial 16' Sprite Font Texture:", XMFLOAT2(10, y));
+		fontArial12->DrawString(spriteBatch.get(), "'Arial 16' Sprite Font Texture:", XMFLOAT2(10, (float)y));
 
 		y += 20; 
 		RECT fontRect = { 10, y, imageSize + 10, imageSize + y }; // Left, top, right, bottom
 		Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> fontSheet;
 		fontArial16->GetSpriteSheet(fontSheet.GetAddressOf());
-		spriteBatch->Draw(fontSheet.Get(), XMVectorSet(10, y, 0, 0));
+		spriteBatch->Draw(fontSheet.Get(), XMVectorSet(10, (float)y, 0, 0));
 
 
 
@@ -495,12 +481,16 @@ void Game::Draw(float deltaTime, float totalTime)
 	// ======================================================
 
 
-	// Present the back buffer to the user
-	//  - Puts the final frame we're drawing into the window so the user can see it
-	//  - Do this exactly ONCE PER FRAME (always at the very end of the frame)
-	swapChain->Present(0, 0);
+	// Frame END
+	// - These should happen exactly ONCE PER FRAME
+	// - At the very end of the frame (after drawing *everything*)
+	{
+		// Present the back buffer to the user
+		//  - Puts the results of what we've drawn onto the window
+		//  - Without this, the user never sees anything
+		swapChain->Present(vsync ? 1 : 0, 0);
 
-	// Due to the usage of a more sophisticated swap chain,
-	// the render target must be re-bound after every call to Present()
-	context->OMSetRenderTargets(1, backBufferRTV.GetAddressOf(), depthStencilView.Get());
+		// Must re-bind buffers after presenting, as they become unbound
+		context->OMSetRenderTargets(1, backBufferRTV.GetAddressOf(), depthBufferDSV.Get());
+	}
 }
