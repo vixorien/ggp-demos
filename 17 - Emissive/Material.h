@@ -50,8 +50,6 @@ private:
 	
 	// Material properties
 	DirectX::XMFLOAT3 colorTint;
-	float roughness;
-	bool useSpecularMap;
 
 	// Texture-related
 	DirectX::XMFLOAT2 uvOffset;

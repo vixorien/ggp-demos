@@ -6,7 +6,7 @@ Material::Material(
 	DirectX::XMFLOAT3 tint, 
 	DirectX::XMFLOAT2 uvScale,
 	DirectX::XMFLOAT2 uvOffset,
-	bool transparent)
+	bool transparent) 
 	:
 	ps(ps),
 	vs(vs),
@@ -60,7 +60,6 @@ void Material::SetUVOffset(DirectX::XMFLOAT2 offset) { uvOffset = offset; }
 void Material::SetColorTint(DirectX::XMFLOAT3 tint) { this->colorTint = tint; }
 void Material::SetTransparent(bool transparent) { this->transparent = transparent; }
 
-
 void Material::AddTextureSRV(std::string name, Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> srv)
 {
 	textureSRVs.insert({ name, srv });
@@ -82,7 +81,7 @@ void Material::RemoveSampler(std::string name)
 }
 
 
-void Material::PrepareMaterial(Transform* transform, Camera* camera)
+void Material::PrepareMaterial(Transform* transform, std::shared_ptr<Camera> camera)
 {
 	// Turn on these shaders
 	vs->SetShader();

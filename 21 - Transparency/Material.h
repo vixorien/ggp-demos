@@ -43,7 +43,7 @@ public:
 	void RemoveTextureSRV(std::string name);
 	void RemoveSampler(std::string name);
 
-	void PrepareMaterial(Transform* transform, Camera* camera);
+	void PrepareMaterial(Transform* transform, std::shared_ptr<Camera> camera);
 
 private:
 

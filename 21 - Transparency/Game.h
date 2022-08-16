@@ -41,16 +41,16 @@ private:
 	void GenerateLights();
 	void DrawLightSources();
 	void DrawUI();
-	void DrawOneEntity(GameEntity* entity, bool flipNormal = false);
+	void DrawOneEntity(std::shared_ptr<GameEntity> entity, bool flipNormal = false);
 
 	// Camera for the 3D scene
-	Camera* camera;
+	std::shared_ptr<Camera> camera;
 
 	// The sky box
-	Sky* sky;
+	std::shared_ptr<Sky> sky;
 
 	// Entities in the scene
-	std::vector<GameEntity*> entities;
+	std::vector<std::shared_ptr<GameEntity>> entities;
 
 	// Lights
 	std::vector<Light> lights;
