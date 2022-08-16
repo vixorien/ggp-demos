@@ -42,13 +42,13 @@ private:
 	void DrawUI();
 
 	// Camera for the 3D scene
-	Camera* camera;
+	std::shared_ptr<Camera> camera;
 
 	// The sky box
-	Sky* sky;
+	std::shared_ptr<Sky> sky;
 
-	// Vectors for objects we'll need to clean up
-	std::vector<GameEntity*> entities;
+	// Scene
+	std::vector<std::shared_ptr<GameEntity>> entities;
 
 	// Lights
 	std::vector<Light> lights;

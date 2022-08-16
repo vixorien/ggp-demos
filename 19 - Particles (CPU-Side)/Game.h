@@ -39,17 +39,16 @@ private:
 
 	// General helpers for setup and drawing
 	void GenerateLights();
-	void DrawLightSources();
 	void DrawUI();
 
 	// Camera for the 3D scene
-	Camera* camera;
+	std::shared_ptr<Camera> camera;
 
 	// The sky box
-	Sky* sky;
+	std::shared_ptr<Sky> sky;
 
-	// Vectors for objects we'll need to clean up
-	std::vector<GameEntity*> entities;
+	// Scene
+	std::vector<std::shared_ptr<GameEntity>> entities;
 
 	// Lights
 	std::vector<Light> lights;
@@ -63,7 +62,7 @@ private:
 	Microsoft::WRL::ComPtr<ID3D11DepthStencilState> particleDepthState;
 	Microsoft::WRL::ComPtr<ID3D11BlendState> particleBlendState;
 	Microsoft::WRL::ComPtr<ID3D11RasterizerState> particleDebugRasterState;
-	std::vector<Emitter*> emitters;
+	std::vector<std::shared_ptr<Emitter>> emitters;
 	void DrawParticles();
 };
 

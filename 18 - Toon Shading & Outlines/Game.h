@@ -47,14 +47,13 @@ private:
 	void DrawTextAtLocation(const char* text, DirectX::XMFLOAT3 position, DirectX::XMFLOAT2 scale = DirectX::XMFLOAT2(1, 1), DirectX::XMFLOAT3 pitchYawRoll = DirectX::XMFLOAT3(0, 0, 0));
 
 	// Camera for the 3D scene
-	Camera* camera;
+	std::shared_ptr<Camera> camera;
 
 	// The sky box
-	Sky* sky;
+	std::shared_ptr<Sky> sky;
 
-	// A vector to hold any number of meshes
-	// - This makes things easy to draw and clean up, too!
-	std::vector<GameEntity*> entities;
+	// Scene
+	std::vector<std::shared_ptr<GameEntity>> entities;
 
 	// Lights
 	std::vector<Light> lights;
@@ -77,7 +76,7 @@ private:
 
 	// Inside-out technique
 	Microsoft::WRL::ComPtr<ID3D11RasterizerState> insideOutRasterState;
-	void DrawOutlineInsideOut(GameEntity* entity, Camera* camera, float outlineSize);
+	void DrawOutlineInsideOut(std::shared_ptr<GameEntity> entity, std::shared_ptr<Camera> camera, float outlineSize);
 
 	// Silhouette technique
 	int silhouetteID;

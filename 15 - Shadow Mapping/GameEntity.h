@@ -20,7 +20,7 @@ public:
 	void SetMesh(std::shared_ptr<Mesh> mesh);
 	void SetMaterial(std::shared_ptr<Material> material);
 
-	void Draw(Microsoft::WRL::ComPtr<ID3D11DeviceContext> context, Camera* camera);
+	void Draw(Microsoft::WRL::ComPtr<ID3D11DeviceContext> context, std::shared_ptr<Camera> camera);
 
 private:
 

@@ -58,7 +58,7 @@ public:
 	void Update(float dt);
 	void Draw(
 		Microsoft::WRL::ComPtr<ID3D11DeviceContext> context, 
-		Camera* camera,
+		std::shared_ptr<Camera> camera,
 		bool debugWireframe);
 
 	Transform* GetTransform();
@@ -114,8 +114,8 @@ private:
 	void SpawnParticle();
 
 	// Copy methods
-	void CopyParticlesToGPU(Microsoft::WRL::ComPtr<ID3D11DeviceContext> context, Camera* camera);
-	void CopyOneParticle(int index, Camera* camera);
-	DirectX::XMFLOAT3 CalcParticleVertexPosition(int particleIndex, int quadCornerIndex, Camera* camera);
+	void CopyParticlesToGPU(Microsoft::WRL::ComPtr<ID3D11DeviceContext> context, std::shared_ptr<Camera> camera);
+	void CopyOneParticle(int index, std::shared_ptr<Camera> camera);
+	DirectX::XMFLOAT3 CalcParticleVertexPosition(int particleIndex, int quadCornerIndex, std::shared_ptr<Camera> camera);
 };
 

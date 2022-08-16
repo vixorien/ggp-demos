@@ -22,7 +22,7 @@ using namespace DirectX;
 // --------------------------------------------------------
 TerrainMesh::TerrainMesh(
 	Microsoft::WRL::ComPtr<ID3D11Device> device,
-	const char* heightmap,
+	const std::wstring heightmap,
 	unsigned int heightmapWidth,
 	unsigned int heightmapHeight,
 	TerrainBitDepth bitDepth,
@@ -46,6 +46,7 @@ TerrainMesh::TerrainMesh(
 
 	int indexCounter = 0;
 	for (unsigned int z = 0; z < heightmapHeight - 1; z++)
+	{
 		for (unsigned int x = 0; x < heightmapWidth - 1; x++)
 		{
 			// Calc the vertex index
@@ -93,7 +94,7 @@ TerrainMesh::TerrainMesh(
 			triangleNormals.push_back(normal0);
 			triangleNormals.push_back(normal1);
 		}
-
+	}
 
 	// Calculate normals!
 	for (unsigned int z = 0; z < heightmapHeight; z++)
@@ -198,7 +199,7 @@ TerrainMesh::~TerrainMesh() { }
 // xzScale - How wide should the terrain be?
 // verts - Array of verts to fill up
 // --------------------------------------------------------
-void TerrainMesh::Load8bitRaw(const char* heightmap, unsigned int width, unsigned int height, float yScale, float xzScale, Vertex* verts)
+void TerrainMesh::Load8bitRaw(const std::wstring heightmap, unsigned int width, unsigned int height, float yScale, float xzScale, Vertex* verts)
 {
 	unsigned int numVertices = width * height;
 	float halfWidth = width / 2.0f;
@@ -258,7 +259,7 @@ void TerrainMesh::Load8bitRaw(const char* heightmap, unsigned int width, unsigne
 // xzScale - How wide should the terrain be?
 // verts - Array of verts to fill up
 // --------------------------------------------------------
-void TerrainMesh::Load16bitRaw(const char* heightmap, unsigned int width, unsigned int height, float yScale, float xzScale, Vertex* verts)
+void TerrainMesh::Load16bitRaw(const std::wstring heightmap, unsigned int width, unsigned int height, float yScale, float xzScale, Vertex* verts)
 {
 	unsigned int numVertices = width * height;
 	float halfWidth = width / 2.0f;

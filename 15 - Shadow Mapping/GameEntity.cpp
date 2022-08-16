@@ -16,7 +16,7 @@ void GameEntity::SetMesh(std::shared_ptr<Mesh> mesh) { this->mesh = mesh; }
 void GameEntity::SetMaterial(std::shared_ptr<Material> material) { this->material = material; }
 
 
-void GameEntity::Draw(Microsoft::WRL::ComPtr<ID3D11DeviceContext> context, Camera* camera)
+void GameEntity::Draw(Microsoft::WRL::ComPtr<ID3D11DeviceContext> context, std::shared_ptr<Camera> camera)
 {
 	// Set up the material (shaders)
 	material->PrepareMaterial(&transform, camera);

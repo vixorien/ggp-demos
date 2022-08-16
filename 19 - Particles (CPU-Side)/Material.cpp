@@ -78,7 +78,7 @@ void Material::RemoveSampler(std::string name)
 }
 
 
-void Material::PrepareMaterial(Transform* transform, Camera* camera)
+void Material::PrepareMaterial(Transform* transform, std::shared_ptr<Camera> camera)
 {
 	// Turn on these shaders
 	vs->SetShader();
@@ -93,9 +93,11 @@ void Material::PrepareMaterial(Transform* transform, Camera* camera)
 
 	// Send data to the pixel shader
 	ps->SetFloat3("colorTint", colorTint);
+	ps->SetFloat("roughness", roughness);
 	ps->SetFloat3("cameraPosition", camera->GetTransform()->GetPosition());
 	ps->SetFloat2("uvScale", uvScale);
 	ps->SetFloat2("uvOffset", uvOffset);
+	ps->SetInt("useSpecularMap", (int)useSpecularMap);
 	ps->CopyAllBufferData();
 
 	// Loop and set any other resources

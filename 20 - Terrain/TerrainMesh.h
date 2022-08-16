@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Mesh.h"
-
+#include <string>
 
 enum class TerrainBitDepth
 {
@@ -16,7 +16,7 @@ class TerrainMesh :
 public:
 	TerrainMesh(
 		Microsoft::WRL::ComPtr<ID3D11Device> device,
-		const char* heightmap,
+		const std::wstring heightmap,
 		unsigned int heightmapWidth,
 		unsigned int heightmapHeight,
 		TerrainBitDepth bitDepth = TerrainBitDepth::BitDepth_8,
@@ -26,8 +26,8 @@ public:
 
 private:
 
-	void Load8bitRaw(const char* heightmap, unsigned int width, unsigned int height, float yScale, float xzScale, Vertex* verts);
-	void Load16bitRaw(const char* heightmap, unsigned int width, unsigned int height, float yScale, float xzScale, Vertex* verts);
+	void Load8bitRaw(const std::wstring heightmap, unsigned int width, unsigned int height, float yScale, float xzScale, Vertex* verts);
+	void Load16bitRaw(const std::wstring heightmap, unsigned int width, unsigned int height, float yScale, float xzScale, Vertex* verts);
 
 };
 

@@ -51,7 +51,7 @@ public:
 
 	~Sky();
 
-	void Draw(Camera* camera);
+	void Draw(std::shared_ptr<Camera> camera);
 
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> GetSkyTexture();
 

@@ -3,6 +3,7 @@
 #include "Input.h"
 #include "Assets.h"
 #include "TerrainMesh.h"
+#include "Helpers.h"
 
 #include "WICTextureLoader.h"
 
@@ -30,15 +31,14 @@ using namespace DirectX;
 // --------------------------------------------------------
 Game::Game(HINSTANCE hInstance)
 	: DXCore(
-		hInstance,		   // The application's handle
-		"DirectX Game",	   // Text for the window's title bar
-		1280,			   // Width of the window's client area
-		720,			   // Height of the window's client area
-		true),			   // Show extra stats (fps) in title bar?
-	camera(0),
+		hInstance,			// The application's handle
+		L"DirectX Game",	// Text for the window's title bar (as a wide-character string)
+		1280,				// Width of the window's client area
+		720,				// Height of the window's client area
+		false,				// Sync the framerate to the monitor refresh? (lock framerate)
+		true),				// Show extra stats (fps) in title bar?
 	ambientColor(0, 0, 0), // Ambient is zero'd out since it's not physically-based
 	lightCount(3),
-	sky(0),
 	drawLights(true)
 {
 
@@ -57,13 +57,14 @@ Game::Game(HINSTANCE hInstance)
 // --------------------------------------------------------
 Game::~Game()
 {
-	// Since we've created these objects within this class (Game),
-	// this is also where we should delete them!
-	for (auto& e : entities) delete e;
+	// Call delete or delete[] on any objects or arrays you've
+	// created using new or new[] within this class
+	// - Note: this is unnecessary if using smart pointers
 
-	delete camera;
-	delete sky;
+	// Call Release() on any Direct3D objects made within this class
+	// - Note: this is unnecessary for D3D objects stored in ComPtrs
 
+	// Deleting the singleton reference we've set up here
 	delete& Assets::GetInstance();
 }
 
@@ -83,13 +84,25 @@ void Game::Init()
 	lightCount = 3;
 	GenerateLights();
 	
-	// Tell the input assembler stage of the pipeline what kind of
-	// geometric primitives (points, lines or triangles) we want to draw.  
-	// Essentially: "What kind of shape should the GPU draw with our data?"
-	context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	// Set initial graphics API state
+	//  - These settings persist until we change them
+	{
+		// Tell the input assembler (IA) stage of the pipeline what kind of
+		// geometric primitives (points, lines or triangles) we want to draw.  
+		// Essentially: "What kind of shape should the GPU draw with our vertices?"
+		context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	}
 
 	// Create the camera
-	camera = new Camera(0, 30, -200, 5.0f, 5.0f, XM_PIDIV4, (float)width / height, 0.01f, 1000.0f, CameraProjectionType::Perspective);
+	camera = std::make_shared<Camera>(
+		0.0f, 30.0f, -200.0f,	// Position
+		5.0f,				// Move speed
+		5.0f,				// Look speed
+		XM_PIDIV4,			// Field of view
+		(float)windowWidth / windowHeight,  // Aspect ratio
+		0.01f,				// Near clip
+		1000.0f,				// Far clip
+		CameraProjectionType::Perspective);
 }
 
 
@@ -100,10 +113,10 @@ void Game::LoadAssetsAndCreateEntities()
 {
 	// Initialize the asset manager and set up for on-demand loading
 	Assets& assets = Assets::GetInstance();
-	assets.Initialize("../../../Assets/", device, context, true, true);
+	assets.Initialize(L"../../../Assets/", L"./", device, context, true, true);
 
 	// Set up sprite batch and sprite font
-	spriteBatch = std::make_unique<SpriteBatch>(context.Get());
+	spriteBatch = std::make_shared<SpriteBatch>(context.Get());
 
 	// Create a sampler state for texture sampling options
 	Microsoft::WRL::ComPtr<ID3D11SamplerState> sampler;
@@ -118,16 +131,16 @@ void Game::LoadAssetsAndCreateEntities()
 
 
 	// Create the sky (loading custom shaders in-line below)
-	sky = new Sky(
-		GetFullPathTo_Wide(L"../../../Assets/Skies/Clouds Blue/right.png").c_str(),
-		GetFullPathTo_Wide(L"../../../Assets/Skies/Clouds Blue/left.png").c_str(),
-		GetFullPathTo_Wide(L"../../../Assets/Skies/Clouds Blue/up.png").c_str(),
-		GetFullPathTo_Wide(L"../../../Assets/Skies/Clouds Blue/down.png").c_str(),
-		GetFullPathTo_Wide(L"../../../Assets/Skies/Clouds Blue/front.png").c_str(),
-		GetFullPathTo_Wide(L"../../../Assets/Skies/Clouds Blue/back.png").c_str(),
-		assets.GetMesh("Models/cube"),
-		assets.GetVertexShader("SkyVS"),
-		assets.GetPixelShader("SkyPS"),
+	sky = std::make_shared<Sky>(
+		FixPath(L"../../../Assets/Skies/Clouds Blue/right.png").c_str(),
+		FixPath(L"../../../Assets/Skies/Clouds Blue/left.png").c_str(),
+		FixPath(L"../../../Assets/Skies/Clouds Blue/up.png").c_str(),
+		FixPath(L"../../../Assets/Skies/Clouds Blue/down.png").c_str(),
+		FixPath(L"../../../Assets/Skies/Clouds Blue/front.png").c_str(),
+		FixPath(L"../../../Assets/Skies/Clouds Blue/back.png").c_str(),
+		assets.GetMesh(L"Models/cube"),
+		assets.GetVertexShader(L"SkyVS"),
+		assets.GetPixelShader(L"SkyPS"),
 		sampler,
 		device,
 		context);
@@ -139,7 +152,7 @@ void Game::LoadAssetsAndCreateEntities()
 	//       information!  If you get it wrong, things won't look right!
 	std::shared_ptr<TerrainMesh> terrainMesh = std::make_shared<TerrainMesh>(
 		device,
-		GetFullPathTo("../../../Assets/Heightmaps/terrain_513x513.r16").c_str(),
+		FixPath(L"../../../Assets/Heightmaps/terrain_513x513.r16").c_str(),
 		513,
 		513,
 		TerrainBitDepth::BitDepth_16,
@@ -147,30 +160,30 @@ void Game::LoadAssetsAndCreateEntities()
 		0.75f);
 	
 	// Create terrain material
-	std::shared_ptr<SimpleVertexShader> vertexShader = assets.GetVertexShader("VertexShader");
-	std::shared_ptr<SimplePixelShader> terrainPS = assets.GetPixelShader("TerrainPS");
+	std::shared_ptr<SimpleVertexShader> vertexShader = assets.GetVertexShader(L"VertexShader");
+	std::shared_ptr<SimplePixelShader> terrainPS = assets.GetPixelShader(L"TerrainPS");
 
 	std::shared_ptr<Material> terrainMat = std::make_shared<Material>(terrainPS, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(20, 20));
 	terrainMat->AddSampler("BasicSampler", sampler);
-	terrainMat->AddTextureSRV("BlendMap", assets.GetTexture("Textures/terrain_splatmap"));
+	terrainMat->AddTextureSRV("BlendMap", assets.GetTexture(L"Textures/terrain_splatmap"));
 
-	terrainMat->AddTextureSRV("Albedo0", assets.GetTexture("Textures/PBR/snow_albedo"));
-	terrainMat->AddTextureSRV("NormalMap0", assets.GetTexture("Textures/PBR/snow_normals"));
-	terrainMat->AddTextureSRV("RoughnessMap0", assets.GetTexture("Textures/PBR/snow_roughness"));
-	terrainMat->AddTextureSRV("MetalMap0", assets.GetTexture("Textures/PBR/snow_metal"));
+	terrainMat->AddTextureSRV("Albedo0", assets.GetTexture(L"Textures/PBR/snow_albedo"));
+	terrainMat->AddTextureSRV("NormalMap0", assets.GetTexture(L"Textures/PBR/snow_normals"));
+	terrainMat->AddTextureSRV("RoughnessMap0", assets.GetTexture(L"Textures/PBR/snow_roughness"));
+	terrainMat->AddTextureSRV("MetalMap0", assets.GetTexture(L"Textures/PBR/snow_metal"));
 
-	terrainMat->AddTextureSRV("Albedo1", assets.GetTexture("Textures/PBR/grass_albedo"));
-	terrainMat->AddTextureSRV("NormalMap1", assets.GetTexture("Textures/PBR/grass_normals"));
-	terrainMat->AddTextureSRV("RoughnessMap1", assets.GetTexture("Textures/PBR/grass_roughness"));
-	terrainMat->AddTextureSRV("MetalMap1", assets.GetTexture("Textures/PBR/grass_metal"));
+	terrainMat->AddTextureSRV("Albedo1", assets.GetTexture(L"Textures/PBR/grass_albedo"));
+	terrainMat->AddTextureSRV("NormalMap1", assets.GetTexture(L"Textures/PBR/grass_normals"));
+	terrainMat->AddTextureSRV("RoughnessMap1", assets.GetTexture(L"Textures/PBR/grass_roughness"));
+	terrainMat->AddTextureSRV("MetalMap1", assets.GetTexture(L"Textures/PBR/grass_metal"));
 
-	terrainMat->AddTextureSRV("Albedo2", assets.GetTexture("Textures/PBR/rock_albedo"));
-	terrainMat->AddTextureSRV("NormalMap2", assets.GetTexture("Textures/PBR/rock_normals"));
-	terrainMat->AddTextureSRV("RoughnessMap2", assets.GetTexture("Textures/PBR/rock_roughness"));
-	terrainMat->AddTextureSRV("MetalMap2", assets.GetTexture("Textures/PBR/rock_metal"));
+	terrainMat->AddTextureSRV("Albedo2", assets.GetTexture(L"Textures/PBR/rock_albedo"));
+	terrainMat->AddTextureSRV("NormalMap2", assets.GetTexture(L"Textures/PBR/rock_normals"));
+	terrainMat->AddTextureSRV("RoughnessMap2", assets.GetTexture(L"Textures/PBR/rock_roughness"));
+	terrainMat->AddTextureSRV("MetalMap2", assets.GetTexture(L"Textures/PBR/rock_metal"));
 
 
-	GameEntity* terrain = new GameEntity(terrainMesh, terrainMat);
+	std::shared_ptr<GameEntity> terrain = std::make_shared<GameEntity>(terrainMesh, terrainMat);
 	entities.push_back(terrain);
 }
 
@@ -233,7 +246,7 @@ void Game::OnResize()
 	DXCore::OnResize();
 
 	// Update the camera's projection to match the new aspect ratio
-	if (camera) camera->UpdateProjectionMatrix((float)width / height);
+	if (camera) camera->UpdateProjectionMatrix((float)windowWidth / windowHeight);
 }
 
 
@@ -283,14 +296,17 @@ void Game::Update(float deltaTime, float totalTime)
 // --------------------------------------------------------
 void Game::Draw(float deltaTime, float totalTime)
 {
-	// Background color (Black in this case) for clearing
-	const float color[4] = { 0, 0, 0, 0 };
+	// Frame START
+	// - These things should happen ONCE PER FRAME
+	// - At the beginning of Game::Draw() before drawing *anything*
+	{
+		// Clear the back buffer (erases what's on the screen)
+		const float bgColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f }; // Black
+		context->ClearRenderTargetView(backBufferRTV.Get(), bgColor);
 
-	// Clear the render target and depth buffer (erases what's on the screen)
-	//  - Do this ONCE PER FRAME
-	//  - At the beginning of Draw (before drawing *anything*)
-	context->ClearRenderTargetView(backBufferRTV.Get(), color);
-	context->ClearDepthStencilView(depthStencilView.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL,	1.0f, 0);
+		// Clear the depth buffer (resets per-pixel occlusion information)
+		context->ClearDepthStencilView(depthBufferDSV.Get(), D3D11_CLEAR_DEPTH, 1.0f, 0);
+	}
 
 	// Loop through the game entities in the current scene and draw
 	for (auto& e : entities)
@@ -314,23 +330,30 @@ void Game::Draw(float deltaTime, float totalTime)
 	// Draw the UI on top of everything
 	DrawUI();
 
-	// Present the back buffer to the user
-	//  - Puts the final frame we're drawing into the window so the user can see it
-	//  - Do this exactly ONCE PER FRAME (always at the very end of the frame)
-	swapChain->Present(0, 0);
+	// Frame END
+	// - These should happen exactly ONCE PER FRAME
+	// - At the very end of the frame (after drawing *everything*)
+	{
+		// Present the back buffer to the user
+		//  - Puts the results of what we've drawn onto the window
+		//  - Without this, the user never sees anything
+		swapChain->Present(vsync ? 1 : 0, 0);
 
-	// Due to the usage of a more sophisticated swap chain,
-	// the render target must be re-bound after every call to Present()
-	context->OMSetRenderTargets(1, backBufferRTV.GetAddressOf(), depthStencilView.Get());
+		// Must re-bind buffers after presenting, as they become unbound
+		context->OMSetRenderTargets(1, backBufferRTV.GetAddressOf(), depthBufferDSV.Get());
+	}
 }
 
 
+// --------------------------------------------------------
+// Draws a colored sphere at the position of each point light
+// --------------------------------------------------------
 void Game::DrawLightSources()
 {
 	Assets& assets = Assets::GetInstance();
-	std::shared_ptr<Mesh> lightMesh = assets.GetMesh("Models/sphere");
-	std::shared_ptr<SimpleVertexShader> vs = assets.GetVertexShader("VertexShader");
-	std::shared_ptr<SimplePixelShader> ps = assets.GetPixelShader("SolidColorPS");
+	std::shared_ptr<Mesh> lightMesh = assets.GetMesh(L"Models/sphere");
+	std::shared_ptr<SimpleVertexShader> vs = assets.GetVertexShader(L"VertexShader");
+	std::shared_ptr<SimplePixelShader> ps = assets.GetPixelShader(L"SolidColorPS");
 
 	// Turn on the light mesh
 	Microsoft::WRL::ComPtr<ID3D11Buffer> vb = lightMesh->GetVertexBuffer();
@@ -390,12 +413,14 @@ void Game::DrawLightSources()
 }
 
 
-
+// --------------------------------------------------------
+// Draw the interface
+// --------------------------------------------------------
 void Game::DrawUI()
 {
 	// Grab the font from the asset manager
 	Assets& assets = Assets::GetInstance();
-	std::shared_ptr<SpriteFont> fontArial12 = assets.GetSpriteFont("Fonts/Arial12");
+	std::shared_ptr<SpriteFont> fontArial12 = assets.GetSpriteFont(L"Fonts/Arial12");
 
 	spriteBatch->Begin();
 

@@ -249,7 +249,7 @@ void Emitter::SpawnParticle()
 	livingParticleCount++;
 }
 
-void Emitter::CopyParticlesToGPU(Microsoft::WRL::ComPtr<ID3D11DeviceContext> context, Camera* camera)
+void Emitter::CopyParticlesToGPU(Microsoft::WRL::ComPtr<ID3D11DeviceContext> context, std::shared_ptr<Camera> camera)
 {
 	// Update local buffer (living particles only as a speed up)
 
@@ -279,7 +279,7 @@ void Emitter::CopyParticlesToGPU(Microsoft::WRL::ComPtr<ID3D11DeviceContext> con
 	context->Unmap(vertexBuffer.Get(), 0);
 }
 
-void Emitter::CopyOneParticle(int index, Camera* camera)
+void Emitter::CopyOneParticle(int index, std::shared_ptr<Camera> camera)
 {
 	int i = index * 4;
 
@@ -318,7 +318,7 @@ void Emitter::CopyOneParticle(int index, Camera* camera)
 }
 
 
-XMFLOAT3 Emitter::CalcParticleVertexPosition(int particleIndex, int quadCornerIndex, Camera* camera)
+XMFLOAT3 Emitter::CalcParticleVertexPosition(int particleIndex, int quadCornerIndex, std::shared_ptr<Camera> camera)
 {
 	// Get the right and up vectors out of the view matrix
 	XMFLOAT4X4 view = camera->GetView();
@@ -351,7 +351,7 @@ XMFLOAT3 Emitter::CalcParticleVertexPosition(int particleIndex, int quadCornerIn
 
 
 
-void Emitter::Draw(Microsoft::WRL::ComPtr<ID3D11DeviceContext> context, Camera* camera, bool debugWireframe)
+void Emitter::Draw(Microsoft::WRL::ComPtr<ID3D11DeviceContext> context, std::shared_ptr<Camera> camera, bool debugWireframe)
 {
 	// Copy to dynamic buffer
 	CopyParticlesToGPU(context, camera);

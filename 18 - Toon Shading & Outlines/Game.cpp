@@ -2,6 +2,7 @@
 #include "Vertex.h"
 #include "Input.h"
 #include "Assets.h"
+#include "Helpers.h"
 
 #include "WICTextureLoader.h"
 
@@ -41,16 +42,15 @@ using namespace DirectX;
 // --------------------------------------------------------
 Game::Game(HINSTANCE hInstance)
 	: DXCore(
-		hInstance,		   // The application's handle
-		"DirectX Game",	   // Text for the window's title bar
-		1280,			   // Width of the window's client area
-		720,			   // Height of the window's client area
-		true),			   // Show extra stats (fps) in title bar?
-	camera(0),
+		hInstance,			// The application's handle
+		L"DirectX Game",	// Text for the window's title bar (as a wide-character string)
+		1280,				// Width of the window's client area
+		720,				// Height of the window's client area
+		false,				// Sync the framerate to the monitor refresh? (lock framerate)
+		true),				// Show extra stats (fps) in title bar?
 	ambientColor(0, 0, 0), // Ambient is zero'd out
 	freezeLightMovement(false),
 	lightCount(3),
-	sky(0),
 	outlineRenderingMode(OUTLINE_MODE_NONE),
 	silhouetteID(0)
 {
@@ -70,13 +70,14 @@ Game::Game(HINSTANCE hInstance)
 // --------------------------------------------------------
 Game::~Game()
 {
-	// Since we've created these objects within this class (Game),
-	// this is also where we should delete them!
-	for (auto& e : entities) delete e;
+	// Call delete or delete[] on any objects or arrays you've
+	// created using new or new[] within this class
+	// - Note: this is unnecessary if using smart pointers
 
-	delete camera;
-	delete sky;
+	// Call Release() on any Direct3D objects made within this class
+	// - Note: this is unnecessary for D3D objects stored in ComPtrs
 
+	// Deleting the singleton reference we've set up here
 	delete& Assets::GetInstance();
 }
 
@@ -96,13 +97,25 @@ void Game::Init()
 	lightCount = 1;
 	GenerateLights();
 	
-	// Tell the input assembler stage of the pipeline what kind of
-	// geometric primitives (points, lines or triangles) we want to draw.  
-	// Essentially: "What kind of shape should the GPU draw with our data?"
-	context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	// Set initial graphics API state
+	//  - These settings persist until we change them
+	{
+		// Tell the input assembler (IA) stage of the pipeline what kind of
+		// geometric primitives (points, lines or triangles) we want to draw.  
+		// Essentially: "What kind of shape should the GPU draw with our vertices?"
+		context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	}
 
 	// Create the camera
-	camera = new Camera(-0.5f, 6, -15, 5.0f, 5.0f, XM_PIDIV4, (float)width / height, 0.01f, 100.0f, CameraProjectionType::Perspective);
+	camera = std::make_shared<Camera>(
+		-0.5f, 6.0f, -15.0f,// Position
+		5.0f,				// Move speed
+		5.0f,				// Look speed
+		XM_PIDIV4,			// Field of view
+		(float)windowWidth / windowHeight,  // Aspect ratio
+		0.01f,				// Near clip
+		100.0f,				// Far clip
+		CameraProjectionType::Perspective);
 }
 
 
@@ -113,13 +126,13 @@ void Game::LoadAssetsAndCreateEntities()
 {
 	// Initialize the asset manager and set up for on-demand loading
 	Assets& assets = Assets::GetInstance();
-	assets.Initialize("../../../Assets/", device, context, true, true);
+	assets.Initialize(L"../../../Assets/", L"./", device, context, true, true);
 
 	// Set up the initial post process resources
 	ResizePostProcessResources();
 
 	// Set up sprite batch and sprite font
-	spriteBatch = std::make_unique<SpriteBatch>(context.Get());
+	spriteBatch = std::make_shared<SpriteBatch>(context.Get());
 
 	// Create a sampler state for texture sampling options
 	Microsoft::WRL::ComPtr<ID3D11SamplerState> sampler;
@@ -147,29 +160,29 @@ void Game::LoadAssetsAndCreateEntities()
 
 
 	// Create the sky (loading custom shaders in-line below)
-	sky = new Sky(
-		GetFullPathTo_Wide(L"../../../Assets/Skies/Clouds Blue/right.png").c_str(),
-		GetFullPathTo_Wide(L"../../../Assets/Skies/Clouds Blue/left.png").c_str(),
-		GetFullPathTo_Wide(L"../../../Assets/Skies/Clouds Blue/up.png").c_str(),
-		GetFullPathTo_Wide(L"../../../Assets/Skies/Clouds Blue/down.png").c_str(),
-		GetFullPathTo_Wide(L"../../../Assets/Skies/Clouds Blue/front.png").c_str(),
-		GetFullPathTo_Wide(L"../../../Assets/Skies/Clouds Blue/back.png").c_str(),
-		assets.GetMesh("Models/cube"),
-		assets.GetVertexShader("SkyVS"),
-		assets.GetPixelShader("SkyPS"),
+	sky = std::make_shared<Sky>(
+		FixPath(L"../../../Assets/Skies/Clouds Blue/right.png").c_str(),
+		FixPath(L"../../../Assets/Skies/Clouds Blue/left.png").c_str(),
+		FixPath(L"../../../Assets/Skies/Clouds Blue/up.png").c_str(),
+		FixPath(L"../../../Assets/Skies/Clouds Blue/down.png").c_str(),
+		FixPath(L"../../../Assets/Skies/Clouds Blue/front.png").c_str(),
+		FixPath(L"../../../Assets/Skies/Clouds Blue/back.png").c_str(),
+		assets.GetMesh(L"Models/cube"),
+		assets.GetVertexShader(L"SkyVS"),
+		assets.GetPixelShader(L"SkyPS"),
 		sampler,
 		device,
 		context);
 
 	// Create a few simple textures
-	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> whiteSRV = assets.CreateSolidColorTexture("Textures/White", 2, 2, XMFLOAT4(1, 1, 1, 1));
-	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> greySRV = assets.CreateSolidColorTexture("Textures/Grey", 2, 2, XMFLOAT4(0.5f, 0.5f, 0.5f, 1));
-	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> blackSRV = assets.CreateSolidColorTexture("Textures/Black", 2, 2, XMFLOAT4(0, 0, 0, 1));
-	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> flatNormalsSRV = assets.CreateSolidColorTexture("Textures/FlatNormals", 2, 2, XMFLOAT4(0.5f, 0.5f, 1.0f, 1));
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> whiteSRV = assets.CreateSolidColorTexture(L"Textures/White", 2, 2, XMFLOAT4(1, 1, 1, 1));
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> greySRV = assets.CreateSolidColorTexture(L"Textures/Grey", 2, 2, XMFLOAT4(0.5f, 0.5f, 0.5f, 1));
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> blackSRV = assets.CreateSolidColorTexture(L"Textures/Black", 2, 2, XMFLOAT4(0, 0, 0, 1));
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> flatNormalsSRV = assets.CreateSolidColorTexture(L"Textures/FlatNormals", 2, 2, XMFLOAT4(0.5f, 0.5f, 1.0f, 1));
 
 	// Grab shaders needed below
-	std::shared_ptr<SimpleVertexShader> vertexShader = assets.GetVertexShader("VertexShader");
-	std::shared_ptr<SimplePixelShader> toonPS = assets.GetPixelShader("ToonPS");
+	std::shared_ptr<SimpleVertexShader> vertexShader = assets.GetVertexShader(L"VertexShader");
+	std::shared_ptr<SimplePixelShader> toonPS = assets.GetPixelShader(L"ToonPS");
 
 	// Create materials
 	std::shared_ptr<Material> whiteMat = std::make_shared<Material>(toonPS, vertexShader, XMFLOAT3(1, 1, 1));
@@ -189,61 +202,60 @@ void Game::LoadAssetsAndCreateEntities()
 	std::shared_ptr<Material> detailedMat = std::make_shared<Material>(toonPS, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(4, 2));
 	detailedMat->AddSampler("BasicSampler", sampler);
 	detailedMat->AddSampler("ClampSampler", clampSampler);
-	detailedMat->AddTextureSRV("Albedo", assets.GetTexture("Textures/cushion"));
-	detailedMat->AddTextureSRV("NormalMap", assets.GetTexture("Textures/cushion_normals"));
+	detailedMat->AddTextureSRV("Albedo", assets.GetTexture(L"Textures/cushion"));
+	detailedMat->AddTextureSRV("NormalMap", assets.GetTexture(L"Textures/cushion_normals"));
 	detailedMat->AddTextureSRV("RoughnessMap", blackSRV);
 
 	std::shared_ptr<Material> crateMat = std::make_shared<Material>(toonPS, vertexShader, XMFLOAT3(1, 1, 1));
 	crateMat->AddSampler("BasicSampler", sampler);
 	crateMat->AddSampler("ClampSampler", clampSampler);
-	crateMat->AddTextureSRV("Albedo", assets.GetTexture("Textures/PBR/crate_wood_albedo"));
+	crateMat->AddTextureSRV("Albedo", assets.GetTexture(L"Textures/PBR/crate_wood_albedo"));
 	crateMat->AddTextureSRV("NormalMap", flatNormalsSRV);
 	crateMat->AddTextureSRV("RoughnessMap", greySRV);
 
 	std::shared_ptr<Material> mandoMat = std::make_shared<Material>(toonPS, vertexShader, XMFLOAT3(1, 1, 1));
 	mandoMat->AddSampler("BasicSampler", sampler);
 	mandoMat->AddSampler("ClampSampler", clampSampler);
-	mandoMat->AddTextureSRV("Albedo", assets.GetTexture("Textures/mando"));
+	mandoMat->AddTextureSRV("Albedo", assets.GetTexture(L"Textures/mando"));
 	mandoMat->AddTextureSRV("NormalMap", flatNormalsSRV);
 	mandoMat->AddTextureSRV("RoughnessMap", blackSRV);
 
 	std::shared_ptr<Material> containerMat = std::make_shared<Material>(toonPS, vertexShader, XMFLOAT3(1, 1, 1));
 	containerMat->AddSampler("BasicSampler", sampler);
 	containerMat->AddSampler("ClampSampler", clampSampler);
-	containerMat->AddTextureSRV("Albedo", assets.GetTexture("Textures/container"));
+	containerMat->AddTextureSRV("Albedo", assets.GetTexture(L"Textures/container"));
 	containerMat->AddTextureSRV("NormalMap", flatNormalsSRV);
 	containerMat->AddTextureSRV("RoughnessMap", greySRV);
 
 
 	// Grab meshes
-	std::shared_ptr<Mesh> sphereMesh = assets.GetMesh("Models/sphere");
-	std::shared_ptr<Mesh> torusMesh = assets.GetMesh("Models/torus");
-	std::shared_ptr<Mesh> crateMesh = assets.GetMesh("Models/crate_wood");
-	std::shared_ptr<Mesh> mandoMesh = assets.GetMesh("Models/mando");
-	std::shared_ptr<Mesh> containerMesh = assets.GetMesh("Models/container");
+	std::shared_ptr<Mesh> sphereMesh = assets.GetMesh(L"Models/sphere");
+	std::shared_ptr<Mesh> torusMesh = assets.GetMesh(L"Models/torus");
+	std::shared_ptr<Mesh> crateMesh = assets.GetMesh(L"Models/crate_wood");
+	std::shared_ptr<Mesh> mandoMesh = assets.GetMesh(L"Models/mando");
+	std::shared_ptr<Mesh> containerMesh = assets.GetMesh(L"Models/container");
 
 	// === Create the line up entities =====================================
-	GameEntity* sphere = new GameEntity(sphereMesh, whiteMat);
+	std::shared_ptr<GameEntity> sphere = std::make_shared<GameEntity>(sphereMesh, whiteMat);
 	sphere->GetTransform()->SetPosition(0, 0, 0);
 
-	GameEntity* torus = new GameEntity(torusMesh, redMat);
+	std::shared_ptr<GameEntity> torus = std::make_shared<GameEntity>(torusMesh, redMat);
 	torus->GetTransform()->SetScale(2.0f);
 	torus->GetTransform()->SetRotation(0, 0, XM_PIDIV2);
 	torus->GetTransform()->SetPosition(0, -3, 0);
 
-	GameEntity* detailed = new GameEntity(sphereMesh, detailedMat);
+	std::shared_ptr<GameEntity> detailed = std::make_shared<GameEntity>(sphereMesh, detailedMat);
 	detailed->GetTransform()->SetPosition(0, -6, 0);
 
-	GameEntity* mando = new GameEntity(mandoMesh, mandoMat);
+	std::shared_ptr<GameEntity> mando = std::make_shared<GameEntity>(mandoMesh, mandoMat);
 	mando->GetTransform()->SetPosition(0, -9, 0);
 
-	GameEntity* crate = new GameEntity(crateMesh, crateMat);
+	std::shared_ptr<GameEntity> crate = std::make_shared<GameEntity>(crateMesh, crateMat);
 	crate->GetTransform()->SetPosition(0, -12, 0);
 
-	GameEntity* container = new GameEntity(containerMesh, containerMat);
+	std::shared_ptr<GameEntity> container = std::make_shared<GameEntity>(containerMesh, containerMat);
 	container->GetTransform()->SetPosition(0, -16, 0);
 	container->GetTransform()->SetScale(0.075f);
-
 
 	entities.push_back(sphere);
 	entities.push_back(torus);
@@ -251,9 +263,6 @@ void Game::LoadAssetsAndCreateEntities()
 	entities.push_back(mando);
 	entities.push_back(crate);
 	entities.push_back(container);
-
-
-
 }
 
 
@@ -277,8 +286,8 @@ void Game::ResizePostProcessResources()
 
 	// Describe our textures
 	D3D11_TEXTURE2D_DESC textureDesc = {};
-	textureDesc.Width = width;
-	textureDesc.Height = height;
+	textureDesc.Width = windowWidth;
+	textureDesc.Height = windowHeight;
 	textureDesc.ArraySize = 1;
 	textureDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE; // Will render to it and sample from it!
 	textureDesc.CPUAccessFlags = 0;
@@ -374,7 +383,7 @@ void Game::OnResize()
 	DXCore::OnResize();
 
 	// Update the camera's projection to match the new aspect ratio
-	if (camera) camera->UpdateProjectionMatrix((float)width / height);
+	if (camera) camera->UpdateProjectionMatrix((float)windowWidth / windowHeight);
 
 	// Reset post process stuff because to match window
 	ResizePostProcessResources();
@@ -447,10 +456,10 @@ void Game::Draw(float deltaTime, float totalTime)
 	silhouetteID = 0;
 
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>
-		toonRamp1 = Assets::GetInstance().GetTexture("Textures/Ramps/toonRamp1"),
-		toonRamp2 = Assets::GetInstance().GetTexture("Textures/Ramps/toonRamp2"),
-		toonRamp3 = Assets::GetInstance().GetTexture("Textures/Ramps/toonRamp3"),
-		toonRampSpec = Assets::GetInstance().GetTexture("Textures/Ramps/toonRampSpecular");
+		toonRamp1 = Assets::GetInstance().GetTexture(L"Textures/Ramps/toonRamp1"),
+		toonRamp2 = Assets::GetInstance().GetTexture(L"Textures/Ramps/toonRamp2"),
+		toonRamp3 = Assets::GetInstance().GetTexture(L"Textures/Ramps/toonRamp3"),
+		toonRampSpec = Assets::GetInstance().GetTexture(L"Textures/Ramps/toonRampSpecular");
 
 	// Render entities with several different toon shading variations
 	RenderEntitiesWithToonShading(TOON_SHADING_NONE, 0, true, XMFLOAT3(-6, 7.5f, 0));
@@ -485,14 +494,18 @@ void Game::Draw(float deltaTime, float totalTime)
 	// Draw the UI on top of everything
 	DrawUI();
 
-	// Present the back buffer to the user
-	//  - Puts the final frame we're drawing into the window so the user can see it
-	//  - Do this exactly ONCE PER FRAME (always at the very end of the frame)
-	swapChain->Present(0, 0);
+	// Frame END
+	// - These should happen exactly ONCE PER FRAME
+	// - At the very end of the frame (after drawing *everything*)
+	{
+		// Present the back buffer to the user
+		//  - Puts the results of what we've drawn onto the window
+		//  - Without this, the user never sees anything
+		swapChain->Present(vsync ? 1 : 0, 0);
 
-	// Due to the usage of a more sophisticated swap chain,
-	// the render target must be re-bound after every call to Present()
-	context->OMSetRenderTargets(1, backBufferRTV.GetAddressOf(), depthStencilView.Get());
+		// Must re-bind buffers after presenting, as they become unbound
+		context->OMSetRenderTargets(1, backBufferRTV.GetAddressOf(), depthBufferDSV.Get());
+	}
 }
 
 
@@ -509,7 +522,7 @@ void Game::PreRender()
 	//  - Do this ONCE PER FRAME
 	//  - At the beginning of Draw (before drawing *anything*)
 	context->ClearRenderTargetView(backBufferRTV.Get(), color);
-	context->ClearDepthStencilView(depthStencilView.Get(), D3D11_CLEAR_DEPTH, 1.0f, 0);
+	context->ClearDepthStencilView(depthBufferDSV.Get(), D3D11_CLEAR_DEPTH, 1.0f, 0);
 
 	// Clear all render targets, too
 	context->ClearRenderTargetView(ppRTV.Get(), color);
@@ -529,7 +542,7 @@ void Game::PreRender()
 		rtvs[0] = ppRTV.Get();
 
 	// Set all three
-	context->OMSetRenderTargets(3, rtvs, depthStencilView.Get());
+	context->OMSetRenderTargets(3, rtvs, depthBufferDSV.Get());
 }
 
 // --------------------------------------------------------
@@ -539,11 +552,10 @@ void Game::PostRender()
 {
 	Assets& assets = Assets::GetInstance();
 
-
-	std::shared_ptr<SimpleVertexShader> fullscreenVS = assets.GetVertexShader("FullscreenTriangleVS");
-	std::shared_ptr<SimplePixelShader> sobelFilterPS = assets.GetPixelShader("SobelFilterPS");
-	std::shared_ptr<SimplePixelShader> silhouettePS = assets.GetPixelShader("SilhouettePS");
-	std::shared_ptr<SimplePixelShader> depthNormalOutlinePS = assets.GetPixelShader("DepthNormalOutlinePS");
+	std::shared_ptr<SimpleVertexShader> fullscreenVS = assets.GetVertexShader(L"FullscreenTriangleVS");
+	std::shared_ptr<SimplePixelShader> sobelFilterPS = assets.GetPixelShader(L"SobelFilterPS");
+	std::shared_ptr<SimplePixelShader> silhouettePS = assets.GetPixelShader(L"SilhouettePS");
+	std::shared_ptr<SimplePixelShader> depthNormalOutlinePS = assets.GetPixelShader(L"DepthNormalOutlinePS");
 
 	// Which form of outline are we handling?
 	switch (outlineRenderingMode)
@@ -560,8 +572,8 @@ void Game::PostRender()
 		sobelFilterPS->SetShader();
 		sobelFilterPS->SetShaderResourceView("pixels", ppSRV.Get());
 		sobelFilterPS->SetSamplerState("samplerOptions", clampSampler.Get());
-		sobelFilterPS->SetFloat("pixelWidth", 1.0f / width);
-		sobelFilterPS->SetFloat("pixelHeight", 1.0f / height);
+		sobelFilterPS->SetFloat("pixelWidth", 1.0f / windowWidth);
+		sobelFilterPS->SetFloat("pixelHeight", 1.0f / windowHeight);
 		sobelFilterPS->CopyAllBufferData();
 
 		// Draw exactly 3 vertices, which the special post-process vertex shader will
@@ -577,14 +589,14 @@ void Game::PostRender()
 		context->OMSetRenderTargets(1, backBufferRTV.GetAddressOf(), 0);
 
 		// Set up post process shaders
-		assets.GetVertexShader("FullscreenTriangleVS")->SetShader();
+		assets.GetVertexShader(L"FullscreenTriangleVS")->SetShader();
 
 		silhouettePS->SetShaderResourceView("pixels", ppSRV.Get());
 		silhouettePS->SetSamplerState("samplerOptions", clampSampler.Get());
 		silhouettePS->SetShader();
 
-		silhouettePS->SetFloat("pixelWidth", 1.0f / width);
-		silhouettePS->SetFloat("pixelHeight", 1.0f / height);
+		silhouettePS->SetFloat("pixelWidth", 1.0f / windowWidth);
+		silhouettePS->SetFloat("pixelHeight", 1.0f / windowHeight);
 		silhouettePS->CopyAllBufferData();
 
 		// Draw exactly 3 vertices, which the special post-process vertex shader will
@@ -599,7 +611,7 @@ void Game::PostRender()
 		context->OMSetRenderTargets(1, backBufferRTV.GetAddressOf(), 0);
 
 		// Set up post process shaders
-		assets.GetVertexShader("FullscreenTriangleVS")->SetShader();
+		assets.GetVertexShader(L"FullscreenTriangleVS")->SetShader();
 
 		depthNormalOutlinePS->SetShaderResourceView("pixels", ppSRV.Get());
 		depthNormalOutlinePS->SetShaderResourceView("normals", sceneNormalsSRV.Get());
@@ -607,8 +619,8 @@ void Game::PostRender()
 		depthNormalOutlinePS->SetSamplerState("samplerOptions", clampSampler.Get());
 		depthNormalOutlinePS->SetShader();
 
-		depthNormalOutlinePS->SetFloat("pixelWidth", 1.0f / width);
-		depthNormalOutlinePS->SetFloat("pixelHeight", 1.0f / height);
+		depthNormalOutlinePS->SetFloat("pixelWidth", 1.0f / windowWidth);
+		depthNormalOutlinePS->SetFloat("pixelHeight", 1.0f / windowHeight);
 		depthNormalOutlinePS->SetFloat("depthAdjust", 5.0f);
 		depthNormalOutlinePS->SetFloat("normalAdjust", 5.0f);
 		depthNormalOutlinePS->CopyAllBufferData();
@@ -636,7 +648,7 @@ void Game::DrawUI()
 {
 	// Grab the font from the asset manager
 	Assets& assets = Assets::GetInstance();
-	std::shared_ptr<SpriteFont> fontArial12 = assets.GetSpriteFont("Fonts/Arial12");
+	std::shared_ptr<SpriteFont> fontArial12 = assets.GetSpriteFont(L"Fonts/Arial12");
 
 	spriteBatch->Begin();
 
@@ -780,7 +792,7 @@ void Game::DrawTextAtLocation(const char* text, DirectX::XMFLOAT3 position, Dire
 
 	// Use the sprite font to draw the specified text - we'll be
 	// moving the text with the matrix above
-	Assets::GetInstance().GetSpriteFont("Fonts/Arial72")->DrawString(
+	Assets::GetInstance().GetSpriteFont(L"Fonts/Arial72")->DrawString(
 		spriteBatch.get(),
 		text,
 		XMFLOAT2(0, 0),
@@ -806,7 +818,7 @@ void Game::DrawTextAtLocation(const char* text, DirectX::XMFLOAT3 position, Dire
 void Game::RenderEntitiesWithToonShading(int toonShadingType, Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> toonRamp, bool offsetPositions, DirectX::XMFLOAT3 offset)
 {
 	// Grab specular ramp just in case
-	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> toonRampSpecular = Assets::GetInstance().GetTexture("Textures/Ramps/toonRampSpecular");
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> toonRampSpecular = Assets::GetInstance().GetTexture(L"Textures/Ramps/toonRampSpecular");
 
 	// Loop through the game entities in the current scene and draw
 	for (auto& e : entities)
@@ -856,10 +868,10 @@ void Game::RenderEntitiesWithToonShading(int toonShadingType, Microsoft::WRL::Co
 // Renders a single entity inside out, using a vertex shader
 // that moves each vertex along its normal
 // --------------------------------------------------------
-void Game::DrawOutlineInsideOut(GameEntity* entity, Camera* camera, float outlineSize)
+void Game::DrawOutlineInsideOut(std::shared_ptr<GameEntity> entity, std::shared_ptr<Camera> camera, float outlineSize)
 {
-	std::shared_ptr<SimpleVertexShader> insideOutVS = Assets::GetInstance().GetVertexShader("InsideOutVS");
-	std::shared_ptr<SimplePixelShader> solidColorPS = Assets::GetInstance().GetPixelShader("SolidColorPS");
+	std::shared_ptr<SimpleVertexShader> insideOutVS = Assets::GetInstance().GetVertexShader(L"InsideOutVS");
+	std::shared_ptr<SimplePixelShader> solidColorPS = Assets::GetInstance().GetPixelShader(L"SolidColorPS");
 
 	insideOutVS->SetShader();
 	solidColorPS->SetShader();
