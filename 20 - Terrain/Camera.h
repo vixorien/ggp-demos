@@ -60,6 +60,12 @@ public:
 	float GetFarClip();
 	void SetFarClip(float distance);
 
+	float GetOrthographicWidth();
+	void SetOrthographicWidth(float width);
+
+	CameraProjectionType GetProjectionType();
+	void SetProjectionType(CameraProjectionType type);
+
 private:
 	// Camera matrices
 	DirectX::XMFLOAT4X4 viewMatrix;
@@ -74,6 +80,7 @@ private:
 	float aspectRatio;
 	float nearClip;
 	float farClip;
+	float orthographicWidth;
 
 	CameraProjectionType projectionType;
 };

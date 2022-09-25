@@ -21,7 +21,8 @@ Camera::Camera(
 	aspectRatio(aspectRatio),
 	nearClip(nearClip),
 	farClip(farClip),
-	projectionType(projType)
+	projectionType(projType),
+	orthographicWidth(2.0f)
 {
 	transform.SetPosition(x, y, z);
 
@@ -132,8 +133,8 @@ void Camera::UpdateProjectionMatrix(float aspectRatio)
 	else // CameraProjectionType::ORTHOGRAPHIC
 	{
 		P = XMMatrixOrthographicLH(
-			2.0f * aspectRatio,	// Projection width (in world units)
-			2.0f,				// Projection height (in world units)
+			orthographicWidth,	// Projection width (in world units)
+			orthographicWidth / aspectRatio,// Projection height (in world units)
 			nearClip,			// Near clip plane distance 
 			farClip);			// Far clip plane distance
 	}
@@ -148,7 +149,11 @@ Transform* Camera::GetTransform() { return &transform; }
 float Camera::GetAspectRatio() { return aspectRatio; }
 
 float Camera::GetFieldOfView() { return fieldOfView; }
-void Camera::SetFieldOfView(float fov) { fieldOfView = fov; }
+void Camera::SetFieldOfView(float fov) 
+{ 
+	fieldOfView = fov; 
+	UpdateProjectionMatrix(aspectRatio);
+}
 
 float Camera::GetMovementSpeed() { return movementSpeed; }
 void Camera::SetMovementSpeed(float speed) { movementSpeed = speed; }
@@ -157,9 +162,31 @@ float Camera::GetMouseLookSpeed() { return mouseLookSpeed; }
 void Camera::SetMouseLookSpeed(float speed) { mouseLookSpeed = speed; }
 
 float Camera::GetNearClip() { return nearClip; }
-void Camera::SetNearClip(float distance) { nearClip = distance; }
+void Camera::SetNearClip(float distance) 
+{ 
+	nearClip = distance;
+	UpdateProjectionMatrix(aspectRatio);
+}
 
 float Camera::GetFarClip() { return farClip; }
-void Camera::SetFarClip(float distance) { farClip = distance; }
+void Camera::SetFarClip(float distance) 
+{ 
+	farClip = distance;
+	UpdateProjectionMatrix(aspectRatio);
+}
+
+float Camera::GetOrthographicWidth() { return orthographicWidth; }
+void Camera::SetOrthographicWidth(float width)
+{
+	orthographicWidth = width;
+	UpdateProjectionMatrix(aspectRatio);
+}
+
+CameraProjectionType Camera::GetProjectionType() { return projectionType; }
+void Camera::SetProjectionType(CameraProjectionType type) 
+{
+	projectionType = type;
+	UpdateProjectionMatrix(aspectRatio);
+} 
 
 
