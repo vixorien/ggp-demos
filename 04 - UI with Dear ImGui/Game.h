@@ -34,6 +34,11 @@ private:
 	// UI functions
 	void UINewFrame(float deltaTime);
 	void BuildUI();
+	void CameraUI(std::shared_ptr<Camera> cam);
+	void EntityUI(std::shared_ptr<GameEntity> entity);
+
+	// Should the ImGui demo window be shown?
+	bool showUIDemoWindow;
 
 	// Camera for the 3D scene
 	std::shared_ptr<Camera> camera;

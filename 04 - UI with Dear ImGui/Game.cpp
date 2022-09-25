@@ -30,7 +30,8 @@ Game::Game(HINSTANCE hInstance)
 		1280,				// Width of the window's client area
 		720,				// Height of the window's client area
 		false,				// Sync the framerate to the monitor refresh? (lock framerate)
-		true)				// Show extra stats (fps) in title bar?
+		true),				// Show extra stats (fps) in title bar?
+	showUIDemoWindow(false)
 {
 
 #if defined(DEBUG) || defined(_DEBUG)
@@ -432,8 +433,146 @@ void Game::UINewFrame(float deltaTime)
 // --------------------------------------------------------
 void Game::BuildUI()
 {
-	// Show the demo window
-	ImGui::ShowDemoWindow();
+	// Should we show the built-in demo window?
+	if (showUIDemoWindow)
+	{
+		ImGui::ShowDemoWindow();
+	}
+
+	// Actually build our custom UI, starting with a window
+	ImGui::Begin("Inspector");
+	{
+		// Set a specific amount of space for widget labels
+		ImGui::PushItemWidth(-160); // Negative value sets label width
+
+		// === Overall details ===
+		if (ImGui::TreeNode("App Details"))
+		{
+			ImGui::Spacing();
+			ImGui::Text("Frame rate: %f fps", ImGui::GetIO().Framerate);
+			ImGui::Text("Window Client Size: %dx%d", windowWidth, windowHeight);
+			
+			// Should we show the demo window?
+			if (ImGui::Button(showUIDemoWindow ? "Hide ImGui Demo Window" : "Show ImGui Demo Window"))
+				showUIDemoWindow = !showUIDemoWindow;
+
+			ImGui::Spacing();
+
+			// Finalize the tree node
+			ImGui::TreePop();
+		}
+
+		// === Camera details ===
+		if (ImGui::TreeNode("Camera"))
+		{
+			// Show UI for current camera
+			CameraUI(camera);
+
+			// Finalize the tree node
+			ImGui::TreePop();
+		}
+
+		// === Entities ===
+		if (ImGui::TreeNode("Scene Entities"))
+		{
+			// Loop and show the details for each entity
+			for(int i = 0; i < entities.size(); i++)
+			{
+				// New node for each entity
+				// Note the use of PushID(), so that each tree node and its widgets
+				// have unique internal IDs in the ImGui system
+				ImGui::PushID(i);
+				if (ImGui::TreeNode("Entity Node", "Entity %d", i))
+				{
+					// Build UI for one entity at a time
+					EntityUI(entities[i]);
+
+					ImGui::TreePop();
+				}
+				ImGui::PopID();
+			}
+
+			// Finalize the tree node
+			ImGui::TreePop();
+		}
+	}
+	ImGui::End();
+}
 
 
+// --------------------------------------------------------
+// Builds the UI for a single camera
+// --------------------------------------------------------
+void Game::CameraUI(std::shared_ptr<Camera> cam)
+{
+	ImGui::Spacing();
+
+	// Transform details
+	XMFLOAT3 pos = cam->GetTransform()->GetPosition();
+	XMFLOAT3 rot = cam->GetTransform()->GetPitchYawRoll();
+
+	if (ImGui::DragFloat3("Position", &pos.x, 0.01f))
+		cam->GetTransform()->SetPosition(pos);
+	if (ImGui::DragFloat3("Rotation (Radians)", &rot.x, 0.01f))
+		cam->GetTransform()->SetRotation(rot);
+	ImGui::Spacing();
+
+	// Clip planes
+	float nearClip = cam->GetNearClip();
+	float farClip = cam->GetFarClip();
+	if (ImGui::DragFloat("Near Clip Distance", &nearClip, 0.01f, 0.001f, 1.0f))
+		cam->SetNearClip(nearClip);
+	if (ImGui::DragFloat("Far Clip Distance", &farClip, 1.0f, 10.0f, 1000.0f))
+		cam->SetFarClip(farClip);
+
+	// Projection type
+	CameraProjectionType projType = cam->GetProjectionType();
+	int typeIndex = (int)projType;
+	if (ImGui::Combo("Projection Type", &typeIndex, "Perspective\0Orthographic"))
+	{
+		projType = (CameraProjectionType)typeIndex;
+		cam->SetProjectionType(projType);
+	}
+
+	// Projection details
+	if (projType == CameraProjectionType::Perspective)
+	{
+		// Convert field of view to degrees for UI
+		float fov = cam->GetFieldOfView() * 180.0f / XM_PI;
+		if (ImGui::SliderFloat("Field of View (Degrees)", &fov, 0.01f, 180.0f))
+			cam->SetFieldOfView(fov * XM_PI / 180.0f); // Back to radians
+	}
+	else if (projType == CameraProjectionType::Orthographic)
+	{
+		float wid = cam->GetOrthographicWidth();
+		if (ImGui::SliderFloat("Orthographic Width", &wid, 1.0f, 10.0f))
+			cam->SetOrthographicWidth(wid);
+	}
+
+	ImGui::Spacing();
+}
+
+
+// --------------------------------------------------------
+// Builds the UI for a single entity
+// --------------------------------------------------------
+void Game::EntityUI(std::shared_ptr<GameEntity> entity)
+{
+	ImGui::Spacing();
+
+	// Transform details
+	Transform* trans = entity->GetTransform();
+	XMFLOAT3 pos = trans->GetPosition();
+	XMFLOAT3 rot = trans->GetPitchYawRoll();
+	XMFLOAT3 sca = trans->GetScale();
+
+	if (ImGui::DragFloat3("Position", &pos.x, 0.01f)) trans->SetPosition(pos);
+	if (ImGui::DragFloat3("Rotation (Radians)", &rot.x, 0.01f)) trans->SetRotation(rot);
+	if (ImGui::DragFloat3("Scale", &sca.x, 0.01f)) trans->SetScale(sca);
+
+	// Mesh details
+	ImGui::Spacing();
+	ImGui::Text("Mesh Index Count: %d", entity->GetMesh()->GetIndexCount());
+
+	ImGui::Spacing();
 }
