@@ -132,8 +132,8 @@ void Sky::InitRenderStates()
 Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Sky::CreateCubemap(const wchar_t* right, const wchar_t* left, const wchar_t* up, const wchar_t* down, const wchar_t* front, const wchar_t* back)
 {
 	// Load the 6 textures into an array.
-	// - We need references to the TEXTURES, not the SHADER RESOURCE VIEWS!
-	// - Specifically NOT generating mipmaps, as we don't need them for the sky!
+	// - We need references to the TEXTURES, not SHADER RESOURCE VIEWS!
+	// - Explicitly NOT generating mipmaps, as we don't need them for the sky!
 	// - Order matters here!  +X, -X, +Y, -Y, +Z, -Z
 	Microsoft::WRL::ComPtr<ID3D11Texture2D> textures[6] = {};
 	CreateWICTextureFromFile(device.Get(), right, (ID3D11Resource**)textures[0].GetAddressOf(), 0);
@@ -149,8 +149,9 @@ Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Sky::CreateCubemap(const wchar_
 	textures[0]->GetDesc(&faceDesc);
 
 	// Describe the resource for the cube map, which is simply 
-	// a "texture 2d array".  This is a special GPU resource format, 
-	// NOT just a C++ array of textures!!!
+	// a "texture 2d array" with the TEXTURECUBE flag set.  
+	// This is a special GPU resource format, NOT just a 
+	// C++ array of textures!!!
 	D3D11_TEXTURE2D_DESC cubeDesc = {};
 	cubeDesc.ArraySize = 6; // Cube map!
 	cubeDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE; // We'll be using as a texture in a shader
@@ -164,7 +165,7 @@ Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Sky::CreateCubemap(const wchar_
 	cubeDesc.SampleDesc.Count = 1;
 	cubeDesc.SampleDesc.Quality = 0;
 
-	// Create the actual texture resource
+	// Create the final texture resource to hold the cube map
 	Microsoft::WRL::ComPtr<ID3D11Texture2D> cubeMapTexture;
 	device->CreateTexture2D(&cubeDesc, 0, cubeMapTexture.GetAddressOf());
 

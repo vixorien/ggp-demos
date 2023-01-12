@@ -37,6 +37,11 @@ public:
 	int GetMouseY();
 	int GetMouseXDelta();
 	int GetMouseYDelta();
+
+	void ProcessRawMouseInput(LPARAM input);
+	int GetRawMouseXDelta();
+	int GetRawMouseYDelta();
+
 	float GetMouseWheel();
 	void SetWheelDelta(float delta);
 
@@ -80,6 +85,8 @@ private:
 	int prevMouseY {0};
 	int mouseXDelta {0};
 	int mouseYDelta {0};
+	int rawMouseXDelta{ 0 };
+	int rawMouseYDelta{ 0 };
 	float wheelDelta {0};
 
 	// Support for capturing input outside the input manager

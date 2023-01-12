@@ -397,7 +397,7 @@ void Game::UINewFrame(float deltaTime)
 	Input& input = Input::GetInstance();
 
 	// Reset input manager's gui state so we don’t
-	// taint our own input (you’ll uncomment later)
+	// taint our own input
 	input.SetKeyboardCapture(false);
 	input.SetMouseCapture(false);
 
@@ -406,16 +406,6 @@ void Game::UINewFrame(float deltaTime)
 	io.DeltaTime = deltaTime;
 	io.DisplaySize.x = (float)this->windowWidth;
 	io.DisplaySize.y = (float)this->windowHeight;
-	io.KeyCtrl = input.KeyDown(VK_CONTROL);
-	io.KeyShift = input.KeyDown(VK_SHIFT);
-	io.KeyAlt = input.KeyDown(VK_MENU);
-	io.MousePos.x = (float)input.GetMouseX();
-	io.MousePos.y = (float)input.GetMouseY();
-	io.MouseDown[0] = input.MouseLeftDown();
-	io.MouseDown[1] = input.MouseRightDown();
-	io.MouseDown[2] = input.MouseMiddleDown();
-	io.MouseWheel = input.GetMouseWheel();
-	input.GetKeyArray(io.KeysDown, 256);
 
 	// Reset the frame
 	ImGui_ImplDX11_NewFrame();
@@ -456,6 +446,20 @@ void Game::BuildUI()
 			if (ImGui::Button(showUIDemoWindow ? "Hide ImGui Demo Window" : "Show ImGui Demo Window"))
 				showUIDemoWindow = !showUIDemoWindow;
 
+			ImGui::Spacing();
+
+			// Finalize the tree node
+			ImGui::TreePop();
+		}
+
+		// === Controls ===
+		if (ImGui::TreeNode("Controls"))
+		{
+			ImGui::Spacing();
+			ImGui::Text("(WASD, X, Space)");    ImGui::SameLine(175); ImGui::Text("Move camera");
+			ImGui::Text("(Left Click & Drag)"); ImGui::SameLine(175); ImGui::Text("Rotate camera");
+			ImGui::Text("(Left Shift)");        ImGui::SameLine(175); ImGui::Text("Hold to speed up camera");
+			ImGui::Text("(Left Ctrl)");         ImGui::SameLine(175); ImGui::Text("Hold to slow down camera");
 			ImGui::Spacing();
 
 			// Finalize the tree node

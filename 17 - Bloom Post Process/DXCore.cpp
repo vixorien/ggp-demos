@@ -595,7 +595,12 @@ LRESULT DXCore::ProcessMessage(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
 	case WM_MOUSEWHEEL:
 		Input::GetInstance().SetWheelDelta(GET_WHEEL_DELTA_WPARAM(wParam) / (float)WHEEL_DELTA);
 		return 0;
-	
+
+	// Raw mouse input
+	case WM_INPUT:
+		Input::GetInstance().ProcessRawMouseInput(lParam);
+		break;
+
 	// Is our focus state changing?
 	case WM_SETFOCUS:	hasFocus = true;	return 0;
 	case WM_KILLFOCUS:	hasFocus = false;	return 0;
