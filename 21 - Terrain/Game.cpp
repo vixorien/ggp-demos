@@ -97,7 +97,7 @@ void Game::Init()
 	camera = std::make_shared<Camera>(
 		0.0f, 30.0f, -200.0f,	// Position
 		5.0f,				// Move speed
-		5.0f,				// Look speed
+		0.002f,				// Look speed
 		XM_PIDIV4,			// Field of view
 		(float)windowWidth / windowHeight,  // Aspect ratio
 		0.01f,				// Near clip
