@@ -8,6 +8,7 @@
 // We can include the correct library files here
 // instead of in Visual Studio settings if we want
 #pragma comment(lib, "d3d11.lib")
+#pragma comment(lib, "dxgi.lib")
 
 class DXCore
 {
@@ -62,6 +63,8 @@ protected:
 	// Should our framerate sync to the vertical refresh
 	// of the monitor (true) or run as fast as possible (false)?
 	bool vsync;
+	bool deviceSupportsTearing;
+	BOOL isFullscreen; // Due to alt+enter key combination (must be BOOL typedef)
 
 	// DirectX related objects and variables
 	D3D_FEATURE_LEVEL		dxFeatureLevel;
