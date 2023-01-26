@@ -1,5 +1,6 @@
 #include "DXCore.h"
 #include "Input.h"
+#include "../Common/ImGui/imgui_impl_win32.h"
 
 #include <dxgi1_5.h>
 #include <WindowsX.h>
@@ -89,17 +90,17 @@ HRESULT DXCore::InitWindow()
 {
 	// Start window creation by filling out the
 	// appropriate window class struct
-	WNDCLASS wndClass		= {}; // Zero out the memory
-	wndClass.style			= CS_HREDRAW | CS_VREDRAW;	// Redraw on horizontal or vertical movement/adjustment
-	wndClass.lpfnWndProc	= DXCore::WindowProc;
-	wndClass.cbClsExtra		= 0;
-	wndClass.cbWndExtra		= 0;
-	wndClass.hInstance		= hInstance;						// Our app's handle
-	wndClass.hIcon			= LoadIcon(NULL, IDI_APPLICATION);	// Default icon
-	wndClass.hCursor		= LoadCursor(NULL, IDC_ARROW);		// Default arrow cursor
-	wndClass.hbrBackground	= (HBRUSH)GetStockObject(BLACK_BRUSH);
-	wndClass.lpszMenuName	= NULL;
-	wndClass.lpszClassName	= L"Direct3DWindowClass"; // The "L" means this is a wide-character string
+	WNDCLASS wndClass = {}; // Zero out the memory
+	wndClass.style = CS_HREDRAW | CS_VREDRAW;	// Redraw on horizontal or vertical movement/adjustment
+	wndClass.lpfnWndProc = DXCore::WindowProc;
+	wndClass.cbClsExtra = 0;
+	wndClass.cbWndExtra = 0;
+	wndClass.hInstance = hInstance;						// Our app's handle
+	wndClass.hIcon = LoadIcon(NULL, IDI_APPLICATION);	// Default icon
+	wndClass.hCursor = LoadCursor(NULL, IDC_ARROW);		// Default arrow cursor
+	wndClass.hbrBackground = (HBRUSH)GetStockObject(BLACK_BRUSH);
+	wndClass.lpszMenuName = NULL;
+	wndClass.lpszClassName = L"Direct3DWindowClass"; // The "L" means this is a wide-character string
 
 	// Attempt to register the window class we've defined
 	if (!RegisterClass(&wndClass))
@@ -200,21 +201,21 @@ HRESULT DXCore::InitDirect3D()
 	// Create a description of how our swap
 	// chain should work
 	DXGI_SWAP_CHAIN_DESC swapDesc = {};
-	swapDesc.BufferCount		= 2;
-	swapDesc.BufferDesc.Width	= windowWidth;
-	swapDesc.BufferDesc.Height	= windowHeight;
+	swapDesc.BufferCount = 2;
+	swapDesc.BufferDesc.Width = windowWidth;
+	swapDesc.BufferDesc.Height = windowHeight;
 	swapDesc.BufferDesc.RefreshRate.Numerator = 60;
 	swapDesc.BufferDesc.RefreshRate.Denominator = 1;
-	swapDesc.BufferDesc.Format	= DXGI_FORMAT_R8G8B8A8_UNORM;
+	swapDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 	swapDesc.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
 	swapDesc.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
-	swapDesc.BufferUsage		= DXGI_USAGE_RENDER_TARGET_OUTPUT;
-	swapDesc.Flags				= deviceSupportsTearing ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0;
-	swapDesc.OutputWindow		= hWnd;
-	swapDesc.SampleDesc.Count	= 1;
+	swapDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+	swapDesc.Flags = deviceSupportsTearing ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0;
+	swapDesc.OutputWindow = hWnd;
+	swapDesc.SampleDesc.Count = 1;
 	swapDesc.SampleDesc.Quality = 0;
-	swapDesc.SwapEffect			= DXGI_SWAP_EFFECT_FLIP_DISCARD;
-	swapDesc.Windowed			= true;
+	swapDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+	swapDesc.Windowed = true;
 
 	// Result variable for below function calls
 	HRESULT hr = S_OK;
@@ -249,25 +250,25 @@ HRESULT DXCore::InitDirect3D()
 		// for the back buffer so we can render into it.
 		if (backBufferTexture != 0)
 		{
-			device->CreateRenderTargetView(backBufferTexture.Get(),	0, backBufferRTV.GetAddressOf());
+			device->CreateRenderTargetView(backBufferTexture.Get(), 0, backBufferRTV.GetAddressOf());
 		}
 	}
 
 	// Create the Depth Buffer and associated Depth Stencil View
 	{
 		// Set up the description of the texture to use for the depth buffer
-		D3D11_TEXTURE2D_DESC depthStencilDesc	= {};
-		depthStencilDesc.Width					= windowWidth;
-		depthStencilDesc.Height					= windowHeight;
-		depthStencilDesc.MipLevels				= 1;
-		depthStencilDesc.ArraySize				= 1;
-		depthStencilDesc.Format					= DXGI_FORMAT_D24_UNORM_S8_UINT;
-		depthStencilDesc.Usage					= D3D11_USAGE_DEFAULT;
-		depthStencilDesc.BindFlags				= D3D11_BIND_DEPTH_STENCIL;
-		depthStencilDesc.CPUAccessFlags			= 0;
-		depthStencilDesc.MiscFlags				= 0;
-		depthStencilDesc.SampleDesc.Count		= 1;
-		depthStencilDesc.SampleDesc.Quality		= 0;
+		D3D11_TEXTURE2D_DESC depthStencilDesc = {};
+		depthStencilDesc.Width = windowWidth;
+		depthStencilDesc.Height = windowHeight;
+		depthStencilDesc.MipLevels = 1;
+		depthStencilDesc.ArraySize = 1;
+		depthStencilDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+		depthStencilDesc.Usage = D3D11_USAGE_DEFAULT;
+		depthStencilDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+		depthStencilDesc.CPUAccessFlags = 0;
+		depthStencilDesc.MiscFlags = 0;
+		depthStencilDesc.SampleDesc.Count = 1;
+		depthStencilDesc.SampleDesc.Quality = 0;
 
 		// Create the depth buffer texture resource
 		Microsoft::WRL::ComPtr<ID3D11Texture2D> depthBufferTexture;
@@ -277,26 +278,26 @@ HRESULT DXCore::InitDirect3D()
 		// create the associated Depth Stencil View so we can use it for rendering
 		if (depthBufferTexture != 0)
 		{
-			device->CreateDepthStencilView(depthBufferTexture.Get(), 0,	depthBufferDSV.GetAddressOf());
+			device->CreateDepthStencilView(depthBufferTexture.Get(), 0, depthBufferDSV.GetAddressOf());
 		}
 	}
 
 	// Bind the back buffer and depth buffer to the pipeline
 	// so these particular resources are used when rendering
 	context->OMSetRenderTargets(
-		1, 
-		backBufferRTV.GetAddressOf(), 
+		1,
+		backBufferRTV.GetAddressOf(),
 		depthBufferDSV.Get());
 
 	// Lastly, set up a viewport so we render into
 	// to correct portion of the window
 	D3D11_VIEWPORT viewport = {};
-	viewport.TopLeftX	= 0;
-	viewport.TopLeftY	= 0;
-	viewport.Width		= (float)windowWidth;
-	viewport.Height		= (float)windowHeight;
-	viewport.MinDepth	= 0.0f;
-	viewport.MaxDepth	= 1.0f;
+	viewport.TopLeftX = 0;
+	viewport.TopLeftY = 0;
+	viewport.Width = (float)windowWidth;
+	viewport.Height = (float)windowHeight;
+	viewport.MinDepth = 0.0f;
+	viewport.MaxDepth = 1.0f;
 	context->RSSetViewports(1, &viewport);
 
 	// Return the "everything is ok" HRESULT value
@@ -335,12 +336,12 @@ void DXCore::OnResize()
 	{
 		// Get the texture reference
 		Microsoft::WRL::ComPtr<ID3D11Texture2D> backBufferTexture;
-		swapChain->GetBuffer(0,	__uuidof(ID3D11Texture2D), (void**)backBufferTexture.GetAddressOf());
+		swapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)backBufferTexture.GetAddressOf());
 
 		// Recreate the Render Target View for the back buffer texture
 		if (backBufferTexture != 0)
 		{
-			device->CreateRenderTargetView(backBufferTexture.Get(),	0, backBufferRTV.GetAddressOf());
+			device->CreateRenderTargetView(backBufferTexture.Get(), 0, backBufferRTV.GetAddressOf());
 		}
 	}
 
@@ -368,7 +369,7 @@ void DXCore::OnResize()
 		// create the associated Depth Stencil View so we can use it for rendering
 		if (depthBufferTexture != 0)
 		{
-			device->CreateDepthStencilView(depthBufferTexture.Get(), 0,	depthBufferDSV.GetAddressOf());
+			device->CreateDepthStencilView(depthBufferTexture.Get(), 0, depthBufferDSV.GetAddressOf());
 		}
 	}
 
@@ -379,16 +380,16 @@ void DXCore::OnResize()
 	// Set up a viewport so we render into
 	// to correct portion of the window
 	D3D11_VIEWPORT viewport = {};
-	viewport.TopLeftX	= 0;
-	viewport.TopLeftY	= 0;
-	viewport.Width		= (float)windowWidth;
-	viewport.Height		= (float)windowHeight;
-	viewport.MinDepth	= 0.0f;
-	viewport.MaxDepth	= 1.0f;
+	viewport.TopLeftX = 0;
+	viewport.TopLeftY = 0;
+	viewport.Width = (float)windowWidth;
+	viewport.Height = (float)windowHeight;
+	viewport.MinDepth = 0.0f;
+	viewport.MaxDepth = 1.0f;
 	context->RSSetViewports(1, &viewport);
 
 	// Are we in a fullscreen state?
- 	swapChain->GetFullscreenState(&isFullscreen, 0);
+	swapChain->GetFullscreenState(&isFullscreen, 0);
 }
 
 
@@ -426,7 +427,7 @@ HRESULT DXCore::Run()
 		{
 			// Update timer and title bar (if necessary)
 			UpdateTimer();
-			if(titleBarStats)
+			if (titleBarStats)
 				UpdateTitleBarStats();
 
 			// Update the input manager
@@ -504,10 +505,10 @@ void DXCore::UpdateTitleBarStats()
 	std::wostringstream output;
 	output.precision(6);
 	output << titleBarText <<
-		"    Width: "		<< windowWidth <<
-		"    Height: "		<< windowHeight <<
-		"    FPS: "			<< fpsFrameCount <<
-		"    Frame Time: "	<< mspf << "ms";
+		"    Width: " << windowWidth <<
+		"    Height: " << windowHeight <<
+		"    FPS: " << fpsFrameCount <<
+		"    Frame Time: " << mspf << "ms";
 
 	// Append the version of Direct3D the app is using
 	switch (dxFeatureLevel)
@@ -555,7 +556,7 @@ void DXCore::CreateConsoleWindow(int bufferLines, int bufferColumns, int windowL
 	rect.Bottom = windowLines;
 	SetConsoleWindowInfo(GetStdHandle(STD_OUTPUT_HANDLE), TRUE, &rect);
 
-	FILE *stream;
+	FILE* stream;
 	freopen_s(&stream, "CONIN$", "r", stdin);
 	freopen_s(&stream, "CONOUT$", "w", stdout);
 	freopen_s(&stream, "CONOUT$", "w", stderr);
@@ -576,6 +577,11 @@ void DXCore::CreateConsoleWindow(int bufferLines, int bufferColumns, int windowL
 // --------------------------------------------------------
 LRESULT DXCore::ProcessMessage(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
+	// Forward declare ImGui's handler, then call it
+	extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+	if (ImGui_ImplWin32_WndProcHandler(hWnd, uMsg, wParam, lParam))
+		return true;
+
 	// Check the incoming message and handle any we care about
 	switch (uMsg)
 	{
@@ -622,7 +628,7 @@ LRESULT DXCore::ProcessMessage(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lPara
 	case WM_INPUT:
 		Input::GetInstance().ProcessRawMouseInput(lParam);
 		break;
-	
+
 	// Is our focus state changing?
 	case WM_SETFOCUS:	hasFocus = true;	return 0;
 	case WM_KILLFOCUS:	hasFocus = false;	return 0;

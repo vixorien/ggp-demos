@@ -2,7 +2,6 @@
 
 #include "DXCore.h"
 #include "Mesh.h"
-#include "GameEntity.h"
 
 #include <vector>
 #include <DirectXMath.h>
@@ -30,14 +29,16 @@ private:
 	void LoadShaders(); 
 	void CreateGeometry();
 
-	// Vectors to hold objects
+	// UI functions
+	void UINewFrame(float deltaTime);
+	void BuildUI();
+
+	// Should the ImGui demo window be shown?
+	bool showUIDemoWindow;
+
+	// A vector to hold any number of meshes
 	// - This makes things easy to draw and clean up, too!
 	std::vector<std::shared_ptr<Mesh>> meshes;
-	std::vector<std::shared_ptr<GameEntity>> entities;
-	
-	// Constant buffer to hold data being sent to variables in the vertex shader
-	// - This is a buffer on the GPU
-	Microsoft::WRL::ComPtr<ID3D11Buffer> vsConstantBuffer;
 	
 	// Shaders and shader-related constructs
 	Microsoft::WRL::ComPtr<ID3D11PixelShader> pixelShader;

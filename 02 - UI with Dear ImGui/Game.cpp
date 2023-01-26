@@ -1,8 +1,11 @@
 #include "Game.h"
 #include "Vertex.h"
 #include "Input.h"
-#include "BufferStructs.h"
 #include "Helpers.h"
+
+#include "../Common/ImGui/imgui.h"
+#include "../Common/ImGui/imgui_impl_dx11.h"
+#include "../Common/ImGui/imgui_impl_win32.h"
 
 // Needed for a helper function to read compiled shader files from the hard drive
 #pragma comment(lib, "d3dcompiler.lib")
@@ -26,7 +29,8 @@ Game::Game(HINSTANCE hInstance)
 		1280,				// Width of the window's client area
 		720,				// Height of the window's client area
 		false,				// Sync the framerate to the monitor refresh? (lock framerate)
-		true)				// Show extra stats (fps) in title bar?
+		true),				// Show extra stats (fps) in title bar?
+	showUIDemoWindow(false)
 {
 
 #if defined(DEBUG) || defined(_DEBUG)
@@ -39,8 +43,8 @@ Game::Game(HINSTANCE hInstance)
 
 // --------------------------------------------------------
 // Destructor - Clean up anything our game has created:
-//  - Delete all objects manually created within this class
-//  - Release() all Direct3D objects created within this class
+//  - Release all DirectX objects created here
+//  - Delete any objects to prevent memory leaks
 // --------------------------------------------------------
 Game::~Game()
 {
@@ -50,6 +54,11 @@ Game::~Game()
 
 	// Call Release() on any Direct3D objects made within this class
 	// - Note: this is unnecessary for D3D objects stored in ComPtrs
+
+	// ImGui clean up
+	ImGui_ImplDX11_Shutdown();
+	ImGui_ImplWin32_Shutdown();
+	ImGui::DestroyContext();
 }
 
 // --------------------------------------------------------
@@ -58,6 +67,13 @@ Game::~Game()
 // --------------------------------------------------------
 void Game::Init()
 {
+	// Initialize ImGui itself & platform/renderer backends
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+	ImGui_ImplWin32_Init(hWnd);
+	ImGui_ImplDX11_Init(device.Get(), context.Get());
+	ImGui::StyleColorsDark();
+	
 	// Helper methods for loading shaders, creating some basic
 	// geometry to draw and some simple camera matrices.
 	//  - You'll be expanding and/or replacing these later
@@ -84,33 +100,6 @@ void Game::Init()
 		//    these calls will need to happen multiple times per frame
 		context->VSSetShader(vertexShader.Get(), 0, 0);
 		context->PSSetShader(pixelShader.Get(), 0, 0);
-	}
-
-	// Create a CONSTANT BUFFER to hold data on the GPU for shaders
-	// and bind it to the first vertex shader constant buffer register
-	{
-		// Calculate the size of our struct as a multiple of 16
-		unsigned int size = sizeof(VertexShaderExternalData);
-		size = (size + 15) / 16 * 16; // Integer division is necessary here!
-
-		// Describe the constant buffer and create it
-		D3D11_BUFFER_DESC cbDesc	= {};
-		cbDesc.BindFlags			= D3D11_BIND_CONSTANT_BUFFER;
-		cbDesc.ByteWidth			= size;
-		cbDesc.CPUAccessFlags		= D3D11_CPU_ACCESS_WRITE;
-		cbDesc.Usage				= D3D11_USAGE_DYNAMIC;
-		cbDesc.MiscFlags			= 0;
-		cbDesc.StructureByteStride	= 0;
-		device->CreateBuffer(&cbDesc, 0, vsConstantBuffer.GetAddressOf());
-
-		// Activate the constant buffer, ensuring it is 
-		// bound to the correct slot (register)
-		//  - This should match what our shader expects!
-		//  - Your C++ and your shaders have to start matching up!
-		context->VSSetConstantBuffers(
-			0,		// Which slot (register) to bind the buffer to?
-			1,		// How many are we activating?  Can set more than one at a time, if we need
-			vsConstantBuffer.GetAddressOf());	// Array of constant buffers or the address of just one (same thing in C++)
 	}
 }
 
@@ -199,6 +188,7 @@ void Game::CreateGeometry()
 	XMFLOAT4 black = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
 	XMFLOAT4 grey = XMFLOAT4(0.5f, 0.5f, 0.5f, 1.0f);
 
+	// === ASSIGNMENT 2 ===================================
 
 	// Set up the vertices and indices for the first mesh
 	Vertex verts1[] =
@@ -254,25 +244,6 @@ void Game::CreateGeometry()
 	meshes.push_back(mesh2);
 	meshes.push_back(mesh3);
 
-	// Create the game entities
-	std::shared_ptr<GameEntity> g1 = std::make_shared<GameEntity>(mesh1);
-	std::shared_ptr<GameEntity> g2 = std::make_shared<GameEntity>(mesh2);
-	std::shared_ptr<GameEntity> g3 = std::make_shared<GameEntity>(mesh3);	  // Same mesh!
-	std::shared_ptr<GameEntity> g4 = std::make_shared<GameEntity>(mesh3);	  // Same mesh!
-	std::shared_ptr<GameEntity> g5 = std::make_shared<GameEntity>(mesh3);	  // Same mesh!
-
-	// Adjust transforms
-	g1->GetTransform()->Rotate(0, 0, 0.1f);
-	g3->GetTransform()->MoveAbsolute(-1.2f, -0.3f, 0.0f);
-	g4->GetTransform()->MoveAbsolute(-0.5f, 0.1f, 0.0f);
-	g5->GetTransform()->MoveAbsolute(0.1f, -1.0f, 0.0f);
-
-	// Add to entity vector (easier to loop through and clean up)
-	entities.push_back(g1);
-	entities.push_back(g2);
-	entities.push_back(g3);
-	entities.push_back(g4);
-	entities.push_back(g5);
 }
 
 
@@ -291,15 +262,15 @@ void Game::OnResize()
 // --------------------------------------------------------
 void Game::Update(float deltaTime, float totalTime)
 {
+	// Set up the new frame for the UI, then build
+	// this frame's interface.  Note that the building
+	// of the UI could happen at any point during update.
+	UINewFrame(deltaTime);
+	BuildUI();
+
 	// Example input checking: Quit if the escape key is pressed
 	if (Input::GetInstance().KeyDown(VK_ESCAPE))
 		Quit();
-
-	// Update some transformations each frame
-	float scale = (float)sin(totalTime * 5) * 0.5f + 1.0f;
-	entities[0]->GetTransform()->SetScale(scale, scale, scale);
-	entities[0]->GetTransform()->Rotate(0, 0, deltaTime * 1.0f);
-	entities[2]->GetTransform()->SetPosition((float)sin(totalTime), 0, 0);
 }
 
 // --------------------------------------------------------
@@ -323,15 +294,19 @@ void Game::Draw(float deltaTime, float totalTime)
 	// Loop through the game entities and draw each one
 	// - Note: A constant buffer has already been bound to
 	//   the vertex shader stage of the pipeline (see Init above)
-	for (auto& e : entities)
+	for (auto& m : meshes)
 	{
-		e->Draw(context, vsConstantBuffer);
+		m->SetBuffersAndDraw(context);
 	}
 
 	// Frame END
 	// - These should happen exactly ONCE PER FRAME
 	// - At the very end of the frame (after drawing *everything*)
 	{
+		// Draw the UI after everything else
+		ImGui::Render();
+		ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+
 		// Present the back buffer to the user
 		//  - Puts the results of what we've drawn onto the window
 		//  - Without this, the user never sees anything
@@ -344,3 +319,79 @@ void Game::Draw(float deltaTime, float totalTime)
 		context->OMSetRenderTargets(1, backBufferRTV.GetAddressOf(), depthBufferDSV.Get());
 	}
 }
+
+// --------------------------------------------------------
+// Prepares a new frame for the UI, feeding it fresh
+// input and time information for this new frame.
+// --------------------------------------------------------
+void Game::UINewFrame(float deltaTime)
+{
+	// Feed fresh input data to ImGui
+	ImGuiIO& io = ImGui::GetIO();
+	io.DeltaTime = deltaTime;
+	io.DisplaySize.x = (float)this->windowWidth;
+	io.DisplaySize.y = (float)this->windowHeight;
+
+	// Reset the frame
+	ImGui_ImplDX11_NewFrame();
+	ImGui_ImplWin32_NewFrame();
+	ImGui::NewFrame();
+
+	// Determine new input capture
+	Input& input = Input::GetInstance();
+	input.SetKeyboardCapture(io.WantCaptureKeyboard);
+	input.SetMouseCapture(io.WantCaptureMouse);
+}
+
+
+// --------------------------------------------------------
+// Builds the UI for the current frame
+// --------------------------------------------------------
+void Game::BuildUI()
+{
+	// Should we show the built-in demo window?
+	if (showUIDemoWindow)
+	{
+		ImGui::ShowDemoWindow();
+	}
+
+	// Actually build our custom UI, starting with a window
+	ImGui::Begin("Inspector");
+	{
+		// Set a specific amount of space for widget labels
+		ImGui::PushItemWidth(-160); // Negative value sets label width
+
+		// === Overall details ===
+		if (ImGui::TreeNode("App Details"))
+		{
+			ImGui::Spacing();
+			ImGui::Text("Frame rate: %f fps", ImGui::GetIO().Framerate);
+			ImGui::Text("Window Client Size: %dx%d", windowWidth, windowHeight);
+			
+			// Should we show the demo window?
+			if (ImGui::Button(showUIDemoWindow ? "Hide ImGui Demo Window" : "Show ImGui Demo Window"))
+				showUIDemoWindow = !showUIDemoWindow;
+
+			ImGui::Spacing();
+
+			// Finalize the tree node
+			ImGui::TreePop();
+		}
+
+		// === Meshes ===
+		if (ImGui::TreeNode("Meshes"))
+		{
+			// Loop and show the details for each mesh
+			for(int i = 0; i < meshes.size(); i++)
+			{
+				ImGui::Text("Mesh %d: %d indices", i, meshes[i]->GetIndexCount());
+			}
+
+			// Finalize the tree node
+			ImGui::TreePop();
+		}
+	}
+	ImGui::End();
+}
+
+

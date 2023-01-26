@@ -4,9 +4,9 @@
 #include "BufferStructs.h"
 #include "Helpers.h"
 
-#include "ImGui/imgui.h"
-#include "ImGui/imgui_impl_dx11.h"
-#include "ImGui/imgui_impl_win32.h"
+#include "../Common/ImGui/imgui.h"
+#include "../Common/ImGui/imgui_impl_dx11.h"
+#include "../Common/ImGui/imgui_impl_win32.h"
 
 // Needed for a helper function to read compiled shader files from the hard drive
 #pragma comment(lib, "d3dcompiler.lib")
@@ -474,6 +474,19 @@ void Game::BuildUI()
 		{
 			// Show UI for current camera
 			CameraUI(camera);
+
+			// Finalize the tree node
+			ImGui::TreePop();
+		}
+
+		// === Meshes ===
+		if (ImGui::TreeNode("Meshes"))
+		{
+			// Loop and show the details for each mesh
+			for (int i = 0; i < meshes.size(); i++)
+			{
+				ImGui::Text("Mesh %d: %d indices", i, meshes[i]->GetIndexCount());
+			}
 
 			// Finalize the tree node
 			ImGui::TreePop();

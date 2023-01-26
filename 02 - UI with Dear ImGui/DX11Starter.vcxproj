@@ -123,41 +123,34 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="Camera.cpp" />
+    <ClCompile Include="..\Common\ImGui\imgui.cpp" />
+    <ClCompile Include="..\Common\ImGui\imgui_demo.cpp" />
+    <ClCompile Include="..\Common\ImGui\imgui_draw.cpp" />
+    <ClCompile Include="..\Common\ImGui\imgui_impl_dx11.cpp" />
+    <ClCompile Include="..\Common\ImGui\imgui_impl_win32.cpp" />
+    <ClCompile Include="..\Common\ImGui\imgui_tables.cpp" />
+    <ClCompile Include="..\Common\ImGui\imgui_widgets.cpp" />
     <ClCompile Include="DXCore.cpp" />
     <ClCompile Include="Game.cpp" />
-    <ClCompile Include="GameEntity.cpp" />
     <ClCompile Include="Helpers.cpp" />
-    <ClCompile Include="ImGui\imgui.cpp" />
-    <ClCompile Include="ImGui\imgui_demo.cpp" />
-    <ClCompile Include="ImGui\imgui_draw.cpp" />
-    <ClCompile Include="ImGui\imgui_impl_dx11.cpp" />
-    <ClCompile Include="ImGui\imgui_impl_win32.cpp" />
-    <ClCompile Include="ImGui\imgui_tables.cpp" />
-    <ClCompile Include="ImGui\imgui_widgets.cpp" />
     <ClCompile Include="Input.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="Mesh.cpp" />
-    <ClCompile Include="Transform.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="BufferStructs.h" />
-    <ClInclude Include="Camera.h" />
+    <ClInclude Include="..\Common\ImGui\imconfig.h" />
+    <ClInclude Include="..\Common\ImGui\imgui.h" />
+    <ClInclude Include="..\Common\ImGui\imgui_impl_dx11.h" />
+    <ClInclude Include="..\Common\ImGui\imgui_impl_win32.h" />
+    <ClInclude Include="..\Common\ImGui\imgui_internal.h" />
+    <ClInclude Include="..\Common\ImGui\imstb_rectpack.h" />
+    <ClInclude Include="..\Common\ImGui\imstb_textedit.h" />
+    <ClInclude Include="..\Common\ImGui\imstb_truetype.h" />
     <ClInclude Include="DXCore.h" />
     <ClInclude Include="Game.h" />
-    <ClInclude Include="GameEntity.h" />
     <ClInclude Include="Helpers.h" />
-    <ClInclude Include="ImGui\imconfig.h" />
-    <ClInclude Include="ImGui\imgui.h" />
-    <ClInclude Include="ImGui\imgui_impl_dx11.h" />
-    <ClInclude Include="ImGui\imgui_impl_win32.h" />
-    <ClInclude Include="ImGui\imgui_internal.h" />
-    <ClInclude Include="ImGui\imstb_rectpack.h" />
-    <ClInclude Include="ImGui\imstb_textedit.h" />
-    <ClInclude Include="ImGui\imstb_truetype.h" />
     <ClInclude Include="Input.h" />
     <ClInclude Include="Mesh.h" />
-    <ClInclude Include="Transform.h" />
     <ClInclude Include="Vertex.h" />
   </ItemGroup>
   <ItemGroup>

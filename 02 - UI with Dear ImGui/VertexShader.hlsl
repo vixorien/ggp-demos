@@ -1,15 +1,5 @@
 
 
-// The variables defined in this cbuffer will pull their data from the 
-// constant buffer (ID3D11Buffer) bound to "vertex shader constant buffer slot 0"
-// It was bound using context->VSSetConstantBuffers() over in C++.
-cbuffer ExternalData : register(b0)
-{
-	matrix world;
-	matrix view;
-	matrix projection;
-}
-
 // Struct representing a single vertex worth of data
 // - This should match the vertex definition in our C++ code
 // - By "match", I mean the size, order and number of members
@@ -62,8 +52,7 @@ VertexToPixel main( VertexShaderInput input )
 	// - Each of these components is then automatically divided by the W component, 
 	//   which we're leaving at 1.0 for now (this is more useful when dealing with 
 	//   a perspective projection matrix, which we'll get to in the future).
-	matrix wvp = mul(projection, mul(view, world));
-	output.screenPosition = mul(wvp, float4(input.localPosition, 1.0f));
+	output.screenPosition = float4(input.localPosition, 1.0f);
 
 	// Pass the color through 
 	// - The values will be interpolated per-pixel by the rasterizer

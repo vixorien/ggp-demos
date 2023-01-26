@@ -123,7 +123,13 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="Camera.cpp" />
+    <ClCompile Include="..\Common\ImGui\imgui.cpp" />
+    <ClCompile Include="..\Common\ImGui\imgui_demo.cpp" />
+    <ClCompile Include="..\Common\ImGui\imgui_draw.cpp" />
+    <ClCompile Include="..\Common\ImGui\imgui_impl_dx11.cpp" />
+    <ClCompile Include="..\Common\ImGui\imgui_impl_win32.cpp" />
+    <ClCompile Include="..\Common\ImGui\imgui_tables.cpp" />
+    <ClCompile Include="..\Common\ImGui\imgui_widgets.cpp" />
     <ClCompile Include="DXCore.cpp" />
     <ClCompile Include="Game.cpp" />
     <ClCompile Include="GameEntity.cpp" />
@@ -134,8 +140,15 @@
     <ClCompile Include="Transform.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\Common\ImGui\imconfig.h" />
+    <ClInclude Include="..\Common\ImGui\imgui.h" />
+    <ClInclude Include="..\Common\ImGui\imgui_impl_dx11.h" />
+    <ClInclude Include="..\Common\ImGui\imgui_impl_win32.h" />
+    <ClInclude Include="..\Common\ImGui\imgui_internal.h" />
+    <ClInclude Include="..\Common\ImGui\imstb_rectpack.h" />
+    <ClInclude Include="..\Common\ImGui\imstb_textedit.h" />
+    <ClInclude Include="..\Common\ImGui\imstb_truetype.h" />
     <ClInclude Include="BufferStructs.h" />
-    <ClInclude Include="Camera.h" />
     <ClInclude Include="DXCore.h" />
     <ClInclude Include="Game.h" />
     <ClInclude Include="GameEntity.h" />

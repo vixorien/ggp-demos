@@ -4,6 +4,10 @@
 #include "BufferStructs.h"
 #include "Helpers.h"
 
+#include "../Common/ImGui/imgui.h"
+#include "../Common/ImGui/imgui_impl_dx11.h"
+#include "../Common/ImGui/imgui_impl_win32.h"
+
 // Needed for a helper function to read compiled shader files from the hard drive
 #pragma comment(lib, "d3dcompiler.lib")
 #include <d3dcompiler.h>
@@ -26,7 +30,8 @@ Game::Game(HINSTANCE hInstance)
 		1280,				// Width of the window's client area
 		720,				// Height of the window's client area
 		false,				// Sync the framerate to the monitor refresh? (lock framerate)
-		true)				// Show extra stats (fps) in title bar?
+		true),				// Show extra stats (fps) in title bar?
+	showUIDemoWindow(false)
 {
 
 #if defined(DEBUG) || defined(_DEBUG)
@@ -39,8 +44,8 @@ Game::Game(HINSTANCE hInstance)
 
 // --------------------------------------------------------
 // Destructor - Clean up anything our game has created:
-//  - Release all DirectX objects created here
-//  - Delete any objects to prevent memory leaks
+//  - Delete all objects manually created within this class
+//  - Release() all Direct3D objects created within this class
 // --------------------------------------------------------
 Game::~Game()
 {
@@ -50,6 +55,11 @@ Game::~Game()
 
 	// Call Release() on any Direct3D objects made within this class
 	// - Note: this is unnecessary for D3D objects stored in ComPtrs
+
+	// ImGui clean up
+	ImGui_ImplDX11_Shutdown();
+	ImGui_ImplWin32_Shutdown();
+	ImGui::DestroyContext();
 }
 
 // --------------------------------------------------------
@@ -58,6 +68,13 @@ Game::~Game()
 // --------------------------------------------------------
 void Game::Init()
 {
+	// Initialize ImGui itself & platform/renderer backends
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+	ImGui_ImplWin32_Init(hWnd);
+	ImGui_ImplDX11_Init(device.Get(), context.Get());
+	ImGui::StyleColorsDark();
+
 	// Helper methods for loading shaders, creating some basic
 	// geometry to draw and some simple camera matrices.
 	//  - You'll be expanding and/or replacing these later
@@ -94,13 +111,13 @@ void Game::Init()
 		size = (size + 15) / 16 * 16; // Integer division is necessary here!
 
 		// Describe the constant buffer and create it
-		D3D11_BUFFER_DESC cbDesc = {};
-		cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-		cbDesc.ByteWidth = size;
-		cbDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-		cbDesc.Usage = D3D11_USAGE_DYNAMIC;
-		cbDesc.MiscFlags = 0;
-		cbDesc.StructureByteStride = 0;
+		D3D11_BUFFER_DESC cbDesc	= {};
+		cbDesc.BindFlags			= D3D11_BIND_CONSTANT_BUFFER;
+		cbDesc.ByteWidth			= size;
+		cbDesc.CPUAccessFlags		= D3D11_CPU_ACCESS_WRITE;
+		cbDesc.Usage				= D3D11_USAGE_DYNAMIC;
+		cbDesc.MiscFlags			= 0;
+		cbDesc.StructureByteStride	= 0;
 		device->CreateBuffer(&cbDesc, 0, vsConstantBuffer.GetAddressOf());
 
 		// Activate the constant buffer, ensuring it is 
@@ -112,17 +129,6 @@ void Game::Init()
 			1,		// How many are we activating?  Can set more than one at a time, if we need
 			vsConstantBuffer.GetAddressOf());	// Array of constant buffers or the address of just one (same thing in C++)
 	}
-
-	// Create the camera
-	camera = std::make_shared<Camera>(
-		0.0f, 0.0f, -5.0f,	// Position
-		5.0f,				// Move speed
-		0.002f,				// Look speed
-		XM_PIDIV4,			// Field of view
-		(float)windowWidth / windowHeight,  // Aspect ratio
-		0.01f,				// Near clip
-		100.0f,				// Far clip
-		CameraProjectionType::Perspective);
 }
 
 // --------------------------------------------------------
@@ -210,7 +216,6 @@ void Game::CreateGeometry()
 	XMFLOAT4 black = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
 	XMFLOAT4 grey = XMFLOAT4(0.5f, 0.5f, 0.5f, 1.0f);
 
-	// === ASSIGNMENT 2 ===================================
 
 	// Set up the vertices and indices for the first mesh
 	Vertex verts1[] =
@@ -265,7 +270,7 @@ void Game::CreateGeometry()
 	meshes.push_back(mesh1);
 	meshes.push_back(mesh2);
 	meshes.push_back(mesh3);
-	
+
 	// Create the game entities
 	std::shared_ptr<GameEntity> g1 = std::make_shared<GameEntity>(mesh1);
 	std::shared_ptr<GameEntity> g2 = std::make_shared<GameEntity>(mesh2);
@@ -296,9 +301,6 @@ void Game::OnResize()
 {
 	// Handle base-level DX resize stuff
 	DXCore::OnResize();
-
-	// Update the camera's projection to match the new aspect ratio
-	if (camera) camera->UpdateProjectionMatrix((float)windowWidth / windowHeight);
 }
 
 // --------------------------------------------------------
@@ -306,6 +308,12 @@ void Game::OnResize()
 // --------------------------------------------------------
 void Game::Update(float deltaTime, float totalTime)
 {
+	// Set up the new frame for the UI, then build
+	// this frame's interface.  Note that the building
+	// of the UI could happen at any point during update.
+	UINewFrame(deltaTime);
+	BuildUI();
+
 	// Example input checking: Quit if the escape key is pressed
 	if (Input::GetInstance().KeyDown(VK_ESCAPE))
 		Quit();
@@ -315,9 +323,6 @@ void Game::Update(float deltaTime, float totalTime)
 	entities[0]->GetTransform()->SetScale(scale, scale, scale);
 	entities[0]->GetTransform()->Rotate(0, 0, deltaTime * 1.0f);
 	entities[2]->GetTransform()->SetPosition((float)sin(totalTime), 0, 0);
-
-	// Update the camera this frame
-	camera->Update(deltaTime);
 }
 
 // --------------------------------------------------------
@@ -343,13 +348,17 @@ void Game::Draw(float deltaTime, float totalTime)
 	//   the vertex shader stage of the pipeline (see Init above)
 	for (auto& e : entities)
 	{
-		e->Draw(context, vsConstantBuffer, camera); // Now with a camera!
+		e->Draw(context, vsConstantBuffer);
 	}
 
 	// Frame END
 	// - These should happen exactly ONCE PER FRAME
 	// - At the very end of the frame (after drawing *everything*)
 	{
+		// Draw the UI after everything else
+		ImGui::Render();
+		ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+
 		// Present the back buffer to the user
 		//  - Puts the results of what we've drawn onto the window
 		//  - Without this, the user never sees anything
@@ -362,3 +371,126 @@ void Game::Draw(float deltaTime, float totalTime)
 		context->OMSetRenderTargets(1, backBufferRTV.GetAddressOf(), depthBufferDSV.Get());
 	}
 }
+
+// --------------------------------------------------------
+// Prepares a new frame for the UI, feeding it fresh
+// input and time information for this new frame.
+// --------------------------------------------------------
+void Game::UINewFrame(float deltaTime)
+{
+	// Feed fresh input data to ImGui
+	ImGuiIO& io = ImGui::GetIO();
+	io.DeltaTime = deltaTime;
+	io.DisplaySize.x = (float)this->windowWidth;
+	io.DisplaySize.y = (float)this->windowHeight;
+
+	// Reset the frame
+	ImGui_ImplDX11_NewFrame();
+	ImGui_ImplWin32_NewFrame();
+	ImGui::NewFrame();
+
+	// Determine new input capture
+	Input& input = Input::GetInstance();
+	input.SetKeyboardCapture(io.WantCaptureKeyboard);
+	input.SetMouseCapture(io.WantCaptureMouse);
+}
+
+
+// --------------------------------------------------------
+// Builds the UI for the current frame
+// --------------------------------------------------------
+void Game::BuildUI()
+{
+	// Should we show the built-in demo window?
+	if (showUIDemoWindow)
+	{
+		ImGui::ShowDemoWindow();
+	}
+
+	// Actually build our custom UI, starting with a window
+	ImGui::Begin("Inspector");
+	{
+		// Set a specific amount of space for widget labels
+		ImGui::PushItemWidth(-160); // Negative value sets label width
+
+		// === Overall details ===
+		if (ImGui::TreeNode("App Details"))
+		{
+			ImGui::Spacing();
+			ImGui::Text("Frame rate: %f fps", ImGui::GetIO().Framerate);
+			ImGui::Text("Window Client Size: %dx%d", windowWidth, windowHeight);
+
+			// Should we show the demo window?
+			if (ImGui::Button(showUIDemoWindow ? "Hide ImGui Demo Window" : "Show ImGui Demo Window"))
+				showUIDemoWindow = !showUIDemoWindow;
+
+			ImGui::Spacing();
+
+			// Finalize the tree node
+			ImGui::TreePop();
+		}
+
+		// === Meshes ===
+		if (ImGui::TreeNode("Meshes"))
+		{
+			// Loop and show the details for each mesh
+			for (int i = 0; i < meshes.size(); i++)
+			{
+				ImGui::Text("Mesh %d: %d indices", i, meshes[i]->GetIndexCount());
+			}
+
+			// Finalize the tree node
+			ImGui::TreePop();
+		}
+
+		// === Entities ===
+		if (ImGui::TreeNode("Scene Entities"))
+		{
+			// Loop and show the details for each entity
+			for (int i = 0; i < entities.size(); i++)
+			{
+				// New node for each entity
+				// Note the use of PushID(), so that each tree node and its widgets
+				// have unique internal IDs in the ImGui system
+				ImGui::PushID(i);
+				if (ImGui::TreeNode("Entity Node", "Entity %d", i))
+				{
+					// Build UI for one entity at a time
+					EntityUI(entities[i]);
+
+					ImGui::TreePop();
+				}
+				ImGui::PopID();
+			}
+
+			// Finalize the tree node
+			ImGui::TreePop();
+		}
+	}
+	ImGui::End();
+}
+
+// --------------------------------------------------------
+// Builds the UI for a single entity
+// --------------------------------------------------------
+void Game::EntityUI(std::shared_ptr<GameEntity> entity)
+{
+	ImGui::Spacing();
+
+	// Transform details
+	Transform* trans = entity->GetTransform();
+	XMFLOAT3 pos = trans->GetPosition();
+	XMFLOAT3 rot = trans->GetPitchYawRoll();
+	XMFLOAT3 sca = trans->GetScale();
+
+	if (ImGui::DragFloat3("Position", &pos.x, 0.01f)) trans->SetPosition(pos);
+	if (ImGui::DragFloat3("Rotation (Radians)", &rot.x, 0.01f)) trans->SetRotation(rot);
+	if (ImGui::DragFloat3("Scale", &sca.x, 0.01f)) trans->SetScale(sca);
+
+	// Mesh details
+	ImGui::Spacing();
+	ImGui::Text("Mesh Index Count: %d", entity->GetMesh()->GetIndexCount());
+
+	ImGui::Spacing();
+}
+

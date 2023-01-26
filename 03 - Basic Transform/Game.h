@@ -3,7 +3,6 @@
 #include "DXCore.h"
 #include "Mesh.h"
 #include "GameEntity.h"
-#include "Camera.h"
 
 #include <vector>
 #include <DirectXMath.h>
@@ -31,10 +30,15 @@ private:
 	void LoadShaders(); 
 	void CreateGeometry();
 
-	// Camera for the 3D scene
-	std::shared_ptr<Camera> camera;
+	// UI functions
+	void UINewFrame(float deltaTime);
+	void BuildUI();
+	void EntityUI(std::shared_ptr<GameEntity> entity);
 
-	// A vector to hold any number of meshes
+	// Should the ImGui demo window be shown?
+	bool showUIDemoWindow;
+
+	// Vectors to hold objects
 	// - This makes things easy to draw and clean up, too!
 	std::vector<std::shared_ptr<Mesh>> meshes;
 	std::vector<std::shared_ptr<GameEntity>> entities;
