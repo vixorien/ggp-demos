@@ -396,14 +396,6 @@ void Game::Draw(float deltaTime, float totalTime)
 // --------------------------------------------------------
 void Game::UINewFrame(float deltaTime)
 {
-	// Get a reference to our custom input manager
-	Input& input = Input::GetInstance();
-
-	// Reset input manager's gui state so we don’t
-	// taint our own input
-	input.SetKeyboardCapture(false);
-	input.SetMouseCapture(false);
-
 	// Feed fresh input data to ImGui
 	ImGuiIO& io = ImGui::GetIO();
 	io.DeltaTime = deltaTime;
@@ -416,6 +408,7 @@ void Game::UINewFrame(float deltaTime)
 	ImGui::NewFrame();
 
 	// Determine new input capture
+	Input& input = Input::GetInstance();
 	input.SetKeyboardCapture(io.WantCaptureKeyboard);
 	input.SetMouseCapture(io.WantCaptureMouse);
 }
