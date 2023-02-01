@@ -32,11 +32,22 @@ private:
 	void LoadShaders();
 	void CreateGeometry();
 
+	// UI functions
+	void UINewFrame(float deltaTime);
+	void BuildUI();
+	void CameraUI(std::shared_ptr<Camera> cam);
+	void EntityUI(std::shared_ptr<GameEntity> entity);
+	void MaterialUI(std::shared_ptr<Material> material);
+
+	// Should the ImGui demo window be shown?
+	bool showUIDemoWindow;
+
 	// Camera for the 3D scene
 	std::shared_ptr<Camera> camera;
 
-	// A vector to hold entities
-	// - This makes things easy to draw and clean up, too!
+	// Vectors for scene objects
+	std::vector<std::shared_ptr<Mesh>> meshes;
+	std::vector<std::shared_ptr<Material>> materials;
 	std::vector<std::shared_ptr<GameEntity>> entities;
 
 	// Shaders and shader-related constructs

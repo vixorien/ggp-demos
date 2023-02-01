@@ -27,20 +27,29 @@ public:
 private:
 
 	// Initialization helper methods - feel free to customize, combine, etc.
-	void LoadShaders(); 
+	void LoadShaders();
 	void CreateGeometry();
+
+	// UI functions
+	void UINewFrame(float deltaTime);
+	void BuildUI();
+	void CameraUI(std::shared_ptr<Camera> cam);
+	void EntityUI(std::shared_ptr<GameEntity> entity);
+
+	// Should the ImGui demo window be shown?
+	bool showUIDemoWindow;
 
 	// Camera for the 3D scene
 	std::shared_ptr<Camera> camera;
 
-	// A vector to hold any number of entities
-	// - This makes things easy to draw and clean up, too!
+	// Vectors for scene objects
+	std::vector<std::shared_ptr<Mesh>> meshes;
 	std::vector<std::shared_ptr<GameEntity>> entities;
-	
+
 	// Constant buffer to hold data being sent to variables in the vertex shader
-	// - This is a buffer on the GPU
+	// - This represents a buffer on the GPU, though it's just a C++ object
 	Microsoft::WRL::ComPtr<ID3D11Buffer> vsConstantBuffer;
-	
+
 	// Shaders and shader-related constructs
 	Microsoft::WRL::ComPtr<ID3D11PixelShader> pixelShader;
 	Microsoft::WRL::ComPtr<ID3D11VertexShader> vertexShader;
