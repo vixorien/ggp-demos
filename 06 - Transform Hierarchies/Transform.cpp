@@ -25,6 +25,7 @@ void Transform::MoveAbsolute(float x, float y, float z)
 	position.y += y;
 	position.z += z;
 	matricesDirty = true;
+	MarkChildTransformsDirty();
 }
 
 void Transform::MoveAbsolute(DirectX::XMFLOAT3 offset)
@@ -33,6 +34,7 @@ void Transform::MoveAbsolute(DirectX::XMFLOAT3 offset)
 	position.y += offset.y;
 	position.z += offset.z;
 	matricesDirty = true;
+	MarkChildTransformsDirty();
 }
 
 void Transform::MoveRelative(float x, float y, float z)
@@ -48,6 +50,7 @@ void Transform::MoveRelative(float x, float y, float z)
 	// Add and store, and invalidate the matrices
 	XMStoreFloat3(&position, XMLoadFloat3(&position) + dir);
 	matricesDirty = true;
+	MarkChildTransformsDirty();
 }
 
 void Transform::MoveRelative(DirectX::XMFLOAT3 offset)
@@ -63,6 +66,7 @@ void Transform::Rotate(float p, float y, float r)
 	pitchYawRoll.z += r;
 	matricesDirty = true;
 	vectorsDirty = true;
+	MarkChildTransformsDirty();
 }
 
 void Transform::Rotate(DirectX::XMFLOAT3 pitchYawRoll)
@@ -72,6 +76,7 @@ void Transform::Rotate(DirectX::XMFLOAT3 pitchYawRoll)
 	this->pitchYawRoll.z += pitchYawRoll.z;
 	matricesDirty = true;
 	vectorsDirty = true;
+	MarkChildTransformsDirty();
 }
 
 void Transform::Scale(float uniformScale)
@@ -80,6 +85,7 @@ void Transform::Scale(float uniformScale)
 	scale.y *= uniformScale;
 	scale.z *= uniformScale;
 	matricesDirty = true;
+	MarkChildTransformsDirty();
 }
 
 void Transform::Scale(float x, float y, float z)
@@ -88,6 +94,7 @@ void Transform::Scale(float x, float y, float z)
 	scale.y *= y;
 	scale.z *= z;
 	matricesDirty = true;
+	MarkChildTransformsDirty();
 }
 
 void Transform::Scale(DirectX::XMFLOAT3 scale)
@@ -96,6 +103,7 @@ void Transform::Scale(DirectX::XMFLOAT3 scale)
 	this->scale.y *= scale.y;
 	this->scale.z *= scale.z;
 	matricesDirty = true;
+	MarkChildTransformsDirty();
 }
 
 void Transform::SetPosition(float x, float y, float z)
@@ -104,12 +112,14 @@ void Transform::SetPosition(float x, float y, float z)
 	position.y = y;
 	position.z = z;
 	matricesDirty = true;
+	MarkChildTransformsDirty();
 }
 
 void Transform::SetPosition(DirectX::XMFLOAT3 position)
 {
 	this->position = position;
 	matricesDirty = true;
+	MarkChildTransformsDirty();
 }
 
 void Transform::SetRotation(float p, float y, float r)
@@ -119,6 +129,7 @@ void Transform::SetRotation(float p, float y, float r)
 	pitchYawRoll.z = r;
 	matricesDirty = true;
 	vectorsDirty = true;
+	MarkChildTransformsDirty();
 }
 
 void Transform::SetRotation(DirectX::XMFLOAT3 pitchYawRoll)
@@ -126,6 +137,7 @@ void Transform::SetRotation(DirectX::XMFLOAT3 pitchYawRoll)
 	this->pitchYawRoll = pitchYawRoll;
 	matricesDirty = true;
 	vectorsDirty = true;
+	MarkChildTransformsDirty();
 }
 
 void Transform::SetScale(float uniformScale)
@@ -134,6 +146,7 @@ void Transform::SetScale(float uniformScale)
 	scale.y = uniformScale;
 	scale.z = uniformScale;
 	matricesDirty = true;
+	MarkChildTransformsDirty();
 }
 
 void Transform::SetScale(float x, float y, float z)
@@ -142,12 +155,14 @@ void Transform::SetScale(float x, float y, float z)
 	scale.y = y;
 	scale.z = z;
 	matricesDirty = true;
+	MarkChildTransformsDirty();
 }
 
 void Transform::SetScale(DirectX::XMFLOAT3 scale)
 {
 	this->scale = scale;
 	matricesDirty = true;
+	MarkChildTransformsDirty();
 }
 
 void Transform::SetTransformsFromMatrix(DirectX::XMFLOAT4X4 worldMatrix)
@@ -170,6 +185,7 @@ void Transform::SetTransformsFromMatrix(DirectX::XMFLOAT4X4 worldMatrix)
 	// Things have changed
 	matricesDirty = true;
 	vectorsDirty = true;
+	MarkChildTransformsDirty();
 }
 
 void Transform::AddChild(Transform* child, bool makeChildRelative)
