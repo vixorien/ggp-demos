@@ -46,8 +46,7 @@ private:
 	// Camera for the 3D scene
 	std::shared_ptr<Camera> camera;
 
-
-	// Vectors for scene data
+	// Scene data
 	std::vector<std::shared_ptr<Mesh>> meshes;
 	std::vector<std::shared_ptr<Material>> materials;
 	std::vector<std::shared_ptr<GameEntity>> entities;

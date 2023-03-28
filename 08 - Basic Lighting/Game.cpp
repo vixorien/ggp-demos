@@ -30,7 +30,8 @@ Game::Game(HINSTANCE hInstance)
 		720,				// Height of the window's client area
 		false,				// Sync the framerate to the monitor refresh? (lock framerate)
 		true),				// Show extra stats (fps) in title bar?
-	ambientColor(0.1f, 0.1f, 0.25f)
+	ambientColor(0.1f, 0.1f, 0.25f),
+	showUIDemoWindow(false)
 {
 
 #if defined(DEBUG) || defined(_DEBUG)
