@@ -74,15 +74,15 @@ float4 main(VertexToPixel input) : SV_TARGET
 		switch (lights[i].Type)
 		{
 		case LIGHT_TYPE_DIRECTIONAL: 
-			totalLight += DirLight(light, input.normal, input.worldPos, cameraPosition, 1.0f, surfaceColor.rgb, roughness); // Using roughness as spec map in non-PBR
+			totalLight += DirLight(light, input.normal, input.worldPos, cameraPosition, roughness, surfaceColor.rgb, 1.0f - roughness); // Using roughness as spec map in non-PBR
 			break;
 
 		case LIGHT_TYPE_POINT: 
-			totalLight += PointLight(light, input.normal, input.worldPos, cameraPosition, 1.0f, surfaceColor.rgb, roughness); // Using roughness as spec map in non-PBR
+			totalLight += PointLight(light, input.normal, input.worldPos, cameraPosition, roughness, surfaceColor.rgb, 1.0f - roughness); // Using roughness as spec map in non-PBR
 			break;
 
 		case LIGHT_TYPE_SPOT:
-			totalLight += SpotLight(light, input.normal, input.worldPos, cameraPosition, 1.0f, surfaceColor.rgb, roughness); // Using roughness as spec map in non-PBR
+			totalLight += SpotLight(light, input.normal, input.worldPos, cameraPosition, roughness, surfaceColor.rgb, 1.0f - roughness); // Using roughness as spec map in non-PBR
 			break;
 		}
 	}
