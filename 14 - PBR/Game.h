@@ -82,10 +82,6 @@ private:
 	std::shared_ptr<SimplePixelShader> solidColorPS;
 	std::shared_ptr<SimpleVertexShader> vertexShader;
 
-	// Sprite batch resources
-	std::shared_ptr<DirectX::SpriteBatch> spriteBatch;
-	std::shared_ptr<DirectX::SpriteFont> fontArial12;
-
 	// UI functions
 	void UINewFrame(float deltaTime);
 	void BuildUI();
