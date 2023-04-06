@@ -67,7 +67,7 @@ float4 main(VertexToPixel input) : SV_TARGET
 	// Specular color - Assuming albedo texture is actually holding specular color if metal == 1
 	// Note the use of lerp here - metal is generally 0 or 1, but might be in between
 	// because of linear texture sampling, so we want lerp the specular color to match
-	float3 specColor = lerp(F0_NON_METAL.rrr, surfaceColor.rgb, metal);
+	float3 specColor = lerp(F0_NON_METAL, surfaceColor.rgb, metal);
 
 	// Start off with ambient
 	float3 totalLight = ambientColor * surfaceColor.rgb;

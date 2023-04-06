@@ -169,7 +169,7 @@ float DiffusePBR(float3 normal, float3 dirToLight)
 
 
 
-// GGX (Trowbridge-Reitz)
+// Normal Distribution Function: GGX (Trowbridge-Reitz)
 //
 // a - Roughness
 // h - Half vector
@@ -185,8 +185,8 @@ float D_GGX(float3 n, float3 h, float roughness)
 	float a2 = max(a * a, MIN_ROUGHNESS); // Applied after remap!
 
 	// ((n dot h)^2 * (a^2 - 1) + 1)
-	float denomToSquare = NdotH2 * (a2 - 1) + 1;
 	// Can go to zero if roughness is 0 and NdotH is 1
+	float denomToSquare = NdotH2 * (a2 - 1) + 1;
 
 	// Final value
 	return a2 / (PI * denomToSquare * denomToSquare);
@@ -213,12 +213,14 @@ float3 F_Schlick(float3 v, float3 h, float3 f0)
 
 
 // Geometric Shadowing - Schlick-GGX
-// - k is remapped to a / 2, roughness remapped to (r+1)/2
+// - k is remapped to a / 2, roughness remapped to (r+1)/2 before squaring!
 //
 // n - Normal
 // v - View vector
 //
-// G(n,v,l,a) -> G_SchlickGGX(n,v,a) * G_SchlickGGX(n,l,a)
+// G_Schlick(n,v,a) = (n dot v) / ((n dot v) * (1 - k) * k)
+//
+// Full G(n,v,l,a) term = G_SchlickGGX(n,v,a) * G_SchlickGGX(n,l,a)
 float G_SchlickGGX(float3 n, float3 v, float roughness)
 {
 	// End result of remapping:
@@ -226,7 +228,11 @@ float G_SchlickGGX(float3 n, float3 v, float roughness)
 	float NdotV = saturate(dot(n, v));
 
 	// Final value
-	return NdotV / (NdotV * (1 - k) + k);
+	// Note: Numerator should be NdotV (or NdotL depending on parameters).
+	// However, these are also in the BRDF's denominator, so they'll cancel!
+	// We're leaving them out here AND in the BRDF function as the
+	// dot products can get VERY small and cause rounding errors.
+	return /*NdotV*/ 1 / (NdotV * (1 - k) + k);
 }
 
 // Work in progress - Note: Requires NdotL applied to overall specular BRDF!
@@ -243,38 +249,43 @@ float G_Full_Canceling_Denominator(float3 n, float3 v, float3 l, float roughness
 }
 
 
-// Microfacet BRDF (Specular)
+// Cook-Torrance Microfacet BRDF (Specular)
 //
 // f(l,v) = D(h)F(v,h)G(l,v,h) / 4(n dot l)(n dot v)
-// - part of the denominator are canceled out by numerator (see below)
+// - parts of the denominator are canceled out by numerator (see below)
 //
-// D() - Spec Dist - Trowbridge-Reitz (GGX)
+// D() - Normal Distribution Function - Trowbridge-Reitz (GGX)
 // F() - Fresnel - Schlick approx
 // G() - Geometric Shadowing - Schlick-GGX
-float3 MicrofacetBRDF(float3 n, float3 l, float3 v, float roughness, float3 specColor, out float3 F_out)
+float3 MicrofacetBRDF(float3 n, float3 l, float3 v, float roughness, float3 f0, out float3 F_out)
 {
 	// Other vectors
 	float3 h = normalize(v + l);
 
-	// Grab various functions
+	// Run numerator functions
 	float  D = D_GGX(n, h, roughness);
-	float3 F = F_Schlick(v, h, specColor);
+	float3 F = F_Schlick(v, h, f0);
 	float  G = G_SchlickGGX(n, v, roughness) * G_SchlickGGX(n, l, roughness);
 	
 	// Pass F out of the function for diffuse balance
 	F_out = F;
 
-	// Final formula
-	// Note: swapping double dot product for max() to handle divide by zero issues
-	float NdotL = max(dot(n, l), 0);
-	float NdotV = max(dot(n, v), 0);
-	return (D * F * G) / (4 * max(NdotV, NdotL));
+	// Final specular formula
+	// Note: The denominator SHOULD contain (NdotV)(NdotL), but they'd be
+	// canceled out by our G() term.  As such, they have been removed
+	// from BOTH places to prevent floating point rounding errors.
+	float3 specularResult = (D * F * G) / 4;
+
+	// One last non-obvious requirement: According to the rendering equation,
+	// specular must have the same NdotL applied as diffuse!  We'll apply
+	// that here so that minimal changes are required elsewhere.
+	return specularResult * max(dot(n, l), 0);
 }
 
 // Calculates diffuse amount based on energy conservation
 //
-// diffuse - Diffuse amount
-// F - Fresnel result from microfacet BRDF
+// diffuse   - Diffuse amount
+// F         - Fresnel result from microfacet BRDF
 // metalness - surface metalness amount
 //
 // Metals should have an albedo of (0,0,0)...mostly
@@ -301,7 +312,7 @@ float3 DirLightPBR(Light light, float3 normal, float3 worldPos, float3 camPos, f
 	
 	// Calculate diffuse with energy conservation
 	// (Reflected light doesn't get diffused)
-	float3 balancedDiff = DiffuseEnergyConserve(diff, F, metalness);
+	float3 balancedDiff = DiffuseEnergyConserve(diff, spec, metalness);
 
 	// Combine amount with 
 	return (balancedDiff * surfaceColor + spec) * light.Intensity * light.Color;
@@ -322,7 +333,7 @@ float3 PointLightPBR(Light light, float3 normal, float3 worldPos, float3 camPos,
 
 	// Calculate diffuse with energy conservation
 	// (Reflected light doesn't diffuse)
-	float3 balancedDiff = DiffuseEnergyConserve(diff, F, metalness);
+	float3 balancedDiff = DiffuseEnergyConserve(diff, spec, metalness);
 
 	// Combine
 	return (balancedDiff * surfaceColor + spec) * atten * light.Intensity * light.Color;
