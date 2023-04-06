@@ -212,14 +212,14 @@ float3 Fresnel(float3 v, float3 h, float3 f0)
 
 
 
-// Geometric Shadowing - Schlick-GGX (based on Schlick-Beckmann)
+// Geometric Shadowing - Schlick-GGX
 // - k is remapped to a / 2, roughness remapped to (r+1)/2
 //
 // n - Normal
 // v - View vector
 //
 // G(l,v,h)
-float GeometricShadowing(float3 n, float3 v, float3 h, float roughness)
+float GeometricShadowing(float3 n, float3 v, float roughness)
 {
 	// End result of remapping:
 	float k = pow(roughness + 1, 2) / 8.0f;
@@ -247,8 +247,8 @@ float3 MicrofacetBRDF(float3 n, float3 l, float3 v, float roughness, float3 spec
 	// Grab various functions
 	float D = SpecDistribution(n, h, roughness);
 	float3 F = Fresnel(v, h, specColor); // This ranges from F0_NON_METAL to actual specColor based on metalness
-	float G = GeometricShadowing(n, v, h, roughness) * GeometricShadowing(n, l, h, roughness);
-
+	float G = GeometricShadowing(n, v, roughness) * GeometricShadowing(n, l, roughness);
+	
 	// Final formula
 	// Denominator dot products partially canceled by G()!
 	// See page 16: http://blog.selfshadow.com/publications/s2012-shading-course/hoffman/s2012_pbs_physics_math_notes.pdf
@@ -281,7 +281,7 @@ float3 DirLightPBR(Light light, float3 normal, float3 worldPos, float3 camPos, f
 	// Calculate the light amounts
 	float diff = DiffusePBR(normal, toLight);
 	float3 spec = MicrofacetBRDF(normal, toLight, toCam, roughness, specularColor);
-
+	
 	// Calculate diffuse with energy conservation
 	// (Reflected light doesn't get diffused)
 	float3 balancedDiff = DiffuseEnergyConserve(diff, spec, metalness);

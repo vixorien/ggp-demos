@@ -52,6 +52,8 @@ private:
 	std::shared_ptr<Sky> sky;
 
 	// Storage for scene data
+	std::vector<std::shared_ptr<Mesh>> meshes;
+	std::vector<std::shared_ptr<Material>> materials;
 	std::vector<std::shared_ptr<GameEntity>> entitiesRandom;
 	std::vector<std::shared_ptr<GameEntity>> entitiesLineup;
 	std::vector<std::shared_ptr<GameEntity>> entitiesGradient;
@@ -69,6 +71,7 @@ private:
 	bool usePBR;
 	bool freezeLightMovement;
 	bool drawLights;
+	bool showSkybox;
 	std::shared_ptr<Mesh> lightMesh;
 
 	// Shaders (for shader swapping between pbr and non-pbr)
@@ -82,5 +85,16 @@ private:
 	// Sprite batch resources
 	std::shared_ptr<DirectX::SpriteBatch> spriteBatch;
 	std::shared_ptr<DirectX::SpriteFont> fontArial12;
+
+	// UI functions
+	void UINewFrame(float deltaTime);
+	void BuildUI();
+	void CameraUI(std::shared_ptr<Camera> cam);
+	void EntityUI(std::shared_ptr<GameEntity> entity);
+	void MaterialUI(std::shared_ptr<Material> material);
+	void LightUI(Light& light);
+
+	// Should the ImGui demo window be shown?
+	bool showUIDemoWindow;
 };
 
