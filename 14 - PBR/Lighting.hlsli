@@ -251,7 +251,7 @@ float G_Full_Canceling_Denominator(float3 n, float3 v, float3 l, float roughness
 // D() - Spec Dist - Trowbridge-Reitz (GGX)
 // F() - Fresnel - Schlick approx
 // G() - Geometric Shadowing - Schlick-GGX
-float3 MicrofacetBRDF(float3 n, float3 l, float3 v, float roughness, float3 specColor)
+float3 MicrofacetBRDF(float3 n, float3 l, float3 v, float roughness, float3 specColor, out float3 F_out)
 {
 	// Other vectors
 	float3 h = normalize(v + l);
@@ -261,6 +261,9 @@ float3 MicrofacetBRDF(float3 n, float3 l, float3 v, float roughness, float3 spec
 	float3 F = F_Schlick(v, h, specColor);
 	float  G = G_SchlickGGX(n, v, roughness) * G_SchlickGGX(n, l, roughness);
 	
+	// Pass F out of the function for diffuse balance
+	F_out = F;
+
 	// Final formula
 	// Note: swapping double dot product for max() to handle divide by zero issues
 	float NdotL = max(dot(n, l), 0);
@@ -293,11 +296,12 @@ float3 DirLightPBR(Light light, float3 normal, float3 worldPos, float3 camPos, f
 
 	// Calculate the light amounts
 	float diff = DiffusePBR(normal, toLight);
-	float3 spec = MicrofacetBRDF(normal, toLight, toCam, roughness, specularColor);
+	float3 F;
+	float3 spec = MicrofacetBRDF(normal, toLight, toCam, roughness, specularColor, F);
 	
 	// Calculate diffuse with energy conservation
 	// (Reflected light doesn't get diffused)
-	float3 balancedDiff = DiffuseEnergyConserve(diff, spec, metalness);
+	float3 balancedDiff = DiffuseEnergyConserve(diff, F, metalness);
 
 	// Combine amount with 
 	return (balancedDiff * surfaceColor + spec) * light.Intensity * light.Color;
@@ -313,11 +317,12 @@ float3 PointLightPBR(Light light, float3 normal, float3 worldPos, float3 camPos,
 	// Calculate the light amounts
 	float atten = Attenuate(light, worldPos);
 	float diff = DiffusePBR(normal, toLight);
-	float3 spec = MicrofacetBRDF(normal, toLight, toCam, roughness, specularColor);
+	float3 F;
+	float3 spec = MicrofacetBRDF(normal, toLight, toCam, roughness, specularColor, F);
 
 	// Calculate diffuse with energy conservation
 	// (Reflected light doesn't diffuse)
-	float3 balancedDiff = DiffuseEnergyConserve(diff, spec, metalness);
+	float3 balancedDiff = DiffuseEnergyConserve(diff, F, metalness);
 
 	// Combine
 	return (balancedDiff * surfaceColor + spec) * atten * light.Intensity * light.Color;
