@@ -175,8 +175,8 @@ float DiffusePBR(float3 normal, float3 dirToLight)
 // h - Half vector
 // n - Normal
 // 
-// D(h, n) = a^2 / pi * ((n dot h)^2 * (a^2 - 1) + 1)^2
-float SpecDistribution(float3 n, float3 h, float roughness)
+// D(h, n, a) = a^2 / pi * ((n dot h)^2 * (a^2 - 1) + 1)^2
+float D_GGX(float3 n, float3 h, float roughness)
 {
 	// Pre-calculations
 	float NdotH = saturate(dot(n, h));
@@ -198,10 +198,10 @@ float SpecDistribution(float3 n, float3 h, float roughness)
 // 
 // v - View vector
 // h - Half vector
-// f0 - Value when l = n (full specular color)
+// f0 - Value when l = n
 //
 // F(v,h,f0) = f0 + (1-f0)(1 - (v dot h))^5
-float3 Fresnel(float3 v, float3 h, float3 f0)
+float3 F_Schlick(float3 v, float3 h, float3 f0)
 {
 	// Pre-calculations
 	float VdotH = saturate(dot(v, h));
@@ -218,8 +218,8 @@ float3 Fresnel(float3 v, float3 h, float3 f0)
 // n - Normal
 // v - View vector
 //
-// G(l,v,h)
-float GeometricShadowing(float3 n, float3 v, float roughness)
+// G(n,v,l,a) -> G_SchlickGGX(n,v,a) * G_SchlickGGX(n,l,a)
+float G_SchlickGGX(float3 n, float3 v, float roughness)
 {
 	// End result of remapping:
 	float k = pow(roughness + 1, 2) / 8.0f;
@@ -229,6 +229,18 @@ float GeometricShadowing(float3 n, float3 v, float roughness)
 	return NdotV / (NdotV * (1 - k) + k);
 }
 
+// Work in progress - Note: Requires NdotL applied to overall specular BRDF!
+float G_Full_Canceling_Denominator(float3 n, float3 v, float3 l, float roughness)
+{
+	float NdotV = max(dot(n, v), 0);
+	float NdotL = max(dot(n, l), 0);
+	float k = pow(roughness + 1, 2) / 8.0f;
+
+	float G_V = NdotV * (1 - k) + k;
+	float G_L = NdotL * (1 - k) + k;
+
+	return 1.0 / (G_V * G_L * 4);
+}
 
 
 // Microfacet BRDF (Specular)
@@ -245,27 +257,28 @@ float3 MicrofacetBRDF(float3 n, float3 l, float3 v, float roughness, float3 spec
 	float3 h = normalize(v + l);
 
 	// Grab various functions
-	float D = SpecDistribution(n, h, roughness);
-	float3 F = Fresnel(v, h, specColor); // This ranges from F0_NON_METAL to actual specColor based on metalness
-	float G = GeometricShadowing(n, v, roughness) * GeometricShadowing(n, l, roughness);
+	float  D = D_GGX(n, h, roughness);
+	float3 F = F_Schlick(v, h, specColor);
+	float  G = G_SchlickGGX(n, v, roughness) * G_SchlickGGX(n, l, roughness);
 	
 	// Final formula
-	// Denominator dot products partially canceled by G()!
-	// See page 16: http://blog.selfshadow.com/publications/s2012-shading-course/hoffman/s2012_pbs_physics_math_notes.pdf
-	return (D * F * G) / (4 * max(dot(n, v), dot(n, l)));
+	// Note: swapping double dot product for max() to handle divide by zero issues
+	float NdotL = max(dot(n, l), 0);
+	float NdotV = max(dot(n, v), 0);
+	return (D * F * G) / (4 * max(NdotV, NdotL));
 }
 
 // Calculates diffuse amount based on energy conservation
 //
 // diffuse - Diffuse amount
-// specular - Specular color (including light color)
+// F - Fresnel result from microfacet BRDF
 // metalness - surface metalness amount
 //
 // Metals should have an albedo of (0,0,0)...mostly
 // See slide 65: http://blog.selfshadow.com/publications/s2014-shading-course/hoffman/s2014_pbs_physics_math_slides.pdf
-float3 DiffuseEnergyConserve(float3 diffuse, float3 specular, float metalness)
+float3 DiffuseEnergyConserve(float3 diffuse, float3 F, float metalness)
 {
-	return diffuse * ((1 - saturate(specular)) * (1 - metalness));
+	return diffuse * (1 - F) * (1 - metalness);
 }
 
 
