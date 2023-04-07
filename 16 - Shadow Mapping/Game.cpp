@@ -141,12 +141,12 @@ void Game::LoadAssetsAndCreateEntities()
 
 	// Create the sky (loading custom shaders in-line below)
 	sky = std::make_shared<Sky>(
-		FixPath(L"../../../Assets/Skies/Night Moon/right.png").c_str(),
-		FixPath(L"../../../Assets/Skies/Night Moon/left.png").c_str(),
-		FixPath(L"../../../Assets/Skies/Night Moon/up.png").c_str(),
-		FixPath(L"../../../Assets/Skies/Night Moon/down.png").c_str(),
-		FixPath(L"../../../Assets/Skies/Night Moon/front.png").c_str(),
-		FixPath(L"../../../Assets/Skies/Night Moon/back.png").c_str(),
+		FixPath(L"../../../Assets/Skies/Clouds Blue/right.png").c_str(),
+		FixPath(L"../../../Assets/Skies/Clouds Blue/left.png").c_str(),
+		FixPath(L"../../../Assets/Skies/Clouds Blue/up.png").c_str(),
+		FixPath(L"../../../Assets/Skies/Clouds Blue/down.png").c_str(),
+		FixPath(L"../../../Assets/Skies/Clouds Blue/front.png").c_str(),
+		FixPath(L"../../../Assets/Skies/Clouds Blue/back.png").c_str(),
 		assets.GetMesh(L"Models/cube"),
 		assets.GetVertexShader(L"SkyVS"),
 		assets.GetPixelShader(L"SkyPS"),
@@ -160,56 +160,56 @@ void Game::LoadAssetsAndCreateEntities()
 	std::shared_ptr<SimplePixelShader> pixelShader = assets.GetPixelShader(L"PixelShaderPBR");
 
 	// Create basic materials
-	std::shared_ptr<Material> cobbleMat2x = std::make_shared<Material>(pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(4, 2));
+	std::shared_ptr<Material> cobbleMat2x = std::make_shared<Material>(pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(2, 2));
 	cobbleMat2x->AddSampler("BasicSampler", sampler);
 	cobbleMat2x->AddTextureSRV("Albedo", assets.GetTexture(L"Textures/PBR/cobblestone_albedo"));
 	cobbleMat2x->AddTextureSRV("NormalMap", assets.GetTexture(L"Textures/PBR/cobblestone_normals"));
 	cobbleMat2x->AddTextureSRV("RoughnessMap", assets.GetTexture(L"Textures/PBR/cobblestone_roughness"));
 	cobbleMat2x->AddTextureSRV("MetalMap", assets.GetTexture(L"Textures/PBR/cobblestone_metal"));
 
-	std::shared_ptr<Material> cobbleMat4x = std::make_shared<Material>(pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(4, 4));
-	cobbleMat4x->AddSampler("BasicSampler", sampler);
-	cobbleMat4x->AddTextureSRV("Albedo", assets.GetTexture(L"Textures/PBR/cobblestone_albedo"));
-	cobbleMat4x->AddTextureSRV("NormalMap", assets.GetTexture(L"Textures/PBR/cobblestone_normals"));
-	cobbleMat4x->AddTextureSRV("RoughnessMap", assets.GetTexture(L"Textures/PBR/cobblestone_roughness"));
-	cobbleMat4x->AddTextureSRV("MetalMap", assets.GetTexture(L"Textures/PBR/cobblestone_metal"));
+	std::shared_ptr<Material> cobbleMat1x = std::make_shared<Material>(pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(1, 1));
+	cobbleMat1x->AddSampler("BasicSampler", sampler);
+	cobbleMat1x->AddTextureSRV("Albedo", assets.GetTexture(L"Textures/PBR/cobblestone_albedo"));
+	cobbleMat1x->AddTextureSRV("NormalMap", assets.GetTexture(L"Textures/PBR/cobblestone_normals"));
+	cobbleMat1x->AddTextureSRV("RoughnessMap", assets.GetTexture(L"Textures/PBR/cobblestone_roughness"));
+	cobbleMat1x->AddTextureSRV("MetalMap", assets.GetTexture(L"Textures/PBR/cobblestone_metal"));
 
-	std::shared_ptr<Material> floorMat = std::make_shared<Material>(pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(4, 2));
+	std::shared_ptr<Material> floorMat = std::make_shared<Material>(pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(2, 2));
 	floorMat->AddSampler("BasicSampler", sampler);
 	floorMat->AddTextureSRV("Albedo", assets.GetTexture(L"Textures/PBR/floor_albedo"));
 	floorMat->AddTextureSRV("NormalMap", assets.GetTexture(L"Textures/PBR/floor_normals"));
 	floorMat->AddTextureSRV("RoughnessMap", assets.GetTexture(L"Textures/PBR/floor_roughness"));
 	floorMat->AddTextureSRV("MetalMap", assets.GetTexture(L"Textures/PBR/floor_metal"));
 
-	std::shared_ptr<Material> paintMat = std::make_shared<Material>(pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(4, 2));
+	std::shared_ptr<Material> paintMat = std::make_shared<Material>(pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(2, 2));
 	paintMat->AddSampler("BasicSampler", sampler);
 	paintMat->AddTextureSRV("Albedo", assets.GetTexture(L"Textures/PBR/paint_albedo"));
 	paintMat->AddTextureSRV("NormalMap", assets.GetTexture(L"Textures/PBR/paint_normals"));
 	paintMat->AddTextureSRV("RoughnessMap", assets.GetTexture(L"Textures/PBR/paint_roughness"));
 	paintMat->AddTextureSRV("MetalMap", assets.GetTexture(L"Textures/PBR/paint_metal"));
 
-	std::shared_ptr<Material> scratchedMat = std::make_shared<Material>(pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(4, 2));
+	std::shared_ptr<Material> scratchedMat = std::make_shared<Material>(pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(2, 2));
 	scratchedMat->AddSampler("BasicSampler", sampler);
 	scratchedMat->AddTextureSRV("Albedo", assets.GetTexture(L"Textures/PBR/scratched_albedo"));
 	scratchedMat->AddTextureSRV("NormalMap", assets.GetTexture(L"Textures/PBR/scratched_normals"));
 	scratchedMat->AddTextureSRV("RoughnessMap", assets.GetTexture(L"Textures/PBR/scratched_roughness"));
 	scratchedMat->AddTextureSRV("MetalMap", assets.GetTexture(L"Textures/PBR/scratched_metal"));
 
-	std::shared_ptr<Material> bronzeMat = std::make_shared<Material>(pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(4, 2));
+	std::shared_ptr<Material> bronzeMat = std::make_shared<Material>(pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(2, 2));
 	bronzeMat->AddSampler("BasicSampler", sampler);
 	bronzeMat->AddTextureSRV("Albedo", assets.GetTexture(L"Textures/PBR/bronze_albedo"));
 	bronzeMat->AddTextureSRV("NormalMap", assets.GetTexture(L"Textures/PBR/bronze_normals"));
 	bronzeMat->AddTextureSRV("RoughnessMap", assets.GetTexture(L"Textures/PBR/bronze_roughness"));
 	bronzeMat->AddTextureSRV("MetalMap", assets.GetTexture(L"Textures/PBR/bronze_metal"));
 
-	std::shared_ptr<Material> roughMat = std::make_shared<Material>(pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(4, 2));
+	std::shared_ptr<Material> roughMat = std::make_shared<Material>(pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(2, 2));
 	roughMat->AddSampler("BasicSampler", sampler);
 	roughMat->AddTextureSRV("Albedo", assets.GetTexture(L"Textures/PBR/rough_albedo"));
 	roughMat->AddTextureSRV("NormalMap", assets.GetTexture(L"Textures/PBR/rough_normals"));
 	roughMat->AddTextureSRV("RoughnessMap", assets.GetTexture(L"Textures/PBR/rough_roughness"));
 	roughMat->AddTextureSRV("MetalMap", assets.GetTexture(L"Textures/PBR/rough_metal"));
 
-	std::shared_ptr<Material> woodMat = std::make_shared<Material>(pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(4, 2));
+	std::shared_ptr<Material> woodMat = std::make_shared<Material>(pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(2, 2));
 	woodMat->AddSampler("BasicSampler", sampler);
 	woodMat->AddTextureSRV("Albedo", assets.GetTexture(L"Textures/PBR/wood_albedo"));
 	woodMat->AddTextureSRV("NormalMap", assets.GetTexture(L"Textures/PBR/wood_normals"));
@@ -218,24 +218,25 @@ void Game::LoadAssetsAndCreateEntities()
 
 
 	// === Create the scene ===
-	std::shared_ptr<GameEntity> floor = std::make_shared<GameEntity>(assets.GetMesh(L"Models/cube"), cobbleMat4x);
+	std::shared_ptr<GameEntity> floor = std::make_shared<GameEntity>(assets.GetMesh(L"Models/cube"), woodMat);
 	floor->GetTransform()->SetScale(50, 50, 50);
 	floor->GetTransform()->SetPosition(0, -27, 0);
 	entities.push_back(floor);
 
 	std::shared_ptr<GameEntity> sphere = std::make_shared<GameEntity>(assets.GetMesh(L"Models/sphere"), scratchedMat);
+	sphere->GetTransform()->SetScale(2.0f);
 	sphere->GetTransform()->SetPosition(-5, 0, 0);
 	entities.push_back(sphere);
 
 	std::shared_ptr<GameEntity> helix = std::make_shared<GameEntity>(assets.GetMesh(L"Models/helix"), paintMat);
 	entities.push_back(helix);
 
-	std::shared_ptr<GameEntity> cube = std::make_shared<GameEntity>(assets.GetMesh(L"Models/cube"), woodMat);
+	std::shared_ptr<GameEntity> cube = std::make_shared<GameEntity>(assets.GetMesh(L"Models/cube"), cobbleMat1x);
 	cube->GetTransform()->SetPosition(5, 0, 0);
 	cube->GetTransform()->SetScale(2, 2, 2);
 	entities.push_back(cube);
 
-	std::shared_ptr<GameEntity> hoverSphere = std::make_shared<GameEntity>(assets.GetMesh(L"Models/sphere"), paintMat);
+	std::shared_ptr<GameEntity> hoverSphere = std::make_shared<GameEntity>(assets.GetMesh(L"Models/sphere"), bronzeMat);
 	hoverSphere->GetTransform()->SetScale(2.5f, 2.5f, 2.5f);
 	hoverSphere->GetTransform()->SetPosition(0, 5, -5);
 	entities.push_back(hoverSphere);
