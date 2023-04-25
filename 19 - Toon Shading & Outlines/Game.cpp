@@ -199,7 +199,7 @@ void Game::LoadAssetsAndCreateEntities()
 	redMat->AddTextureSRV("NormalMap", flatNormalsSRV);
 	redMat->AddTextureSRV("RoughnessMap", blackSRV);
 
-	std::shared_ptr<Material> detailedMat = std::make_shared<Material>(toonPS, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(4, 2));
+	std::shared_ptr<Material> detailedMat = std::make_shared<Material>(toonPS, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(2, 2));
 	detailedMat->AddSampler("BasicSampler", sampler);
 	detailedMat->AddSampler("ClampSampler", clampSampler);
 	detailedMat->AddTextureSRV("Albedo", assets.GetTexture(L"Textures/cushion"));
@@ -237,6 +237,7 @@ void Game::LoadAssetsAndCreateEntities()
 
 	// === Create the line up entities =====================================
 	std::shared_ptr<GameEntity> sphere = std::make_shared<GameEntity>(sphereMesh, whiteMat);
+	sphere->GetTransform()->SetScale(2.0f);
 	sphere->GetTransform()->SetPosition(0, 0, 0);
 
 	std::shared_ptr<GameEntity> torus = std::make_shared<GameEntity>(torusMesh, redMat);
@@ -245,6 +246,7 @@ void Game::LoadAssetsAndCreateEntities()
 	torus->GetTransform()->SetPosition(0, -3, 0);
 
 	std::shared_ptr<GameEntity> detailed = std::make_shared<GameEntity>(sphereMesh, detailedMat);
+	detailed->GetTransform()->SetScale(2.0f);
 	detailed->GetTransform()->SetPosition(0, -6, 0);
 
 	std::shared_ptr<GameEntity> mando = std::make_shared<GameEntity>(mandoMesh, mandoMat);

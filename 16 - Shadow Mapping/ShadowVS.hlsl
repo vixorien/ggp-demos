@@ -12,14 +12,8 @@ cbuffer externalData : register(b0)
 // --------------------------------------------------------
 // The entry point (main method) for our vertex shader
 // --------------------------------------------------------
-VertexToPixel_Shadow main(VertexShaderInput input)
+float4 main(VertexShaderInput input) : SV_POSITION
 {
-	// Set up output
-	VertexToPixel_Shadow output;
-
-	// Calculate output position
 	matrix wvp = mul(projection, mul(view, world));
-	output.screenPosition = mul(wvp, float4(input.localPosition, 1.0f));
-
-	return output;
+	return mul(wvp, float4(input.localPosition, 1.0f));
 }
