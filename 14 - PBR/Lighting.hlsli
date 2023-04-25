@@ -232,7 +232,7 @@ float G_SchlickGGX(float3 n, float3 v, float roughness)
 	// However, these are also in the BRDF's denominator, so they'll cancel!
 	// We're leaving them out here AND in the BRDF function as the
 	// dot products can get VERY small and cause rounding errors.
-	return /*NdotV*/ 1 / (NdotV * (1 - k) + k);
+	return 1 / (NdotV * (1 - k) + k);
 }
 
 // Work in progress - Note: Requires NdotL applied to overall specular BRDF!
