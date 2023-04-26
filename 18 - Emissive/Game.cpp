@@ -165,7 +165,7 @@ void Game::LoadAssetsAndCreateEntities()
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> noEmissveSRV = assets.CreateSolidColorTexture(L"Textures/NoEmissive", 2, 2, XMFLOAT4(0, 0, 0, 1));
 
 	// Create basic materials
-	std::shared_ptr<Material> cobbleMat2x = std::make_shared<Material>(pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(4, 2));
+	std::shared_ptr<Material> cobbleMat2x = std::make_shared<Material>(pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(2, 2));
 	cobbleMat2x->AddSampler("BasicSampler", sampler);
 	cobbleMat2x->AddTextureSRV("Albedo", assets.GetTexture(L"Textures/PBR/cobblestone_albedo"));
 	cobbleMat2x->AddTextureSRV("NormalMap", assets.GetTexture(L"Textures/PBR/cobblestone_normals"));
@@ -181,7 +181,7 @@ void Game::LoadAssetsAndCreateEntities()
 	cobbleMat4x->AddTextureSRV("MetalMap", assets.GetTexture(L"Textures/PBR/cobblestone_metal"));
 	cobbleMat4x->AddTextureSRV("EmissiveMap", noEmissveSRV);
 
-	std::shared_ptr<Material> floorMat = std::make_shared<Material>(pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(4, 2));
+	std::shared_ptr<Material> floorMat = std::make_shared<Material>(pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(2, 2));
 	floorMat->AddSampler("BasicSampler", sampler);
 	floorMat->AddTextureSRV("Albedo", assets.GetTexture(L"Textures/PBR/floor_albedo"));
 	floorMat->AddTextureSRV("NormalMap", assets.GetTexture(L"Textures/PBR/floor_normals"));
@@ -189,7 +189,7 @@ void Game::LoadAssetsAndCreateEntities()
 	floorMat->AddTextureSRV("MetalMap", assets.GetTexture(L"Textures/PBR/floor_metal"));
 	floorMat->AddTextureSRV("EmissiveMap", noEmissveSRV);
 
-	std::shared_ptr<Material> paintMat = std::make_shared<Material>(pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(4, 2));
+	std::shared_ptr<Material> paintMat = std::make_shared<Material>(pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(2, 2));
 	paintMat->AddSampler("BasicSampler", sampler);
 	paintMat->AddTextureSRV("Albedo", assets.GetTexture(L"Textures/PBR/paint_albedo"));
 	paintMat->AddTextureSRV("NormalMap", assets.GetTexture(L"Textures/PBR/paint_normals"));
@@ -197,7 +197,7 @@ void Game::LoadAssetsAndCreateEntities()
 	paintMat->AddTextureSRV("MetalMap", assets.GetTexture(L"Textures/PBR/paint_metal"));
 	paintMat->AddTextureSRV("EmissiveMap", noEmissveSRV);
 
-	std::shared_ptr<Material> scratchedMat = std::make_shared<Material>(pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(4, 2));
+	std::shared_ptr<Material> scratchedMat = std::make_shared<Material>(pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(2, 2));
 	scratchedMat->AddSampler("BasicSampler", sampler);
 	scratchedMat->AddTextureSRV("Albedo", assets.GetTexture(L"Textures/PBR/scratched_albedo"));
 	scratchedMat->AddTextureSRV("NormalMap", assets.GetTexture(L"Textures/PBR/scratched_normals"));
@@ -205,7 +205,7 @@ void Game::LoadAssetsAndCreateEntities()
 	scratchedMat->AddTextureSRV("MetalMap", assets.GetTexture(L"Textures/PBR/scratched_metal"));
 	scratchedMat->AddTextureSRV("EmissiveMap", noEmissveSRV);
 
-	std::shared_ptr<Material> bronzeMat = std::make_shared<Material>(pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(4, 2));
+	std::shared_ptr<Material> bronzeMat = std::make_shared<Material>(pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(2, 2));
 	bronzeMat->AddSampler("BasicSampler", sampler);
 	bronzeMat->AddTextureSRV("Albedo", assets.GetTexture(L"Textures/PBR/bronze_albedo"));
 	bronzeMat->AddTextureSRV("NormalMap", assets.GetTexture(L"Textures/PBR/bronze_normals"));
@@ -213,7 +213,7 @@ void Game::LoadAssetsAndCreateEntities()
 	bronzeMat->AddTextureSRV("MetalMap", assets.GetTexture(L"Textures/PBR/bronze_metal"));
 	bronzeMat->AddTextureSRV("EmissiveMap", noEmissveSRV);
 
-	std::shared_ptr<Material> roughMat = std::make_shared<Material>(pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(4, 2));
+	std::shared_ptr<Material> roughMat = std::make_shared<Material>(pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(2, 2));
 	roughMat->AddSampler("BasicSampler", sampler);
 	roughMat->AddTextureSRV("Albedo", assets.GetTexture(L"Textures/PBR/rough_albedo"));
 	roughMat->AddTextureSRV("NormalMap", assets.GetTexture(L"Textures/PBR/rough_normals"));
@@ -221,7 +221,7 @@ void Game::LoadAssetsAndCreateEntities()
 	roughMat->AddTextureSRV("MetalMap", assets.GetTexture(L"Textures/PBR/rough_metal"));
 	roughMat->AddTextureSRV("EmissiveMap", noEmissveSRV);
 
-	std::shared_ptr<Material> woodMat = std::make_shared<Material>(pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(4, 2));
+	std::shared_ptr<Material> woodMat = std::make_shared<Material>(pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(2, 2));
 	woodMat->AddSampler("BasicSampler", sampler);
 	woodMat->AddTextureSRV("Albedo", assets.GetTexture(L"Textures/PBR/wood_albedo"));
 	woodMat->AddTextureSRV("NormalMap", assets.GetTexture(L"Textures/PBR/wood_normals"));
@@ -229,7 +229,7 @@ void Game::LoadAssetsAndCreateEntities()
 	woodMat->AddTextureSRV("MetalMap", assets.GetTexture(L"Textures/PBR/wood_metal"));
 	woodMat->AddTextureSRV("EmissiveMap", noEmissveSRV);
 
-	std::shared_ptr<Material> lavaMat = std::make_shared<Material>(pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(4, 2));
+	std::shared_ptr<Material> lavaMat = std::make_shared<Material>(pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(2, 2));
 	lavaMat->AddSampler("BasicSampler", sampler);
 	lavaMat->AddTextureSRV("Albedo", assets.GetTexture(L"Textures/PBR/lava_albedo"));
 	lavaMat->AddTextureSRV("NormalMap", assets.GetTexture(L"Textures/PBR/lava_normals"));
@@ -265,7 +265,7 @@ void Game::LoadAssetsAndCreateEntities()
 		case 7: whichMat = lavaMat; break;
 		}
 
-		float size = RandomRange(0.05f, 2.0f);
+		float size = RandomRange(0.05f, 2.0f) * 2;
 
 		std::shared_ptr<GameEntity> sphere = std::make_shared<GameEntity>(sphereMesh, whichMat);
 		sphere->GetTransform()->SetScale(size, size, size);
@@ -303,6 +303,15 @@ void Game::LoadAssetsAndCreateEntities()
 
 	std::shared_ptr<GameEntity> lavaSphere = std::make_shared<GameEntity>(sphereMesh, lavaMat);
 	lavaSphere->GetTransform()->SetPosition(8, 0, 0);
+
+	cobSphere->GetTransform()->SetScale(2);
+	floorSphere->GetTransform()->SetScale(2);
+	paintSphere->GetTransform()->SetScale(2);
+	scratchSphere->GetTransform()->SetScale(2);
+	bronzeSphere->GetTransform()->SetScale(2);
+	roughSphere->GetTransform()->SetScale(2);
+	woodSphere->GetTransform()->SetScale(2);
+	lavaSphere->GetTransform()->SetScale(2);
 
 	entitiesLineup.push_back(cobSphere);
 	entitiesLineup.push_back(floorSphere);
@@ -355,6 +364,9 @@ void Game::LoadAssetsAndCreateEntities()
 		// Move them
 		geMetal->GetTransform()->SetPosition(i * 2.0f - 10.0f, 1, 0);
 		geNonMetal->GetTransform()->SetPosition(i * 2.0f - 10.0f, -1, 0);
+
+		geMetal->GetTransform()->SetScale(2);
+		geNonMetal->GetTransform()->SetScale(2);
 	}
 }
 

@@ -528,8 +528,8 @@ void Game::OnResize()
 void Game::Update(float deltaTime, float totalTime)
 {
 	// Set up the new frame for the UI, then build
-// this frame's interface.  Note that the building
-// of the UI could happen at any point during update.
+	// this frame's interface.  Note that the building
+	// of the UI could happen at any point during update.
 	UINewFrame(deltaTime);
 	BuildUI();
 
