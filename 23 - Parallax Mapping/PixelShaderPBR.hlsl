@@ -32,17 +32,51 @@ SamplerState BasicSampler				: register(s0);
 
 
 
-float2 GetParallaxUV(float2 uv, float2 heightScale, float3 worldPos)
+float2 GetParallaxUV(float2 uv, float heightScale, float3 v, float3x3 TBN)
 {
-	// Calc vector to surface
-	float3 toSurface = worldPos - cameraPosition;
+	// Negate the bitangent!
+	TBN._21 *= -1;
+	TBN._22 *= -1;
+	TBN._23 *= -1;
 
+	// Get tangent space view vector
+	// Note: Multiplying in opposite order is effectively
+	//       transposing the matrix, which acts like an 
+	//       invert on a pure 3x3 rotation matrix!
+	float3 v_TS = mul(TBN, v); // World to Tangent space
+	float viewLength = length(v_TS);
+
+	// Raymarch direction
+	float parallaxLength = sqrt(viewLength * viewLength - v_TS.z * v_TS.z) / v_TS.z;
+	float2 rayDir = normalize(v_TS.xy) * parallaxLength * heightScale;
+	
 	// Raymarch through surface
-	for (int i = 0; i < 256; i++)
+	uint SAMPLES = 256;
+	
+	float2 currentPos = uv;
+	float currentHeight = 1.0f;
+
+	float stepSize = 1.0f / SAMPLES;
+	float2 uvStepDir = rayDir * stepSize;
+	
+	float2 dx = ddx(uv);
+	float2 dy = ddy(uv);
+
+	for (uint i = 0; i < SAMPLES; i++)
 	{
-		
+		// Offset along ray and grab the height there
+		currentPos -= uvStepDir;
+		currentHeight -= stepSize;
+		float h = HeightMap.SampleGrad(BasicSampler, currentPos, dx, dy).r;
+
+		// If we've gone "below" the heightmap, we've hit!
+		if (currentHeight < h)
+		{
+			break;
+		}
 	}
 
+	return currentPos;
 }
 
 
@@ -58,8 +92,29 @@ float4 main(VertexToPixel input) : SV_TARGET
 	// Adjust uv scaling
 	input.uv = input.uv * uvScale + uvOffset;
 
-	// Handle normal mapping
-	input.normal = NormalMapping(NormalMap, BasicSampler, input.uv, input.normal, input.tangent);
+	// Handle normal mapping - Placing this code directly in
+	// the shader as we'll need TBN for parallax mapping, too
+	
+	// Gather the required vectors for converting the normal
+	float3 N = input.normal;
+	float3 T = normalize(input.tangent - N * dot(input.tangent, N));
+	float3 B = cross(T, N);
+
+	// Create the 3x3 matrix to convert from TANGENT-SPACE normals to WORLD-SPACE normals
+	float3x3 TBN = float3x3(T, B, N);
+
+	// Adjust the normal from the map and simply use the results
+	
+	// Handle parallax mapping
+	float3 v = normalize(cameraPosition - input.worldPos);
+	input.uv = GetParallaxUV(input.uv, 0.1f, v, TBN);
+
+	//return float4(input.uv, 0, 0);
+
+	// Finalize normal mapping after parallax
+	float3 normalFromMap = SampleAndUnpackNormalMap(NormalMap, BasicSampler, input.uv);
+	input.normal = normalize(mul(normalFromMap, TBN));
+
 	
 	// Sample various maps for PBR
 	float roughness = RoughnessMap.Sample(BasicSampler, input.uv).r;
