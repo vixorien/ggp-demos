@@ -46,6 +46,8 @@ Game::Game(HINSTANCE hInstance)
 	lightCount(3),
 	pauseMovement(false),
 	movementTime(0.0f),
+	parallaxHeightScale(0.0f),
+	parallaxSamples(256),
 	showUIDemoWindow(false)
 {
 
@@ -166,78 +168,59 @@ void Game::LoadAssetsAndCreateEntities()
 	std::shared_ptr<SimpleVertexShader> vertexShader = assets.GetVertexShader(L"VertexShader");
 	std::shared_ptr<SimplePixelShader> pixelShader = assets.GetPixelShader(L"PixelShaderPBR");
 
-	// Create basic materials
-	std::shared_ptr<Material> cobbleMat2x = std::make_shared<Material>(pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(2, 2));
-	cobbleMat2x->AddSampler("BasicSampler", sampler);
-	cobbleMat2x->AddTextureSRV("Albedo", assets.GetTexture(L"Textures/PBR/cobblestone_albedo"));
-	cobbleMat2x->AddTextureSRV("NormalMap", assets.GetTexture(L"Textures/PBR/cobblestone_normals"));
-	cobbleMat2x->AddTextureSRV("RoughnessMap", assets.GetTexture(L"Textures/PBR/cobblestone_roughness"));
-	cobbleMat2x->AddTextureSRV("MetalMap", assets.GetTexture(L"Textures/PBR/cobblestone_metal"));
+	std::shared_ptr<Material> parallaxShapesMat = std::make_shared<Material>(pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(1, 1));
+	parallaxShapesMat->AddSampler("BasicSampler", sampler);
+	parallaxShapesMat->AddTextureSRV("Albedo", assets.GetTexture(L"Textures/PBR/wood_albedo"));
+	parallaxShapesMat->AddTextureSRV("NormalMap", assets.GetTexture(L"Textures/shapes_normals"));
+	parallaxShapesMat->AddTextureSRV("RoughnessMap", assets.GetTexture(L"Textures/PBR/wood_roughness"));
+	parallaxShapesMat->AddTextureSRV("MetalMap", assets.GetTexture(L"Textures/PBR/wood_metal"));
+	parallaxShapesMat->AddTextureSRV("HeightMap", assets.GetTexture(L"Textures/shapes_height"));
 
-	std::shared_ptr<Material> cobbleMat1x = std::make_shared<Material>(pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(1, 1));
-	cobbleMat1x->AddSampler("BasicSampler", sampler);
-	cobbleMat1x->AddTextureSRV("Albedo", assets.GetTexture(L"Textures/PBR/cobblestone_albedo"));
-	cobbleMat1x->AddTextureSRV("NormalMap", assets.GetTexture(L"Textures/PBR/cobblestone_normals"));
-	cobbleMat1x->AddTextureSRV("RoughnessMap", assets.GetTexture(L"Textures/PBR/cobblestone_roughness"));
-	cobbleMat1x->AddTextureSRV("MetalMap", assets.GetTexture(L"Textures/PBR/cobblestone_metal"));
+	std::shared_ptr<Material> parallaxStonesMat = std::make_shared<Material>(pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(1, 1));
+	parallaxStonesMat->AddSampler("BasicSampler", sampler);
+	parallaxStonesMat->AddTextureSRV("Albedo", assets.GetTexture(L"Textures/stones"));
+	parallaxStonesMat->AddTextureSRV("NormalMap", assets.GetTexture(L"Textures/stones_normals"));
+	parallaxStonesMat->AddTextureSRV("RoughnessMap", assets.GetTexture(L"Textures/stones_height"));
+	parallaxStonesMat->AddTextureSRV("MetalMap", assets.GetTexture(L"Textures/PBR/wood_metal")); // White
+	parallaxStonesMat->AddTextureSRV("HeightMap", assets.GetTexture(L"Textures/stones_height"));
 
-	std::shared_ptr<Material> floorMat = std::make_shared<Material>(pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(2, 2));
-	floorMat->AddSampler("BasicSampler", sampler);
-	floorMat->AddTextureSRV("Albedo", assets.GetTexture(L"Textures/PBR/floor_albedo"));
-	floorMat->AddTextureSRV("NormalMap", assets.GetTexture(L"Textures/PBR/floor_normals"));
-	floorMat->AddTextureSRV("RoughnessMap", assets.GetTexture(L"Textures/PBR/floor_roughness"));
-	floorMat->AddTextureSRV("MetalMap", assets.GetTexture(L"Textures/PBR/floor_metal"));
+	std::shared_ptr<Material> parallaxLeatherMat = std::make_shared<Material>(pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(1, 1));
+	parallaxLeatherMat->AddSampler("BasicSampler", sampler);
+	parallaxLeatherMat->AddTextureSRV("Albedo", assets.GetTexture(L"Textures/PBR/leather_albedo"));
+	parallaxLeatherMat->AddTextureSRV("NormalMap", assets.GetTexture(L"Textures/PBR/leather_normals"));
+	parallaxLeatherMat->AddTextureSRV("RoughnessMap", assets.GetTexture(L"Textures/PBR/leather_rough"));
+	parallaxLeatherMat->AddTextureSRV("MetalMap", assets.GetTexture(L"Textures/PBR/leather_metal"));
+	parallaxLeatherMat->AddTextureSRV("HeightMap", assets.GetTexture(L"Textures/PBR/leather_height"));
 
-	std::shared_ptr<Material> paintMat = std::make_shared<Material>(pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(2, 2));
-	paintMat->AddSampler("BasicSampler", sampler);
-	paintMat->AddTextureSRV("Albedo", assets.GetTexture(L"Textures/PBR/paint_albedo"));
-	paintMat->AddTextureSRV("NormalMap", assets.GetTexture(L"Textures/PBR/paint_normals"));
-	paintMat->AddTextureSRV("RoughnessMap", assets.GetTexture(L"Textures/PBR/paint_roughness"));
-	paintMat->AddTextureSRV("MetalMap", assets.GetTexture(L"Textures/PBR/paint_metal"));
-
-	std::shared_ptr<Material> scratchedMat = std::make_shared<Material>(pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(2, 2));
-	scratchedMat->AddSampler("BasicSampler", sampler);
-	scratchedMat->AddTextureSRV("Albedo", assets.GetTexture(L"Textures/PBR/scratched_albedo"));
-	scratchedMat->AddTextureSRV("NormalMap", assets.GetTexture(L"Textures/PBR/scratched_normals"));
-	scratchedMat->AddTextureSRV("RoughnessMap", assets.GetTexture(L"Textures/PBR/scratched_roughness"));
-	scratchedMat->AddTextureSRV("MetalMap", assets.GetTexture(L"Textures/PBR/scratched_metal"));
-
-	std::shared_ptr<Material> bronzeMat = std::make_shared<Material>(pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(2, 2));
-	bronzeMat->AddSampler("BasicSampler", sampler);
-	bronzeMat->AddTextureSRV("Albedo", assets.GetTexture(L"Textures/PBR/bronze_albedo"));
-	bronzeMat->AddTextureSRV("NormalMap", assets.GetTexture(L"Textures/PBR/bronze_normals"));
-	bronzeMat->AddTextureSRV("RoughnessMap", assets.GetTexture(L"Textures/PBR/bronze_roughness"));
-	bronzeMat->AddTextureSRV("MetalMap", assets.GetTexture(L"Textures/PBR/bronze_metal"));
-
-	std::shared_ptr<Material> roughMat = std::make_shared<Material>(pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(2, 2));
-	roughMat->AddSampler("BasicSampler", sampler);
-	roughMat->AddTextureSRV("Albedo", assets.GetTexture(L"Textures/PBR/rough_albedo"));
-	roughMat->AddTextureSRV("NormalMap", assets.GetTexture(L"Textures/PBR/rough_normals"));
-	roughMat->AddTextureSRV("RoughnessMap", assets.GetTexture(L"Textures/PBR/rough_roughness"));
-	roughMat->AddTextureSRV("MetalMap", assets.GetTexture(L"Textures/PBR/rough_metal"));
-
-	std::shared_ptr<Material> woodMat = std::make_shared<Material>(pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(2, 2));
-	woodMat->AddSampler("BasicSampler", sampler);
-	woodMat->AddTextureSRV("Albedo", assets.GetTexture(L"Textures/PBR/wood_albedo"));
-	woodMat->AddTextureSRV("NormalMap", assets.GetTexture(L"Textures/PBR/wood_normals"));
-	woodMat->AddTextureSRV("RoughnessMap", assets.GetTexture(L"Textures/PBR/wood_roughness"));
-	woodMat->AddTextureSRV("MetalMap", assets.GetTexture(L"Textures/PBR/wood_metal"));
-
-
-	std::shared_ptr<Material> parallaxMat = std::make_shared<Material>(pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(1, 1));
-	parallaxMat->AddSampler("BasicSampler", sampler);
-	parallaxMat->AddTextureSRV("Albedo", assets.GetTexture(L"Textures/PBR/wood_albedo"));
-	parallaxMat->AddTextureSRV("NormalMap", assets.GetTexture(L"Textures/shapes_normals"));
-	parallaxMat->AddTextureSRV("RoughnessMap", assets.GetTexture(L"Textures/PBR/wood_roughness"));
-	parallaxMat->AddTextureSRV("MetalMap", assets.GetTexture(L"Textures/PBR/wood_metal"));
-	parallaxMat->AddTextureSRV("HeightMap", assets.GetTexture(L"Textures/shapes_height"));
-
+	std::shared_ptr<Material> parallaxBricksMat = std::make_shared<Material>(pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(1, 1));
+	parallaxBricksMat->AddSampler("BasicSampler", sampler);
+	parallaxBricksMat->AddTextureSRV("Albedo", assets.GetTexture(L"Textures/PBR/bricks_albedo"));
+	parallaxBricksMat->AddTextureSRV("NormalMap", assets.GetTexture(L"Textures/PBR/bricks_normals"));
+	parallaxBricksMat->AddTextureSRV("RoughnessMap", assets.GetTexture(L"Textures/PBR/bricks_rough"));
+	parallaxBricksMat->AddTextureSRV("MetalMap", assets.GetTexture(L"Textures/PBR/bricks_metal"));
+	parallaxBricksMat->AddTextureSRV("HeightMap", assets.GetTexture(L"Textures/PBR/bricks_height"));
 
 	// === Create the scene ===
-	std::shared_ptr<GameEntity> cube = std::make_shared<GameEntity>(assets.GetMesh(L"Models/cube"), parallaxMat);
-	cube->GetTransform()->SetScale(3);
-	cube->GetTransform()->SetPosition(0, 0, 0);
-	entities.push_back(cube);
+	std::shared_ptr<GameEntity> shapesCube = std::make_shared<GameEntity>(assets.GetMesh(L"Models/cube"), parallaxShapesMat);
+	shapesCube->GetTransform()->SetScale(3);
+	shapesCube->GetTransform()->SetPosition(0, 0, 0);
+	entities.push_back(shapesCube);
+
+	std::shared_ptr<GameEntity> leatherCube = std::make_shared<GameEntity>(assets.GetMesh(L"Models/cube"), parallaxLeatherMat);
+	leatherCube->GetTransform()->SetScale(3);
+	leatherCube->GetTransform()->SetPosition(-5, 0, 0);
+	entities.push_back(leatherCube);
+
+	std::shared_ptr<GameEntity> bricksCube = std::make_shared<GameEntity>(assets.GetMesh(L"Models/cube"), parallaxBricksMat);
+	bricksCube->GetTransform()->SetScale(3);
+	bricksCube->GetTransform()->SetPosition(5, 0, 0);
+	entities.push_back(bricksCube);
+
+	std::shared_ptr<GameEntity> plane = std::make_shared<GameEntity>(assets.GetMesh(L"Models/quad_double_sided"), parallaxStonesMat);
+	plane->GetTransform()->SetScale(2);
+	plane->GetTransform()->SetPosition(0, -5, 0);
+	plane->GetTransform()->SetRotation(-XM_PIDIV2, 0, 0);
+	entities.push_back(plane);
 }
 
 
@@ -383,6 +366,8 @@ void Game::Draw(float deltaTime, float totalTime)
 		ps->SetFloat3("ambientColor", ambientColor);
 		ps->SetData("lights", &lights[0], sizeof(Light) * (int)lights.size());
 		ps->SetInt("lightCount", lightCount);
+		ps->SetFloat("heightScale", parallaxHeightScale);
+		ps->SetInt("parallaxSamples", parallaxSamples);
 
 		// Draw one entity
 		e->Draw(context, camera);
@@ -568,11 +553,28 @@ void Game::BuildUI()
 			ImGui::Text("(F)");					ImGui::SameLine(175); ImGui::Text("Freeze/unfreeze lights");
 			ImGui::Text("(L)");					ImGui::SameLine(175); ImGui::Text("Show/hide point lights");
 
+			// Finalize the tree node
+			ImGui::TreePop();
+		}
+
+		// === Parallax ===
+		if (ImGui::TreeNode("Parallax Mapping"))
+		{
+
+			ImGui::Spacing();
+			ImGui::SliderFloat("Height Scale", &parallaxHeightScale, 0.0f, 1.0f);
+			ImGui::SliderInt("Number of Samples", &parallaxSamples, 16, 512);
+
+			ImVec2 size = ImGui::GetItemRectSize();
+			ImGui::Spacing();
+			ImGui::Text("Example Height Map");
+			ImGui::Image(Assets::GetInstance().GetTexture(L"Textures/shapes_height").Get(), ImVec2(size.x, size.x));
 
 			// Finalize the tree node
 			ImGui::TreePop();
 		}
 
+		ImGui::Checkbox("Pause Rotation", &pauseMovement);
 
 		ImGui::End();
 	}

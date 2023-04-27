@@ -52,6 +52,8 @@ private:
 	// Entity options
 	bool pauseMovement;
 	float movementTime;
+	float parallaxHeightScale;
+	int parallaxSamples;
 
 	// Lights
 	std::vector<Light> lights;
