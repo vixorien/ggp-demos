@@ -1,7 +1,7 @@
 #include "Game.h"
 #include "Vertex.h"
 #include "Input.h"
-#include "Helpers.h"
+#include "PathHelpers.h"
 
 #include "../Common/ImGui/imgui.h"
 #include "../Common/ImGui/imgui_impl_dx11.h"
