@@ -26,7 +26,7 @@ using namespace DirectX;
 Game::Game(HINSTANCE hInstance)
 	: DXCore(
 		hInstance,			// The application's handle
-		"DirectX Game",	// Text for the window's title bar (as a wide-character string)
+		L"DirectX Game",	// Text for the window's title bar (as a wide-character string)
 		1280,				// Width of the window's client area
 		720,				// Height of the window's client area
 		false,				// Sync the framerate to the monitor refresh? (lock framerate)

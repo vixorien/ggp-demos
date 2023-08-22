@@ -9,5 +9,3 @@ std::string FixPath(const std::string& relativeFilePath);
 std::wstring FixPath(const std::wstring& relativeFilePath);
 std::string WideToNarrow(const std::wstring& str);
 std::wstring NarrowToWide(const std::string& str);
-
-HRESULT __stdcall D3DReadFileToBlob(const char* file, ID3DBlob** blob);

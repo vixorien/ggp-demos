@@ -2,7 +2,6 @@
 #include <Windows.h>
 #include <codecvt>
 #include <locale>
-#include <d3dcompiler.h>
 
 #include "PathHelpers.h"
 
@@ -98,15 +97,4 @@ std::wstring NarrowToWide(const std::string& str)
 {
 	std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
 	return converter.from_bytes(str);
-}
-
-
-// ----------------------------------------------------
-//  Custom overload of the built-in D3DReadFileToBlob
-//  function that accepts a regular string and auto-
-//  converts it to a wide string.
-// ----------------------------------------------------
-HRESULT __stdcall D3DReadFileToBlob(const char* file, ID3DBlob** blob)
-{
-	return D3DReadFileToBlob(NarrowToWide(file).c_str(), blob);
 }

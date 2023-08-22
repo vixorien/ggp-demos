@@ -31,7 +31,7 @@ LRESULT DXCore::WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 // --------------------------------------------------------
 DXCore::DXCore(
 	HINSTANCE hInstance,		// The application's handle
-	const char* titleBarText,// Text for the window's title bar
+	const wchar_t* titleBarText,// Text for the window's title bar
 	unsigned int windowWidth,	// Width of the window's client area
 	unsigned int windowHeight,	// Height of the window's client area
 	bool vsync,					// Sync the framerate to the monitor?
@@ -89,7 +89,7 @@ HRESULT DXCore::InitWindow()
 {
 	// Start window creation by filling out the
 	// appropriate window class struct
-	WNDCLASSA wndClass		= {}; // Zero out the memory
+	WNDCLASS wndClass		= {}; // Zero out the memory
 	wndClass.style			= CS_HREDRAW | CS_VREDRAW;	// Redraw on horizontal or vertical movement/adjustment
 	wndClass.lpfnWndProc	= DXCore::WindowProc;
 	wndClass.cbClsExtra		= 0;
@@ -99,10 +99,10 @@ HRESULT DXCore::InitWindow()
 	wndClass.hCursor		= LoadCursor(NULL, IDC_ARROW);		// Default arrow cursor
 	wndClass.hbrBackground	= (HBRUSH)GetStockObject(BLACK_BRUSH);
 	wndClass.lpszMenuName	= NULL;
-	wndClass.lpszClassName	= "D3DWindowClass";
+	wndClass.lpszClassName	= L"D3DWindowClass";
 
 	// Attempt to register the window class we've defined
-	if (!RegisterClassA(&wndClass))
+	if (!RegisterClass(&wndClass))
 	{
 		// Get the most recent error
 		DWORD error = GetLastError();
@@ -131,7 +131,7 @@ HRESULT DXCore::InitWindow()
 	// Actually ask Windows to create the window itself
 	// using our settings so far.  This will return the
 	// handle of the window, which we'll keep around for later
-	hWnd = CreateWindowA(
+	hWnd = CreateWindow(
 		wndClass.lpszClassName,
 		titleBarText.c_str(),
 		WS_OVERLAPPEDWINDOW,
@@ -501,14 +501,14 @@ void DXCore::UpdateTitleBarStats()
 	float mspf = 1000.0f / (float)fpsFrameCount;
 
 	// Quick and dirty title bar text (mostly for debugging)
-	std::ostringstream output;
+	std::wostringstream output;
 	output.precision(6);
 	output << titleBarText <<
 		"    Width: "		<< windowWidth <<
 		"    Height: "		<< windowHeight <<
 		"    FPS: "			<< fpsFrameCount <<
 		"    Frame Time: "	<< mspf << "ms";
-
+	
 	// Append the version of Direct3D the app is using
 	switch (dxFeatureLevel)
 	{
@@ -523,7 +523,7 @@ void DXCore::UpdateTitleBarStats()
 	}
 
 	// Actually update the title bar and reset fps data
-	SetWindowTextA(hWnd, output.str().c_str());
+	SetWindowText(hWnd, output.str().c_str());
 	fpsFrameCount = 0;
 	fpsTimeElapsed += 1.0f;
 }

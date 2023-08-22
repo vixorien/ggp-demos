@@ -32,7 +32,7 @@ LRESULT DXCore::WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 // --------------------------------------------------------
 DXCore::DXCore(
 	HINSTANCE hInstance,		// The application's handle
-	const char* titleBarText,// Text for the window's title bar
+	const wchar_t* titleBarText,	// Text for the window's title bar
 	unsigned int windowWidth,	// Width of the window's client area
 	unsigned int windowHeight,	// Height of the window's client area
 	bool vsync,					// Sync the framerate to the monitor?
@@ -91,16 +91,16 @@ HRESULT DXCore::InitWindow()
 	// Start window creation by filling out the
 	// appropriate window class struct
 	WNDCLASS wndClass = {}; // Zero out the memory
-	wndClass.style 			= CS_HREDRAW | CS_VREDRAW;	// Redraw on horizontal or vertical movement/adjustment
-	wndClass.lpfnWndProc 	= DXCore::WindowProc;
-	wndClass.cbClsExtra 	= 0;
-	wndClass.cbWndExtra 	= 0;
-	wndClass.hInstance 		= hInstance;						// Our app's handle
-	wndClass.hIcon 			= LoadIcon(NULL, IDI_APPLICATION);	// Default icon
-	wndClass.hCursor 		= LoadCursor(NULL, IDC_ARROW);		// Default arrow cursor
-	wndClass.hbrBackground 	= (HBRUSH)GetStockObject(BLACK_BRUSH);
-	wndClass.lpszMenuName 	= NULL;
-	wndClass.lpszClassName 	= "Direct3DWindowClass";
+	wndClass.style = CS_HREDRAW | CS_VREDRAW;	// Redraw on horizontal or vertical movement/adjustment
+	wndClass.lpfnWndProc = DXCore::WindowProc;
+	wndClass.cbClsExtra = 0;
+	wndClass.cbWndExtra = 0;
+	wndClass.hInstance = hInstance;						// Our app's handle
+	wndClass.hIcon = LoadIcon(NULL, IDI_APPLICATION);	// Default icon
+	wndClass.hCursor = LoadCursor(NULL, IDC_ARROW);		// Default arrow cursor
+	wndClass.hbrBackground = (HBRUSH)GetStockObject(BLACK_BRUSH);
+	wndClass.lpszMenuName = NULL;
+	wndClass.lpszClassName = L"D3DWindowClass";
 
 	// Attempt to register the window class we've defined
 	if (!RegisterClass(&wndClass))
@@ -502,7 +502,7 @@ void DXCore::UpdateTitleBarStats()
 	float mspf = 1000.0f / (float)fpsFrameCount;
 
 	// Quick and dirty title bar text (mostly for debugging)
-	std::ostringstream output;
+	std::wostringstream output;
 	output.precision(6);
 	output << titleBarText <<
 		"    Width: " << windowWidth <<
