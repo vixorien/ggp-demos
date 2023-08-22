@@ -89,7 +89,7 @@ HRESULT DXCore::InitWindow()
 {
 	// Start window creation by filling out the
 	// appropriate window class struct
-	WNDCLASS wndClass		= {}; // Zero out the memory
+	WNDCLASSA wndClass		= {}; // Zero out the memory
 	wndClass.style			= CS_HREDRAW | CS_VREDRAW;	// Redraw on horizontal or vertical movement/adjustment
 	wndClass.lpfnWndProc	= DXCore::WindowProc;
 	wndClass.cbClsExtra		= 0;
@@ -99,10 +99,10 @@ HRESULT DXCore::InitWindow()
 	wndClass.hCursor		= LoadCursor(NULL, IDC_ARROW);		// Default arrow cursor
 	wndClass.hbrBackground	= (HBRUSH)GetStockObject(BLACK_BRUSH);
 	wndClass.lpszMenuName	= NULL;
-	wndClass.lpszClassName	= "Direct3DWindowClass"; // The "" means this is a wide-character string
+	wndClass.lpszClassName	= "D3DWindowClass";
 
 	// Attempt to register the window class we've defined
-	if (!RegisterClass(&wndClass))
+	if (!RegisterClassA(&wndClass))
 	{
 		// Get the most recent error
 		DWORD error = GetLastError();
@@ -131,7 +131,7 @@ HRESULT DXCore::InitWindow()
 	// Actually ask Windows to create the window itself
 	// using our settings so far.  This will return the
 	// handle of the window, which we'll keep around for later
-	hWnd = CreateWindow(
+	hWnd = CreateWindowA(
 		wndClass.lpszClassName,
 		titleBarText.c_str(),
 		WS_OVERLAPPEDWINDOW,
@@ -523,7 +523,7 @@ void DXCore::UpdateTitleBarStats()
 	}
 
 	// Actually update the title bar and reset fps data
-	SetWindowText(hWnd, output.str().c_str());
+	SetWindowTextA(hWnd, output.str().c_str());
 	fpsFrameCount = 0;
 	fpsTimeElapsed += 1.0f;
 }

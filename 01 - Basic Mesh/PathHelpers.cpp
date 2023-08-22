@@ -28,7 +28,7 @@ std::string GetExePath()
 
 	// Get the real, full path to this executable
 	char currentDir[1024] = {};
-	GetModuleFileName(0, currentDir, 1024);
+	GetModuleFileNameA(0, currentDir, 1024);
 
 	// Find the location of the last slash charaacter
 	char* lastSlash = strrchr(currentDir, '\\');
