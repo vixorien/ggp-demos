@@ -1,7 +1,7 @@
 #include "Game.h"
 #include "Vertex.h"
 #include "Input.h"
-#include "Helpers.h"
+#include "PathHelpers.h"
 
 // Needed for a helper function to read compiled shader files from the hard drive
 #pragma comment(lib, "d3dcompiler.lib")
@@ -21,7 +21,7 @@ using namespace DirectX;
 Game::Game(HINSTANCE hInstance)
 	: DXCore(
 		hInstance,			// The application's handle
-		L"DirectX Game",	// Text for the window's title bar (as a wide-character string)
+		"DirectX Game",	// Text for the window's title bar (as a wide-character string)
 		1280,				// Width of the window's client area
 		720,				// Height of the window's client area
 		false,				// Sync the framerate to the monitor refresh? (lock framerate)
@@ -108,9 +108,9 @@ void Game::LoadShaders()
 		// Read our compiled shader code files into blobs
 		// - Essentially just "open the file and plop its contents here"
 		// - Uses the custom FixPath() helper from Helpers.h to ensure relative paths
-		// - Note the "L" before the string - this tells the compiler the string uses wide characters
-		D3DReadFileToBlob(FixPath(L"PixelShader.cso").c_str(), &pixelShaderBlob);
-		D3DReadFileToBlob(FixPath(L"VertexShader.cso").c_str(), &vertexShaderBlob);
+		// - Note the "" before the string - this tells the compiler the string uses wide characters
+		D3DReadFileToBlob(FixPath("PixelShader.cso").c_str(), &pixelShaderBlob);
+		D3DReadFileToBlob(FixPath("VertexShader.cso").c_str(), &vertexShaderBlob);
 
 		// Create the actual Direct3D shaders on the GPU
 		device->CreatePixelShader(

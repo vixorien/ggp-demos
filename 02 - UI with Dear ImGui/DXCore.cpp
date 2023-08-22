@@ -32,7 +32,7 @@ LRESULT DXCore::WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 // --------------------------------------------------------
 DXCore::DXCore(
 	HINSTANCE hInstance,		// The application's handle
-	const wchar_t* titleBarText,// Text for the window's title bar
+	const char* titleBarText,// Text for the window's title bar
 	unsigned int windowWidth,	// Width of the window's client area
 	unsigned int windowHeight,	// Height of the window's client area
 	bool vsync,					// Sync the framerate to the monitor?
@@ -91,16 +91,16 @@ HRESULT DXCore::InitWindow()
 	// Start window creation by filling out the
 	// appropriate window class struct
 	WNDCLASS wndClass = {}; // Zero out the memory
-	wndClass.style = CS_HREDRAW | CS_VREDRAW;	// Redraw on horizontal or vertical movement/adjustment
-	wndClass.lpfnWndProc = DXCore::WindowProc;
-	wndClass.cbClsExtra = 0;
-	wndClass.cbWndExtra = 0;
-	wndClass.hInstance = hInstance;						// Our app's handle
-	wndClass.hIcon = LoadIcon(NULL, IDI_APPLICATION);	// Default icon
-	wndClass.hCursor = LoadCursor(NULL, IDC_ARROW);		// Default arrow cursor
-	wndClass.hbrBackground = (HBRUSH)GetStockObject(BLACK_BRUSH);
-	wndClass.lpszMenuName = NULL;
-	wndClass.lpszClassName = L"Direct3DWindowClass"; // The "L" means this is a wide-character string
+	wndClass.style 			= CS_HREDRAW | CS_VREDRAW;	// Redraw on horizontal or vertical movement/adjustment
+	wndClass.lpfnWndProc 	= DXCore::WindowProc;
+	wndClass.cbClsExtra 	= 0;
+	wndClass.cbWndExtra 	= 0;
+	wndClass.hInstance 		= hInstance;						// Our app's handle
+	wndClass.hIcon 			= LoadIcon(NULL, IDI_APPLICATION);	// Default icon
+	wndClass.hCursor 		= LoadCursor(NULL, IDC_ARROW);		// Default arrow cursor
+	wndClass.hbrBackground 	= (HBRUSH)GetStockObject(BLACK_BRUSH);
+	wndClass.lpszMenuName 	= NULL;
+	wndClass.lpszClassName 	= "Direct3DWindowClass";
 
 	// Attempt to register the window class we've defined
 	if (!RegisterClass(&wndClass))
@@ -200,22 +200,22 @@ HRESULT DXCore::InitDirect3D()
 
 	// Create a description of how our swap
 	// chain should work
-	DXGI_SWAP_CHAIN_DESC swapDesc = {};
-	swapDesc.BufferCount = 2;
-	swapDesc.BufferDesc.Width = windowWidth;
-	swapDesc.BufferDesc.Height = windowHeight;
-	swapDesc.BufferDesc.RefreshRate.Numerator = 60;
+	DXGI_SWAP_CHAIN_DESC swapDesc 			= {};
+	swapDesc.BufferCount 					= 2;
+	swapDesc.BufferDesc.Width 				= windowWidth;
+	swapDesc.BufferDesc.Height 				= windowHeight;
+	swapDesc.BufferDesc.RefreshRate.Numerator 	= 60;
 	swapDesc.BufferDesc.RefreshRate.Denominator = 1;
-	swapDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	swapDesc.BufferDesc.ScanlineOrdering = DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
-	swapDesc.BufferDesc.Scaling = DXGI_MODE_SCALING_UNSPECIFIED;
-	swapDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-	swapDesc.Flags = deviceSupportsTearing ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0;
-	swapDesc.OutputWindow = hWnd;
-	swapDesc.SampleDesc.Count = 1;
-	swapDesc.SampleDesc.Quality = 0;
-	swapDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
-	swapDesc.Windowed = true;
+	swapDesc.BufferDesc.Format 				= DXGI_FORMAT_R8G8B8A8_UNORM;
+	swapDesc.BufferDesc.ScanlineOrdering 	= DXGI_MODE_SCANLINE_ORDER_UNSPECIFIED;
+	swapDesc.BufferDesc.Scaling 			= DXGI_MODE_SCALING_UNSPECIFIED;
+	swapDesc.BufferUsage 					= DXGI_USAGE_RENDER_TARGET_OUTPUT;
+	swapDesc.Flags 							= deviceSupportsTearing ? DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING : 0;
+	swapDesc.OutputWindow 					= hWnd;
+	swapDesc.SampleDesc.Count 				= 1;
+	swapDesc.SampleDesc.Quality 			= 0;
+	swapDesc.SwapEffect 					= DXGI_SWAP_EFFECT_FLIP_DISCARD;
+	swapDesc.Windowed 						= true;
 
 	// Result variable for below function calls
 	HRESULT hr = S_OK;
@@ -258,16 +258,16 @@ HRESULT DXCore::InitDirect3D()
 	{
 		// Set up the description of the texture to use for the depth buffer
 		D3D11_TEXTURE2D_DESC depthStencilDesc = {};
-		depthStencilDesc.Width = windowWidth;
-		depthStencilDesc.Height = windowHeight;
-		depthStencilDesc.MipLevels = 1;
-		depthStencilDesc.ArraySize = 1;
-		depthStencilDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-		depthStencilDesc.Usage = D3D11_USAGE_DEFAULT;
-		depthStencilDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
-		depthStencilDesc.CPUAccessFlags = 0;
-		depthStencilDesc.MiscFlags = 0;
-		depthStencilDesc.SampleDesc.Count = 1;
+		depthStencilDesc.Width 				= windowWidth;
+		depthStencilDesc.Height 			= windowHeight;
+		depthStencilDesc.MipLevels 			= 1;
+		depthStencilDesc.ArraySize 			= 1;
+		depthStencilDesc.Format 			= DXGI_FORMAT_D24_UNORM_S8_UINT;
+		depthStencilDesc.Usage 				= D3D11_USAGE_DEFAULT;
+		depthStencilDesc.BindFlags 			= D3D11_BIND_DEPTH_STENCIL;
+		depthStencilDesc.CPUAccessFlags 	= 0;
+		depthStencilDesc.MiscFlags 			= 0;
+		depthStencilDesc.SampleDesc.Count 	= 1;
 		depthStencilDesc.SampleDesc.Quality = 0;
 
 		// Create the depth buffer texture resource
@@ -292,12 +292,12 @@ HRESULT DXCore::InitDirect3D()
 	// Lastly, set up a viewport so we render into
 	// to correct portion of the window
 	D3D11_VIEWPORT viewport = {};
-	viewport.TopLeftX = 0;
-	viewport.TopLeftY = 0;
-	viewport.Width = (float)windowWidth;
-	viewport.Height = (float)windowHeight;
-	viewport.MinDepth = 0.0f;
-	viewport.MaxDepth = 1.0f;
+	viewport.TopLeftX 	= 0;
+	viewport.TopLeftY 	= 0;
+	viewport.Width 		= (float)windowWidth;
+	viewport.Height 	= (float)windowHeight;
+	viewport.MinDepth 	= 0.0f;
+	viewport.MaxDepth 	= 1.0f;
 	context->RSSetViewports(1, &viewport);
 
 	// Return the "everything is ok" HRESULT value
@@ -349,16 +349,16 @@ void DXCore::OnResize()
 	{
 		// Set up the description of the texture to use for the depth buffer
 		D3D11_TEXTURE2D_DESC depthStencilDesc = {};
-		depthStencilDesc.Width = windowWidth;
-		depthStencilDesc.Height = windowHeight;
-		depthStencilDesc.MipLevels = 1;
-		depthStencilDesc.ArraySize = 1;
-		depthStencilDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-		depthStencilDesc.Usage = D3D11_USAGE_DEFAULT;
-		depthStencilDesc.BindFlags = D3D11_BIND_DEPTH_STENCIL;
-		depthStencilDesc.CPUAccessFlags = 0;
-		depthStencilDesc.MiscFlags = 0;
-		depthStencilDesc.SampleDesc.Count = 1;
+		depthStencilDesc.Width 				= windowWidth;
+		depthStencilDesc.Height 			= windowHeight;
+		depthStencilDesc.MipLevels 			= 1;
+		depthStencilDesc.ArraySize 			= 1;
+		depthStencilDesc.Format 			= DXGI_FORMAT_D24_UNORM_S8_UINT;
+		depthStencilDesc.Usage 				= D3D11_USAGE_DEFAULT;
+		depthStencilDesc.BindFlags 			= D3D11_BIND_DEPTH_STENCIL;
+		depthStencilDesc.CPUAccessFlags 	= 0;
+		depthStencilDesc.MiscFlags 			= 0;
+		depthStencilDesc.SampleDesc.Count 	= 1;
 		depthStencilDesc.SampleDesc.Quality = 0;
 
 		// Create the depth buffer texture resource
@@ -380,12 +380,12 @@ void DXCore::OnResize()
 	// Set up a viewport so we render into
 	// to correct portion of the window
 	D3D11_VIEWPORT viewport = {};
-	viewport.TopLeftX = 0;
-	viewport.TopLeftY = 0;
-	viewport.Width = (float)windowWidth;
-	viewport.Height = (float)windowHeight;
-	viewport.MinDepth = 0.0f;
-	viewport.MaxDepth = 1.0f;
+	viewport.TopLeftX 	= 0;
+	viewport.TopLeftY 	= 0;
+	viewport.Width 		= (float)windowWidth;
+	viewport.Height 	= (float)windowHeight;
+	viewport.MinDepth 	= 0.0f;
+	viewport.MaxDepth 	= 1.0f;
 	context->RSSetViewports(1, &viewport);
 
 	// Are we in a fullscreen state?
@@ -502,7 +502,7 @@ void DXCore::UpdateTitleBarStats()
 	float mspf = 1000.0f / (float)fpsFrameCount;
 
 	// Quick and dirty title bar text (mostly for debugging)
-	std::wostringstream output;
+	std::ostringstream output;
 	output.precision(6);
 	output << titleBarText <<
 		"    Width: " << windowWidth <<

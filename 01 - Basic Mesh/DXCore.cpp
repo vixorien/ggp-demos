@@ -31,7 +31,7 @@ LRESULT DXCore::WindowProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 // --------------------------------------------------------
 DXCore::DXCore(
 	HINSTANCE hInstance,		// The application's handle
-	const wchar_t* titleBarText,// Text for the window's title bar
+	const char* titleBarText,// Text for the window's title bar
 	unsigned int windowWidth,	// Width of the window's client area
 	unsigned int windowHeight,	// Height of the window's client area
 	bool vsync,					// Sync the framerate to the monitor?
@@ -99,7 +99,7 @@ HRESULT DXCore::InitWindow()
 	wndClass.hCursor		= LoadCursor(NULL, IDC_ARROW);		// Default arrow cursor
 	wndClass.hbrBackground	= (HBRUSH)GetStockObject(BLACK_BRUSH);
 	wndClass.lpszMenuName	= NULL;
-	wndClass.lpszClassName	= L"Direct3DWindowClass"; // The "L" means this is a wide-character string
+	wndClass.lpszClassName	= "Direct3DWindowClass"; // The "" means this is a wide-character string
 
 	// Attempt to register the window class we've defined
 	if (!RegisterClass(&wndClass))
@@ -501,7 +501,7 @@ void DXCore::UpdateTitleBarStats()
 	float mspf = 1000.0f / (float)fpsFrameCount;
 
 	// Quick and dirty title bar text (mostly for debugging)
-	std::wostringstream output;
+	std::ostringstream output;
 	output.precision(6);
 	output << titleBarText <<
 		"    Width: "		<< windowWidth <<

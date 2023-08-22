@@ -15,7 +15,7 @@ class DXCore
 public:
 	DXCore(
 		HINSTANCE hInstance,		// The application's handle
-		const wchar_t* titleBarText,// Text for the window's title bar
+		const char* titleBarText,// Text for the window's title bar
 		unsigned int windowWidth,	// Width of the window's client area
 		unsigned int windowHeight,	// Height of the window's client area
 		bool vsync,					// Sync the framerate to the monitor?
@@ -49,7 +49,7 @@ public:
 protected:
 	HINSTANCE		hInstance;		// The handle to the application
 	HWND			hWnd;			// The handle to the window itself
-	std::wstring	titleBarText;	// Custom text in window's title bar
+	std::string		titleBarText;	// Custom text in window's title bar
 	bool			titleBarStats;	// Show extra stats in title bar?
 
 	// Size of the window's client area

@@ -2,7 +2,7 @@
 #include "Vertex.h"
 #include "Input.h"
 #include "BufferStructs.h"
-#include "Helpers.h"
+#include "PathHelpers.h"
 
 #include "../Common/ImGui/imgui.h"
 #include "../Common/ImGui/imgui_impl_dx11.h"
@@ -26,7 +26,7 @@ using namespace DirectX;
 Game::Game(HINSTANCE hInstance)
 	: DXCore(
 		hInstance,			// The application's handle
-		L"DirectX Game",	// Text for the window's title bar (as a wide-character string)
+		"DirectX Game",	// Text for the window's title bar (as a wide-character string)
 		1280,				// Width of the window's client area
 		720,				// Height of the window's client area
 		false,				// Sync the framerate to the monitor refresh? (lock framerate)
