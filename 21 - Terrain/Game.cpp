@@ -3,7 +3,7 @@
 #include "Input.h"
 #include "Assets.h"
 #include "TerrainMesh.h"
-#include "Helpers.h"
+#include "PathHelpers.h"
 
 #include "WICTextureLoader.h"
 

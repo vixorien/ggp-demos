@@ -2,7 +2,7 @@
 #include "Vertex.h"
 #include "Input.h"
 #include "Assets.h"
-#include "Helpers.h"
+#include "PathHelpers.h"
 
 #include "WICTextureLoader.h"
 
