@@ -63,6 +63,10 @@ private:
 	std::vector<std::shared_ptr<GameEntity>> entitiesLineup;
 	std::vector<std::shared_ptr<GameEntity>> entitiesGradient;
 
+	// Storage for scene data
+	std::vector<std::shared_ptr<Mesh>> meshes;
+	std::vector<std::shared_ptr<Material>> materials;
+
 	// Lights
 	std::vector<Light> lights;
 	DirectX::XMFLOAT3 ambientColor;
@@ -109,5 +113,13 @@ private:
 		Microsoft::WRL::ComPtr<ID3D11RenderTargetView> target,
 		Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> sourceTexture);
 	void BloomCombine();
+
+	// UI functions
+	void UINewFrame(float deltaTime);
+	void BuildUI();
+	void CameraUI(std::shared_ptr<Camera> cam);
+	void EntityUI(std::shared_ptr<GameEntity> entity);
+	void MaterialUI(std::shared_ptr<Material> material);
+	void LightUI(Light& light);
 };
 
