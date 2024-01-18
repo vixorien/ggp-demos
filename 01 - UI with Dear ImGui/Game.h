@@ -1,12 +1,10 @@
 #pragma once
 
 #include "DXCore.h"
-#include "Mesh.h"
 
 #include <vector>
 #include <DirectXMath.h>
 #include <wrl/client.h> // Used for ComPtr - a smart pointer for COM objects
-#include <memory>
 
 class Game 
 	: public DXCore
@@ -29,9 +27,16 @@ private:
 	void LoadShaders(); 
 	void CreateGeometry();
 
-	// A vector to hold any number of meshes
-	// - This makes things easy to draw and clean up, too!
-	std::vector<std::shared_ptr<Mesh>> meshes;
+	// UI functions
+	void UINewFrame(float deltaTime);
+	void BuildUI();
+
+	// Should the ImGui demo window be shown?
+	bool showUIDemoWindow;
+
+	// Buffers to hold actual geometry data
+	Microsoft::WRL::ComPtr<ID3D11Buffer> vertexBuffer;
+	Microsoft::WRL::ComPtr<ID3D11Buffer> indexBuffer;
 	
 	// Shaders and shader-related constructs
 	Microsoft::WRL::ComPtr<ID3D11PixelShader> pixelShader;

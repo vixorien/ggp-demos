@@ -6,6 +6,10 @@
 
 #include "WICTextureLoader.h"
 
+#include "../Common/ImGui/imgui.h"
+#include "../Common/ImGui/imgui_impl_dx11.h"
+#include "../Common/ImGui/imgui_impl_win32.h"
+
 #include <stdlib.h>     // For seeding random and rand()
 #include <time.h>       // For grabbing time (to seed random)
 
@@ -85,6 +89,13 @@ Game::~Game()
 // --------------------------------------------------------
 void Game::Init()
 {
+	// Initialize ImGui itself & platform/renderer backends
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+	ImGui_ImplWin32_Init(hWnd);
+	ImGui_ImplDX11_Init(device.Get(), context.Get());
+	ImGui::StyleColorsDark();
+
 	// Seed random
 	srand((unsigned int)time(0));
 
@@ -260,41 +271,41 @@ void Game::LoadAssetsAndCreateEntities()
 		case 6: whichMat = woodMat; break;
 		}
 
-		float size = RandomRange(0.05f, 2.0f);
-
 		std::shared_ptr<GameEntity> sphere = std::make_shared<GameEntity>(sphereMesh, whichMat);
-		sphere->GetTransform()->SetScale(size, size, size);
-		sphere->GetTransform()->SetPosition(
-			RandomRange(-25.0f, 25.0f),
-			RandomRange(0.0f, 3.0f),
-			RandomRange(-25.0f, 25.0f));
-
 		entitiesRandom.push_back(sphere);
 	}
+	RandomizeEntities();
 
 
 
 	// === Create the line up entities =====================================
 	std::shared_ptr<GameEntity> cobSphere = std::make_shared<GameEntity>(sphereMesh, cobbleMat2x);
 	cobSphere->GetTransform()->SetPosition(-6, 0, 0);
+	cobSphere->GetTransform()->SetScale(2);
 
 	std::shared_ptr<GameEntity> floorSphere = std::make_shared<GameEntity>(sphereMesh, floorMat);
 	floorSphere->GetTransform()->SetPosition(-4, 0, 0);
+	floorSphere->GetTransform()->SetScale(2);
 
 	std::shared_ptr<GameEntity> paintSphere = std::make_shared<GameEntity>(sphereMesh, paintMat);
 	paintSphere->GetTransform()->SetPosition(-2, 0, 0);
+	paintSphere->GetTransform()->SetScale(2);
 
 	std::shared_ptr<GameEntity> scratchSphere = std::make_shared<GameEntity>(sphereMesh, scratchedMat);
 	scratchSphere->GetTransform()->SetPosition(0, 0, 0);
+	scratchSphere->GetTransform()->SetScale(2);
 
 	std::shared_ptr<GameEntity> bronzeSphere = std::make_shared<GameEntity>(sphereMesh, bronzeMat);
 	bronzeSphere->GetTransform()->SetPosition(2, 0, 0);
+	bronzeSphere->GetTransform()->SetScale(2);
 
 	std::shared_ptr<GameEntity> roughSphere = std::make_shared<GameEntity>(sphereMesh, roughMat);
 	roughSphere->GetTransform()->SetPosition(4, 0, 0);
+	roughSphere->GetTransform()->SetScale(2);
 
 	std::shared_ptr<GameEntity> woodSphere = std::make_shared<GameEntity>(sphereMesh, woodMat);
 	woodSphere->GetTransform()->SetPosition(6, 0, 0);
+	woodSphere->GetTransform()->SetScale(2);
 
 	entitiesLineup.push_back(cobSphere);
 	entitiesLineup.push_back(floorSphere);
@@ -344,6 +355,9 @@ void Game::LoadAssetsAndCreateEntities()
 		// Move them
 		geMetal->GetTransform()->SetPosition(i * 2.0f - 10.0f, 1, 0);
 		geNonMetal->GetTransform()->SetPosition(i * 2.0f - 10.0f, -1, 0);
+
+		geMetal->GetTransform()->SetScale(2);
+		geNonMetal->GetTransform()->SetScale(2);
 	}
 }
 
@@ -467,7 +481,7 @@ void Game::RandomizeEntities()
 	{
 		std::shared_ptr<GameEntity> g = entitiesRandom[i];
 
-		float size = RandomRange(0.1f, 3.0f);
+		float size = 2.0f * RandomRange(0.1f, 3.0f);
 		g->GetTransform()->SetScale(size, size, size);
 		g->GetTransform()->SetPosition(
 			RandomRange(-25.0f, 25.0f),
@@ -498,6 +512,12 @@ void Game::OnResize()
 // --------------------------------------------------------
 void Game::Update(float deltaTime, float totalTime)
 {
+	// Set up the new frame for the UI, then build
+	// this frame's interface.  Note that the building
+	// of the UI could happen at any point during update.
+	UINewFrame(deltaTime);
+	BuildUI();
+
 	// In the event we need it below
 	Assets& assets = Assets::GetInstance();
 
@@ -713,6 +733,10 @@ void Game::Draw(float deltaTime, float totalTime)
 	// - These should happen exactly ONCE PER FRAME
 	// - At the very end of the frame (after drawing *everything*)
 	{
+		// Draw the UI after everything else
+		ImGui::Render();
+		ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+
 		// Present the back buffer to the user
 		//  - Puts the results of what we've drawn onto the window
 		//  - Without this, the user never sees anything
@@ -806,62 +830,62 @@ void Game::DrawUI()
 
 	spriteBatch->Begin();
 
-	// Basic controls
-	float h = 10.0f;
-	fontArial12->DrawString(spriteBatch.get(), L"Controls:", XMVectorSet(10, h, 0, 0));
-	fontArial12->DrawString(spriteBatch.get(), L" (WASD, X, Space) Move camera", XMVectorSet(10, h + 20, 0, 0));
-	fontArial12->DrawString(spriteBatch.get(), L" (Left Click & Drag) Rotate camera", XMVectorSet(10, h + 40, 0, 0));
-	fontArial12->DrawString(spriteBatch.get(), L" (Arrow Up/Down) Increment / decrement lights", XMVectorSet(10, h + 60, 0, 0));
-	fontArial12->DrawString(spriteBatch.get(), L" (TAB) Randomize lights", XMVectorSet(10, h + 80, 0, 0));
-	fontArial12->DrawString(spriteBatch.get(), L" (F) Freeze/unfreeze lights", XMVectorSet(10, h + 100, 0, 0));
+	//// Basic controls
+	//float h = 10.0f;
+	//fontArial12->DrawString(spriteBatch.get(), L"Controls:", XMVectorSet(10, h, 0, 0));
+	//fontArial12->DrawString(spriteBatch.get(), L" (WASD, X, Space) Move camera", XMVectorSet(10, h + 20, 0, 0));
+	//fontArial12->DrawString(spriteBatch.get(), L" (Left Click & Drag) Rotate camera", XMVectorSet(10, h + 40, 0, 0));
+	//fontArial12->DrawString(spriteBatch.get(), L" (Arrow Up/Down) Increment / decrement lights", XMVectorSet(10, h + 60, 0, 0));
+	//fontArial12->DrawString(spriteBatch.get(), L" (TAB) Randomize lights", XMVectorSet(10, h + 80, 0, 0));
+	//fontArial12->DrawString(spriteBatch.get(), L" (F) Freeze/unfreeze lights", XMVectorSet(10, h + 100, 0, 0));
 
-	// Options
-	h = 140;
-	fontArial12->DrawString(spriteBatch.get(), L"Options: (O) turns all options On/Off", XMVectorSet(10, h, 0, 0));
-	fontArial12->DrawString(spriteBatch.get(), L" (G) Gamma Correction:", XMVectorSet(10, h + 20, 0, 0));
-	fontArial12->DrawString(spriteBatch.get(), L" (P) Physically-Based:", XMVectorSet(10, h + 40, 0, 0));
-	fontArial12->DrawString(spriteBatch.get(), L" (T) Albedo Texture:", XMVectorSet(10, h + 60, 0, 0));
-	fontArial12->DrawString(spriteBatch.get(), L" (N) Normal Map:", XMVectorSet(10, h + 80, 0, 0));
-	fontArial12->DrawString(spriteBatch.get(), L" (R) Roughness Map:", XMVectorSet(10, h + 100, 0, 0));
-	fontArial12->DrawString(spriteBatch.get(), L" (M) Metalness Map:", XMVectorSet(10, h + 120, 0, 0));
+	//// Options
+	//h = 140;
+	//fontArial12->DrawString(spriteBatch.get(), L"Options: (O) turns all options On/Off", XMVectorSet(10, h, 0, 0));
+	//fontArial12->DrawString(spriteBatch.get(), L" (G) Gamma Correction:", XMVectorSet(10, h + 20, 0, 0));
+	//fontArial12->DrawString(spriteBatch.get(), L" (P) Physically-Based:", XMVectorSet(10, h + 40, 0, 0));
+	//fontArial12->DrawString(spriteBatch.get(), L" (T) Albedo Texture:", XMVectorSet(10, h + 60, 0, 0));
+	//fontArial12->DrawString(spriteBatch.get(), L" (N) Normal Map:", XMVectorSet(10, h + 80, 0, 0));
+	//fontArial12->DrawString(spriteBatch.get(), L" (R) Roughness Map:", XMVectorSet(10, h + 100, 0, 0));
+	//fontArial12->DrawString(spriteBatch.get(), L" (M) Metalness Map:", XMVectorSet(10, h + 120, 0, 0));
 
-	// Current option values
-	fontArial12->DrawString(spriteBatch.get(), gammaCorrection ? L"On" : L"Off", XMVectorSet(180, h + 20, 0, 0), gammaCorrection ? XMVectorSet(0, 1, 0, 1) : XMVectorSet(1, 0, 0, 1));
-	fontArial12->DrawString(spriteBatch.get(), usePBR ? L"On" : L"Off", XMVectorSet(180, h + 40, 0, 0), usePBR ? XMVectorSet(0, 1, 0, 1) : XMVectorSet(1, 0, 0, 1));
-	fontArial12->DrawString(spriteBatch.get(), useAlbedoTexture ? L"On" : L"Off", XMVectorSet(180, h + 60, 0, 0), useAlbedoTexture ? XMVectorSet(0, 1, 0, 1) : XMVectorSet(1, 0, 0, 1));
-	fontArial12->DrawString(spriteBatch.get(), useNormalMap ? L"On" : L"Off", XMVectorSet(180, h + 80, 0, 0), useNormalMap ? XMVectorSet(0, 1, 0, 1) : XMVectorSet(1, 0, 0, 1));
-	fontArial12->DrawString(spriteBatch.get(), useRoughnessMap ? L"On" : L"Off", XMVectorSet(180, h + 100, 0, 0), useRoughnessMap ? XMVectorSet(0, 1, 0, 1) : XMVectorSet(1, 0, 0, 1));
-	fontArial12->DrawString(spriteBatch.get(), useMetalMap ? L"On" : L"Off", XMVectorSet(180, h + 120, 0, 0), useMetalMap ? XMVectorSet(0, 1, 0, 1) : XMVectorSet(1, 0, 0, 1));
+	//// Current option values
+	//fontArial12->DrawString(spriteBatch.get(), gammaCorrection ? L"On" : L"Off", XMVectorSet(180, h + 20, 0, 0), gammaCorrection ? XMVectorSet(0, 1, 0, 1) : XMVectorSet(1, 0, 0, 1));
+	//fontArial12->DrawString(spriteBatch.get(), usePBR ? L"On" : L"Off", XMVectorSet(180, h + 40, 0, 0), usePBR ? XMVectorSet(0, 1, 0, 1) : XMVectorSet(1, 0, 0, 1));
+	//fontArial12->DrawString(spriteBatch.get(), useAlbedoTexture ? L"On" : L"Off", XMVectorSet(180, h + 60, 0, 0), useAlbedoTexture ? XMVectorSet(0, 1, 0, 1) : XMVectorSet(1, 0, 0, 1));
+	//fontArial12->DrawString(spriteBatch.get(), useNormalMap ? L"On" : L"Off", XMVectorSet(180, h + 80, 0, 0), useNormalMap ? XMVectorSet(0, 1, 0, 1) : XMVectorSet(1, 0, 0, 1));
+	//fontArial12->DrawString(spriteBatch.get(), useRoughnessMap ? L"On" : L"Off", XMVectorSet(180, h + 100, 0, 0), useRoughnessMap ? XMVectorSet(0, 1, 0, 1) : XMVectorSet(1, 0, 0, 1));
+	//fontArial12->DrawString(spriteBatch.get(), useMetalMap ? L"On" : L"Off", XMVectorSet(180, h + 120, 0, 0), useMetalMap ? XMVectorSet(0, 1, 0, 1) : XMVectorSet(1, 0, 0, 1));
 
-	// Light count
-	h = 290;
-	fontArial12->DrawString(spriteBatch.get(), L"Light Count:", XMVectorSet(10, h, 0, 0));
-	fontArial12->DrawString(spriteBatch.get(), std::to_wstring(lightCount).c_str(), XMVectorSet(180, h, 0, 0));
-	fontArial12->DrawString(spriteBatch.get(), L"(L) Show Point Lights:", XMVectorSet(10, h + 20, 0, 0));
-	fontArial12->DrawString(spriteBatch.get(), drawLights ? L"On" : L"Off", XMVectorSet(180, h + 20, 0, 0), drawLights ? XMVectorSet(0, 1, 0, 1) : XMVectorSet(1, 0, 0, 1));
-	fontArial12->DrawString(spriteBatch.get(), L"Press (1, 2, 3) to change scenes", XMVectorSet(10, h + 60, 0, 0));
+	//// Light count
+	//h = 290;
+	//fontArial12->DrawString(spriteBatch.get(), L"Light Count:", XMVectorSet(10, h, 0, 0));
+	//fontArial12->DrawString(spriteBatch.get(), std::to_wstring(lightCount).c_str(), XMVectorSet(180, h, 0, 0));
+	//fontArial12->DrawString(spriteBatch.get(), L"(L) Show Point Lights:", XMVectorSet(10, h + 20, 0, 0));
+	//fontArial12->DrawString(spriteBatch.get(), drawLights ? L"On" : L"Off", XMVectorSet(180, h + 20, 0, 0), drawLights ? XMVectorSet(0, 1, 0, 1) : XMVectorSet(1, 0, 0, 1));
+	//fontArial12->DrawString(spriteBatch.get(), L"Press (1, 2, 3) to change scenes", XMVectorSet(10, h + 60, 0, 0));
 
-	// Asset counts
-	h = 390;
-	fontArial12->DrawString(spriteBatch.get(), L"Asset Manager Stats", XMVectorSet(10, h, 0, 0));
-	fontArial12->DrawString(spriteBatch.get(), L" Meshes: ", XMVectorSet(10, h + 20, 0, 0));
-	fontArial12->DrawString(spriteBatch.get(), std::to_wstring(assets.GetMeshCount()).c_str(), XMVectorSet(180, h + 20, 0, 0));
-	fontArial12->DrawString(spriteBatch.get(), L" Textures: ", XMVectorSet(10, h + 40, 0, 0));
-	fontArial12->DrawString(spriteBatch.get(), std::to_wstring(assets.GetTextureCount()).c_str(), XMVectorSet(180, h + 40, 0, 0));
-	fontArial12->DrawString(spriteBatch.get(), L" Sprite Fonts: ", XMVectorSet(10, h + 60, 0, 0));
-	fontArial12->DrawString(spriteBatch.get(), std::to_wstring(assets.GetSpriteFontCount()).c_str(), XMVectorSet(180, h + 60, 0, 0));
-	fontArial12->DrawString(spriteBatch.get(), L" Pixel Shaders: ", XMVectorSet(10, h + 80, 0, 0));
-	fontArial12->DrawString(spriteBatch.get(), std::to_wstring(assets.GetPixelShaderCount()).c_str(), XMVectorSet(180, h + 80, 0, 0));
-	fontArial12->DrawString(spriteBatch.get(), L" Vertex Shader: ", XMVectorSet(10, h + 100, 0, 0));
-	fontArial12->DrawString(spriteBatch.get(), std::to_wstring(assets.GetVertexShaderCount()).c_str(), XMVectorSet(180, h + 100, 0, 0));
+	//// Asset counts
+	//h = 390;
+	//fontArial12->DrawString(spriteBatch.get(), L"Asset Manager Stats", XMVectorSet(10, h, 0, 0));
+	//fontArial12->DrawString(spriteBatch.get(), L" Meshes: ", XMVectorSet(10, h + 20, 0, 0));
+	//fontArial12->DrawString(spriteBatch.get(), std::to_wstring(assets.GetMeshCount()).c_str(), XMVectorSet(180, h + 20, 0, 0));
+	//fontArial12->DrawString(spriteBatch.get(), L" Textures: ", XMVectorSet(10, h + 40, 0, 0));
+	//fontArial12->DrawString(spriteBatch.get(), std::to_wstring(assets.GetTextureCount()).c_str(), XMVectorSet(180, h + 40, 0, 0));
+	//fontArial12->DrawString(spriteBatch.get(), L" Sprite Fonts: ", XMVectorSet(10, h + 60, 0, 0));
+	//fontArial12->DrawString(spriteBatch.get(), std::to_wstring(assets.GetSpriteFontCount()).c_str(), XMVectorSet(180, h + 60, 0, 0));
+	//fontArial12->DrawString(spriteBatch.get(), L" Pixel Shaders: ", XMVectorSet(10, h + 80, 0, 0));
+	//fontArial12->DrawString(spriteBatch.get(), std::to_wstring(assets.GetPixelShaderCount()).c_str(), XMVectorSet(180, h + 80, 0, 0));
+	//fontArial12->DrawString(spriteBatch.get(), L" Vertex Shader: ", XMVectorSet(10, h + 100, 0, 0));
+	//fontArial12->DrawString(spriteBatch.get(), std::to_wstring(assets.GetVertexShaderCount()).c_str(), XMVectorSet(180, h + 100, 0, 0));
 
-	// Bloom details
-	h = 525;
-	std::wstring bloomUI =
-		L"Bloom Options\n (-/+) Bloom Levels: " + std::to_wstring(bloomLevels) +
-		L"\n (Left/Right) Bloom Threshold: " + std::to_wstring(bloomThreshold) +
-		L"\n (B) View post process textures";
-	fontArial12->DrawString(spriteBatch.get(), bloomUI.c_str(), XMVectorSet(10, h, 0, 0));
+	//// Bloom details
+	//h = 525;
+	//std::wstring bloomUI =
+	//	L"Bloom Options\n (-/+) Bloom Levels: " + std::to_wstring(bloomLevels) +
+	//	L"\n (Left/Right) Bloom Threshold: " + std::to_wstring(bloomThreshold) +
+	//	L"\n (B) View post process textures";
+	//fontArial12->DrawString(spriteBatch.get(), bloomUI.c_str(), XMVectorSet(10, h, 0, 0));
 	
 	// Draw post process textures?
 	if (drawBloomTextures)
@@ -1017,3 +1041,413 @@ void Game::BloomCombine()
 	context->Draw(3, 0);
 }
 
+
+// --------------------------------------------------------
+// Prepares a new frame for the UI, feeding it fresh
+// input and time information for this new frame.
+// --------------------------------------------------------
+void Game::UINewFrame(float deltaTime)
+{
+	// Feed fresh input data to ImGui
+	ImGuiIO& io = ImGui::GetIO();
+	io.DeltaTime = deltaTime;
+	io.DisplaySize.x = (float)this->windowWidth;
+	io.DisplaySize.y = (float)this->windowHeight;
+
+	// Reset the frame
+	ImGui_ImplDX11_NewFrame();
+	ImGui_ImplWin32_NewFrame();
+	ImGui::NewFrame();
+
+	// Determine new input capture
+	Input& input = Input::GetInstance();
+	input.SetKeyboardCapture(io.WantCaptureKeyboard);
+	input.SetMouseCapture(io.WantCaptureMouse);
+}
+
+
+// --------------------------------------------------------
+// Builds the UI for the current frame
+// --------------------------------------------------------
+void Game::BuildUI()
+{
+	// Actually build our custom UI, starting with a window
+	ImGui::Begin("Inspector");
+	{
+		// Set a specific amount of space for widget labels
+		ImGui::PushItemWidth(-160); // Negative value sets label width
+
+		// === Overall details ===
+		if (ImGui::TreeNode("App Details"))
+		{
+			ImGui::Spacing();
+			ImGui::Text("Frame rate: %f fps", ImGui::GetIO().Framerate);
+			ImGui::Text("Window Client Size: %dx%d", windowWidth, windowHeight);
+
+			ImGui::Spacing();
+
+			// Finalize the tree node
+			ImGui::TreePop();
+		}
+
+		// === Controls ===
+		if (ImGui::TreeNode("Controls"))
+		{
+			ImGui::Spacing();
+			ImGui::Text("(WASD, X, Space)");    ImGui::SameLine(175); ImGui::Text("Move camera");
+			ImGui::Text("(Left Click & Drag)"); ImGui::SameLine(175); ImGui::Text("Rotate camera");
+			ImGui::Text("(Left Shift)");        ImGui::SameLine(175); ImGui::Text("Hold to speed up camera");
+			ImGui::Text("(Left Ctrl)");         ImGui::SameLine(175); ImGui::Text("Hold to slow down camera");
+
+			ImGui::Spacing();
+			ImGui::Text("(Arrow Up/Down)");		ImGui::SameLine(175); ImGui::Text("Adjust light count");
+			ImGui::Text("(Tab)");				ImGui::SameLine(175); ImGui::Text("Randomize lights");
+			ImGui::Text("(F)");					ImGui::SameLine(175); ImGui::Text("Freeze/unfreeze lights");
+			ImGui::Text("(L)");					ImGui::SameLine(175); ImGui::Text("Show/hide point lights");
+
+			ImGui::Spacing();
+			ImGui::Text("(G)");				ImGui::SameLine(175); ImGui::Text("Gamma correction");
+			ImGui::Text("(P)");				ImGui::SameLine(175); ImGui::Text("PBR");
+			ImGui::Text("(T)");				ImGui::SameLine(175); ImGui::Text("Albedo texture");
+			ImGui::Text("(N)");				ImGui::SameLine(175); ImGui::Text("Normal map");
+			ImGui::Text("(R)");				ImGui::SameLine(175); ImGui::Text("Roughness map");
+			ImGui::Text("(M)");				ImGui::SameLine(175); ImGui::Text("Metalness map");
+			ImGui::Text("(O)");				ImGui::SameLine(175); ImGui::Text("All material options on/off");
+
+			ImGui::Spacing();
+			ImGui::Text("(1, 2, 3)");			ImGui::SameLine(175); ImGui::Text("Change scene");
+
+
+			// Finalize the tree node
+			ImGui::TreePop();
+		}
+
+		// === Camera details ===
+		if (ImGui::TreeNode("Camera"))
+		{
+			// Show UI for current camera
+			CameraUI(camera);
+
+			// Finalize the tree node
+			ImGui::TreePop();
+		}
+
+		// === Meshes ===
+		if (ImGui::TreeNode("Meshes"))
+		{
+			// Loop and show the details for each mesh
+			for (int i = 0; i < meshes.size(); i++)
+			{
+				ImGui::Text("Mesh %d: %d indices", i, meshes[i]->GetIndexCount());
+			}
+
+			// Finalize the tree node
+			ImGui::TreePop();
+		}
+
+		// === Entities ===
+		if (ImGui::TreeNode("Scene Entities"))
+		{
+			ImGui::Text("Choose Scene:");
+			if (ImGui::RadioButton("Material Showcase", currentScene == &entitiesLineup)) { currentScene = &entitiesLineup; }
+			if (ImGui::RadioButton("Gradient Spheres", currentScene == &entitiesGradient)) { currentScene = &entitiesGradient; }
+			if (ImGui::RadioButton("Random Spheres", currentScene == &entitiesRandom)) { currentScene = &entitiesRandom; }
+			if (currentScene == &entitiesRandom && ImGui::Button("Randomize Entities"))
+			{
+				RandomizeEntities();
+			}
+
+			ImGui::Spacing();
+
+			// Loop and show the details for each entity
+			ImGui::Spacing();
+			for (int i = 0; i < currentScene->size(); i++)
+			{
+				// New node for each entity
+				// Note the use of PushID(), so that each tree node and its widgets
+				// have unique internal IDs in the ImGui system
+				ImGui::PushID(i);
+				if (ImGui::TreeNode("Entity Node", "Entity %d", i))
+				{
+					// Build UI for one entity at a time
+					EntityUI((*currentScene)[i]);
+
+					ImGui::TreePop();
+				}
+				ImGui::PopID();
+			}
+
+			// Finalize the tree node
+			ImGui::TreePop();
+		}
+
+		// === Materials ===
+		if (ImGui::TreeNode("Materials"))
+		{
+			if (ImGui::TreeNode("Global Material Controls"))
+			{
+				ImGui::Checkbox("Gamma Correction", &gammaCorrection);
+				ImGui::Checkbox("Use PBR Materials", &usePBR);
+				ImGui::Checkbox("Albedo Texture", &useAlbedoTexture);
+				ImGui::Checkbox("Normal Map", &useNormalMap);
+				ImGui::Checkbox("Roughness Map", &useRoughnessMap);
+				ImGui::Checkbox("Metalness Map", &useMetalMap);
+				if (ImGui::Button("Toggle All"))
+				{
+					// Are they all already on?
+					bool allOn =
+						gammaCorrection &&
+						useAlbedoTexture &&
+						useMetalMap &&
+						useNormalMap &&
+						useRoughnessMap &&
+						usePBR;
+
+					if (allOn)
+					{
+						gammaCorrection = false;
+						useAlbedoTexture = false;
+						useMetalMap = false;
+						useNormalMap = false;
+						useRoughnessMap = false;
+						usePBR = false;
+					}
+					else
+					{
+						gammaCorrection = true;
+						useAlbedoTexture = true;
+						useMetalMap = true;
+						useNormalMap = true;
+						useRoughnessMap = true;
+						usePBR = true;
+					}
+				}
+
+				ImGui::TreePop();
+				ImGui::Spacing();
+			}
+
+			// Loop and show the details for each entity
+			for (int i = 0; i < materials.size(); i++)
+			{
+				// New node for each material
+				// Note the use of PushID(), so that each tree node and its widgets
+				// have unique internal IDs in the ImGui system
+				ImGui::PushID(i);
+				if (ImGui::TreeNode("Material Node", "Material %d", i))
+				{
+					// Build UI for one material at a time
+					MaterialUI(materials[i]);
+
+					ImGui::TreePop();
+				}
+				ImGui::PopID();
+			}
+
+			// Finalize the tree node
+			ImGui::TreePop();
+		}
+
+		// === Lights ===
+		if (ImGui::TreeNode("Lights"))
+		{
+			// Light details
+			ImGui::Spacing();
+			ImGui::ColorEdit3("Ambient Color", &ambientColor.x);
+			ImGui::Checkbox("Show Point Lights", &drawLights);
+			ImGui::Checkbox("Freeze Lights", &freezeLightMovement);
+			ImGui::SliderInt("Light Count", &lightCount, 1, MAX_LIGHTS);
+			if (ImGui::Button("Randomize Point Lights")) GenerateLights();
+			ImGui::Spacing();
+
+			// Loop and show the details for each entity
+			for (int i = 0; i < lights.size(); i++)
+			{
+				// Name of this light based on type
+				std::string lightName = "Light %d";
+				switch (lights[i].Type)
+				{
+				case LIGHT_TYPE_DIRECTIONAL: lightName += " (Directional)"; break;
+				case LIGHT_TYPE_POINT: lightName += " (Point)"; break;
+				case LIGHT_TYPE_SPOT: lightName += " (Spot)"; break;
+				}
+
+				// New node for each light
+				// Note the use of PushID(), so that each tree node and its widgets
+				// have unique internal IDs in the ImGui system
+				ImGui::PushID(i);
+				if (ImGui::TreeNode("Light Node", lightName.c_str(), i))
+				{
+					// Build UI for one entity at a time
+					LightUI(lights[i]);
+
+					ImGui::TreePop();
+				}
+				ImGui::PopID();
+			}
+
+			// Finalize the tree node
+			ImGui::TreePop();
+		}
+
+		// === Post Process ===
+		if (ImGui::TreeNode("Bloom"))
+		{
+			ImGui::SliderInt("Bloom Levels", &bloomLevels, 0, 5);
+			ImGui::SliderFloat("Bloom Threshold", &bloomThreshold, 0.0f, 1.0f);
+
+			ImGui::Checkbox("Show Post Process Textures", &drawBloomTextures);
+
+			// Finalize the tree node
+			ImGui::TreePop();
+		}
+	}
+
+	// End Inspector
+	ImGui::End();
+}
+
+
+// --------------------------------------------------------
+// Builds the UI for a single camera
+// --------------------------------------------------------
+void Game::CameraUI(std::shared_ptr<Camera> cam)
+{
+	ImGui::Spacing();
+
+	// Transform details
+	XMFLOAT3 pos = cam->GetTransform()->GetPosition();
+	XMFLOAT3 rot = cam->GetTransform()->GetPitchYawRoll();
+
+	if (ImGui::DragFloat3("Position", &pos.x, 0.01f))
+		cam->GetTransform()->SetPosition(pos);
+	if (ImGui::DragFloat3("Rotation (Radians)", &rot.x, 0.01f))
+		cam->GetTransform()->SetRotation(rot);
+	ImGui::Spacing();
+
+	// Clip planes
+	float nearClip = cam->GetNearClip();
+	float farClip = cam->GetFarClip();
+	if (ImGui::DragFloat("Near Clip Distance", &nearClip, 0.01f, 0.001f, 1.0f))
+		cam->SetNearClip(nearClip);
+	if (ImGui::DragFloat("Far Clip Distance", &farClip, 1.0f, 10.0f, 1000.0f))
+		cam->SetFarClip(farClip);
+
+	// Projection type
+	CameraProjectionType projType = cam->GetProjectionType();
+	int typeIndex = (int)projType;
+	if (ImGui::Combo("Projection Type", &typeIndex, "Perspective\0Orthographic"))
+	{
+		projType = (CameraProjectionType)typeIndex;
+		cam->SetProjectionType(projType);
+	}
+
+	// Projection details
+	if (projType == CameraProjectionType::Perspective)
+	{
+		// Convert field of view to degrees for UI
+		float fov = cam->GetFieldOfView() * 180.0f / XM_PI;
+		if (ImGui::SliderFloat("Field of View (Degrees)", &fov, 0.01f, 180.0f))
+			cam->SetFieldOfView(fov * XM_PI / 180.0f); // Back to radians
+	}
+	else if (projType == CameraProjectionType::Orthographic)
+	{
+		float wid = cam->GetOrthographicWidth();
+		if (ImGui::SliderFloat("Orthographic Width", &wid, 1.0f, 10.0f))
+			cam->SetOrthographicWidth(wid);
+	}
+
+	ImGui::Spacing();
+}
+
+
+// --------------------------------------------------------
+// Builds the UI for a single entity
+// --------------------------------------------------------
+void Game::EntityUI(std::shared_ptr<GameEntity> entity)
+{
+	ImGui::Spacing();
+
+	// Transform details
+	Transform* trans = entity->GetTransform();
+	XMFLOAT3 pos = trans->GetPosition();
+	XMFLOAT3 rot = trans->GetPitchYawRoll();
+	XMFLOAT3 sca = trans->GetScale();
+
+	if (ImGui::DragFloat3("Position", &pos.x, 0.01f)) trans->SetPosition(pos);
+	if (ImGui::DragFloat3("Rotation (Radians)", &rot.x, 0.01f)) trans->SetRotation(rot);
+	if (ImGui::DragFloat3("Scale", &sca.x, 0.01f)) trans->SetScale(sca);
+
+	// Mesh details
+	ImGui::Spacing();
+	ImGui::Text("Mesh Index Count: %d", entity->GetMesh()->GetIndexCount());
+
+	ImGui::Spacing();
+}
+
+
+// --------------------------------------------------------
+// Builds the UI for a single material
+// --------------------------------------------------------
+void Game::MaterialUI(std::shared_ptr<Material> material)
+{
+	ImGui::Spacing();
+
+	// Color tint editing
+	XMFLOAT3 tint = material->GetColorTint();
+	if (ImGui::ColorEdit3("Color Tint", &tint.x))
+		material->SetColorTint(tint);
+
+	ImGui::Spacing();
+}
+
+// --------------------------------------------------------
+// Builds the UI for a single light
+// --------------------------------------------------------
+void Game::LightUI(Light& light)
+{
+	// Light type
+	if (ImGui::RadioButton("Directional", light.Type == LIGHT_TYPE_DIRECTIONAL))
+	{
+		light.Type = LIGHT_TYPE_DIRECTIONAL;
+	}
+	ImGui::SameLine();
+
+	if (ImGui::RadioButton("Point", light.Type == LIGHT_TYPE_POINT))
+	{
+		light.Type = LIGHT_TYPE_POINT;
+	}
+	ImGui::SameLine();
+
+	if (ImGui::RadioButton("Spot", light.Type == LIGHT_TYPE_SPOT))
+	{
+		light.Type = LIGHT_TYPE_SPOT;
+	}
+
+	// Direction
+	if (light.Type == LIGHT_TYPE_DIRECTIONAL || light.Type == LIGHT_TYPE_SPOT)
+	{
+		ImGui::DragFloat3("Direction", &light.Direction.x, 0.1f);
+
+		// Normalize the direction
+		XMVECTOR dirNorm = XMVector3Normalize(XMLoadFloat3(&light.Direction));
+		XMStoreFloat3(&light.Direction, dirNorm);
+	}
+
+	// Position & Range
+	if (light.Type == LIGHT_TYPE_POINT || light.Type == LIGHT_TYPE_SPOT)
+	{
+		ImGui::DragFloat3("Position", &light.Position.x, 0.1f);
+		ImGui::SliderFloat("Range", &light.Range, 0.1f, 100.0f);
+	}
+
+	// Spot falloff
+	if (light.Type == LIGHT_TYPE_SPOT)
+	{
+		ImGui::SliderFloat("Spot Falloff", &light.SpotFalloff, 0.1f, 128.0f);
+	}
+
+	// Color details
+	ImGui::ColorEdit3("Color", &light.Color.x);
+	ImGui::SliderFloat("Intensity", &light.Intensity, 0.0f, 10.0f);
+}
