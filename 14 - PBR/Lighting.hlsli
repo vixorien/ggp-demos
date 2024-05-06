@@ -218,7 +218,7 @@ float3 F_Schlick(float3 v, float3 h, float3 f0)
 // n - Normal
 // v - View vector
 //
-// G_Schlick(n,v,a) = (n dot v) / ((n dot v) * (1 - k) * k)
+// G_Schlick(n,v,a) = (n dot v) / ((n dot v) * (1 - k) + k)
 //
 // Full G(n,v,l,a) term = G_SchlickGGX(n,v,a) * G_SchlickGGX(n,l,a)
 float G_SchlickGGX(float3 n, float3 v, float roughness)
@@ -312,7 +312,7 @@ float3 DirLightPBR(Light light, float3 normal, float3 worldPos, float3 camPos, f
 	
 	// Calculate diffuse with energy conservation
 	// (Reflected light doesn't get diffused)
-	float3 balancedDiff = DiffuseEnergyConserve(diff, spec, metalness);
+	float3 balancedDiff = DiffuseEnergyConserve(diff, F, metalness);
 
 	// Combine amount with 
 	return (balancedDiff * surfaceColor + spec) * light.Intensity * light.Color;
