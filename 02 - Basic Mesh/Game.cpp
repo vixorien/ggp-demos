@@ -384,7 +384,7 @@ void Game::BuildUI()
 			// Loop and show the details for each mesh
 			for(int i = 0; i < meshes.size(); i++)
 			{
-				ImGui::Text("Mesh %d: %d indices", i, meshes[i]->GetIndexCount());
+				ImGui::Text("Mesh %d: %d triangle(s)", i, meshes[i]->GetIndexCount() / 3);
 			}
 
 			// Finalize the tree node
