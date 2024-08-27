@@ -1,22 +1,21 @@
 #include "Mesh.h"
-#include <DirectXMath.h>
-#include <vector>
-#include <fstream>
+#include "Graphics.h"
 
 using namespace DirectX;
 
 // --------------------------------------------------------
 // Creates a new mesh with the given geometry
 // 
+// name       - The name of the mesh (mostly for UI purposes)
 // vertArray  - An array of vertices
 // numVerts   - The number of verts in the array
 // indexArray - An array of indices into the vertex array
 // numIndices - The number of indices in the index array
-// device     - The D3D device to use for buffer creation
 // --------------------------------------------------------
-Mesh::Mesh(Vertex* vertArray, size_t numVerts, unsigned int* indexArray, size_t numIndices, Microsoft::WRL::ComPtr<ID3D11Device> device)
+Mesh::Mesh(const char* name, Vertex* vertArray, size_t numVerts, unsigned int* indexArray, size_t numIndices) :
+	name(name)
 {
-	CreateBuffers(vertArray, numVerts, indexArray, numIndices, device);
+	CreateBuffers(vertArray, numVerts, indexArray, numIndices);
 }
 
 
@@ -31,8 +30,9 @@ Mesh::~Mesh() { }
 // --------------------------------------------------------
 Microsoft::WRL::ComPtr<ID3D11Buffer> Mesh::GetVertexBuffer() { return vb; }
 Microsoft::WRL::ComPtr<ID3D11Buffer> Mesh::GetIndexBuffer() { return ib; }
+const char* Mesh::GetName() { return name; }
 unsigned int Mesh::GetIndexCount() { return numIndices; }
-
+unsigned int Mesh::GetVertexCount() { return numVertices; }
 
 // --------------------------------------------------------
 // Helper for creating the actually D3D buffers
@@ -41,9 +41,8 @@ unsigned int Mesh::GetIndexCount() { return numIndices; }
 // numVerts   - The number of verts in the array
 // indexArray - An array of indices into the vertex array
 // numIndices - The number of indices in the index array
-// device     - The D3D device to use for buffer creation
 // --------------------------------------------------------
-void Mesh::CreateBuffers(Vertex* vertArray, size_t numVerts, unsigned int* indexArray, size_t numIndices, Microsoft::WRL::ComPtr<ID3D11Device> device)
+void Mesh::CreateBuffers(Vertex* vertArray, size_t numVerts, unsigned int* indexArray, size_t numIndices)
 {
 	// Create the vertex buffer
 	D3D11_BUFFER_DESC vbd	= {};
@@ -55,7 +54,7 @@ void Mesh::CreateBuffers(Vertex* vertArray, size_t numVerts, unsigned int* index
 	vbd.StructureByteStride = 0;
 	D3D11_SUBRESOURCE_DATA initialVertexData = {};
 	initialVertexData.pSysMem = vertArray;
-	device->CreateBuffer(&vbd, &initialVertexData, vb.GetAddressOf());
+	Graphics::Device->CreateBuffer(&vbd, &initialVertexData, vb.GetAddressOf());
 
 	// Create the index buffer
 	D3D11_BUFFER_DESC ibd	= {};
@@ -67,27 +66,26 @@ void Mesh::CreateBuffers(Vertex* vertArray, size_t numVerts, unsigned int* index
 	ibd.StructureByteStride = 0;
 	D3D11_SUBRESOURCE_DATA initialIndexData = {};
 	initialIndexData.pSysMem = indexArray;
-	device->CreateBuffer(&ibd, &initialIndexData, ib.GetAddressOf());
+	Graphics::Device->CreateBuffer(&ibd, &initialIndexData, ib.GetAddressOf());
 
-	// Save the indices
+	// Save the counts
 	this->numIndices = (unsigned int)numIndices;
+	this->numVertices = (unsigned int)numVerts;
 }
 
 
 // --------------------------------------------------------
 // Binds the mesh buffers and issues a draw call.  Note that
 // this method assumes you're drawing the entire mesh.
-// 
-// context - D3D context for issuing rendering calls
 // --------------------------------------------------------
-void Mesh::SetBuffersAndDraw(Microsoft::WRL::ComPtr<ID3D11DeviceContext> context)
+void Mesh::SetBuffersAndDraw()
 {
 	// Set buffers in the input assembler
 	UINT stride = sizeof(Vertex);
 	UINT offset = 0;
-	context->IASetVertexBuffers(0, 1, vb.GetAddressOf(), &stride, &offset);
-	context->IASetIndexBuffer(ib.Get(), DXGI_FORMAT_R32_UINT, 0);
+	Graphics::Context->IASetVertexBuffers(0, 1, vb.GetAddressOf(), &stride, &offset);
+	Graphics::Context->IASetIndexBuffer(ib.Get(), DXGI_FORMAT_R32_UINT, 0);
 
 	// Draw this mesh
-	context->DrawIndexed(this->numIndices, 0, 0);
+	Graphics::Context->DrawIndexed(this->numIndices, 0, 0);
 }

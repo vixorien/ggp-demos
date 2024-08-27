@@ -1,14 +1,19 @@
 #include "Game.h"
+#include "Graphics.h"
 #include "Vertex.h"
 #include "Input.h"
-#include "BufferStructs.h"
 #include "PathHelpers.h"
+#include "Window.h"
+#include "UIHelpers.h"
+#include "BufferStructs.h"
 
-#include "../Common/ImGui/imgui.h"
-#include "../Common/ImGui/imgui_impl_dx11.h"
-#include "../Common/ImGui/imgui_impl_win32.h"
+#include "ImGui/imgui.h"
+#include "ImGui/imgui_impl_dx11.h"
+#include "ImGui/imgui_impl_win32.h"
 
-// Needed for a helper function to read compiled shader files from the hard drive
+#include <DirectXMath.h>
+
+// Needed for a helper function to load pre-compiled shader files
 #pragma comment(lib, "d3dcompiler.lib")
 #include <d3dcompiler.h>
 
@@ -16,62 +21,16 @@
 using namespace DirectX;
 
 // --------------------------------------------------------
-// Constructor
-//
-// DXCore (base class) constructor will set up underlying fields.
-// DirectX itself, and our window, are not ready yet!
-//
-// hInstance - the application's OS-level handle (unique ID)
+// Called once per program, after the window and graphics API
+// are initialized but before the game loop begins
 // --------------------------------------------------------
-Game::Game(HINSTANCE hInstance)
-	: DXCore(
-		hInstance,			// The application's handle
-		L"DirectX Game",	// Text for the window's title bar (as a wide-character string)
-		1280,				// Width of the window's client area
-		720,				// Height of the window's client area
-		false,				// Sync the framerate to the monitor refresh? (lock framerate)
-		true),				// Show extra stats (fps) in title bar?
-	showUIDemoWindow(false)
-{
-
-#if defined(DEBUG) || defined(_DEBUG)
-	// Do we want a console window?  Probably only in debug mode
-	CreateConsoleWindow(500, 120, 32, 120);
-	printf("Console window created successfully.  Feel free to printf() here.\n");
-#endif
-}
-
-// --------------------------------------------------------
-// Destructor - Clean up anything our game has created:
-//  - Release all DirectX objects created here
-//  - Delete any objects to prevent memory leaks
-// --------------------------------------------------------
-Game::~Game()
-{
-	// Call delete or delete[] on any objects or arrays you've
-	// created using new or new[] within this class
-	// - Note: this is unnecessary if using smart pointers
-
-	// Call Release() on any Direct3D objects made within this class
-	// - Note: this is unnecessary for D3D objects stored in ComPtrs
-
-	// ImGui clean up
-	ImGui_ImplDX11_Shutdown();
-	ImGui_ImplWin32_Shutdown();
-	ImGui::DestroyContext();
-}
-
-// --------------------------------------------------------
-// Called once per program, after DirectX and the window
-// are initialized but before the game loop.
-// --------------------------------------------------------
-void Game::Init()
+void Game::Initialize()
 {
 	// Initialize ImGui itself & platform/renderer backends
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
-	ImGui_ImplWin32_Init(hWnd);
-	ImGui_ImplDX11_Init(device.Get(), context.Get());
+	ImGui_ImplWin32_Init(Window::Handle());
+	ImGui_ImplDX11_Init(Graphics::Device.Get(), Graphics::Context.Get());
 	ImGui::StyleColorsDark();
 
 	// Helper methods for loading shaders, creating some basic
@@ -79,7 +38,7 @@ void Game::Init()
 	//  - You'll be expanding and/or replacing these later
 	LoadShaders();
 	CreateGeometry();
-	
+
 	// Set initial graphics API state
 	//  - These settings persist until we change them
 	//  - Some of these, like the primitive topology & input layout, probably won't change
@@ -88,18 +47,18 @@ void Game::Init()
 		// Tell the input assembler (IA) stage of the pipeline what kind of
 		// geometric primitives (points, lines or triangles) we want to draw.  
 		// Essentially: "What kind of shape should the GPU draw with our vertices?"
-		context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		Graphics::Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 		// Ensure the pipeline knows how to interpret all the numbers stored in
 		// the vertex buffer. For this course, all of your vertices will probably
 		// have the same layout, so we can just set this once at startup.
-		context->IASetInputLayout(inputLayout.Get());
+		Graphics::Context->IASetInputLayout(inputLayout.Get());
 
 		// Set the active vertex and pixel shaders
 		//  - Once you start applying different shaders to different objects,
 		//    these calls will need to happen multiple times per frame
-		context->VSSetShader(vertexShader.Get(), 0, 0);
-		context->PSSetShader(pixelShader.Get(), 0, 0);
+		Graphics::Context->VSSetShader(vertexShader.Get(), 0, 0);
+		Graphics::Context->PSSetShader(pixelShader.Get(), 0, 0);
 	}
 
 	// Create a CONSTANT BUFFER to hold data on the GPU for shaders
@@ -117,29 +76,45 @@ void Game::Init()
 		cbDesc.Usage = D3D11_USAGE_DYNAMIC;
 		cbDesc.MiscFlags = 0;
 		cbDesc.StructureByteStride = 0;
-		device->CreateBuffer(&cbDesc, 0, vsConstantBuffer.GetAddressOf());
+		Graphics::Device->CreateBuffer(&cbDesc, 0, vsConstantBuffer.GetAddressOf());
 
 		// Activate the constant buffer, ensuring it is 
 		// bound to the correct slot (register)
 		//  - This should match what our shader expects!
 		//  - Your C++ and your shaders have to start matching up!
-		context->VSSetConstantBuffers(
+		Graphics::Context->VSSetConstantBuffers(
 			0,		// Which slot (register) to bind the buffer to?
 			1,		// How many are we activating?  Can set more than one at a time, if we need
 			vsConstantBuffer.GetAddressOf());	// Array of constant buffers or the address of just one (same thing in C++)
 	}
 
 	// Create the camera
-	camera = std::make_shared<Camera>(
-		0.0f, 2.0f, -15.0f,	// Position
-		5.0f,				// Move speed
-		0.002f,				// Look speed
-		XM_PIDIV4,			// Field of view
-		(float)windowWidth / windowHeight,  // Aspect ratio
-		0.01f,				// Near clip
-		100.0f,				// Far clip
+	camera = std::make_shared<FPSCamera>(
+		XMFLOAT3(0.0f, 2.0f, -15.0f),	// Position
+		5.0f,					// Move speed
+		0.002f,					// Look speed
+		XM_PIDIV4,				// Field of view
+		Window::AspectRatio(),  // Aspect ratio
+		0.01f,					// Near clip
+		100.0f,					// Far clip
 		CameraProjectionType::Perspective);
 }
+
+
+// --------------------------------------------------------
+// Clean up memory or objects created by this class
+// 
+// Note: Using smart pointers means there probably won't
+//       be much to manually clean up here!
+// --------------------------------------------------------
+Game::~Game()
+{
+	// ImGui clean up
+	ImGui_ImplDX11_Shutdown();
+	ImGui_ImplWin32_Shutdown();
+	ImGui::DestroyContext();
+}
+
 
 // --------------------------------------------------------
 // Loads shaders from compiled shader object (.cso) files
@@ -170,13 +145,13 @@ void Game::LoadShaders()
 		D3DReadFileToBlob(FixPath(L"VertexShader.cso").c_str(), &vertexShaderBlob);
 
 		// Create the actual Direct3D shaders on the GPU
-		device->CreatePixelShader(
+		Graphics::Device->CreatePixelShader(
 			pixelShaderBlob->GetBufferPointer(),	// Pointer to blob's contents
 			pixelShaderBlob->GetBufferSize(),		// How big is that data?
 			0,										// No classes in this shader
 			pixelShader.GetAddressOf());			// Address of the ID3D11PixelShader pointer
 
-		device->CreateVertexShader(
+		Graphics::Device->CreateVertexShader(
 			vertexShaderBlob->GetBufferPointer(),	// Get a pointer to the blob's contents
 			vertexShaderBlob->GetBufferSize(),		// How big is that data?
 			0,										// No classes in this shader
@@ -207,7 +182,7 @@ void Game::LoadShaders()
 		inputElements[2].AlignedByteOffset = D3D11_APPEND_ALIGNED_ELEMENT;	// After the previous element
 
 		// Create the input layout, verifying our description against actual shader code
-		device->CreateInputLayout(
+		Graphics::Device->CreateInputLayout(
 			inputElements,							// An array of descriptions
 			3,										// How many elements in that array?
 			vertexShaderBlob->GetBufferPointer(),	// Pointer to the code of a shader that uses this layout
@@ -217,23 +192,22 @@ void Game::LoadShaders()
 }
 
 
-
 // --------------------------------------------------------
 // Creates the geometry we're going to draw
 // --------------------------------------------------------
 void Game::CreateGeometry()
 {
 	// Load 3D models	
-	std::shared_ptr<Mesh> cubeMesh = std::make_shared<Mesh>(FixPath(L"../../../Assets/Models/cube.obj").c_str(), device);
-	std::shared_ptr<Mesh> cylinderMesh = std::make_shared<Mesh>(FixPath(L"../../../Assets/Models/cylinder.obj").c_str(), device);
-	std::shared_ptr<Mesh> helixMesh = std::make_shared<Mesh>(FixPath(L"../../../Assets/Models/helix.obj").c_str(), device);
-	std::shared_ptr<Mesh> sphereMesh = std::make_shared<Mesh>(FixPath(L"../../../Assets/Models/sphere.obj").c_str(), device);
-	std::shared_ptr<Mesh> torusMesh = std::make_shared<Mesh>(FixPath(L"../../../Assets/Models/torus.obj").c_str(), device);
-	std::shared_ptr<Mesh> quadMesh = std::make_shared<Mesh>(FixPath(L"../../../Assets/Models/quad.obj").c_str(), device);
-	std::shared_ptr<Mesh> quad2sidedMesh = std::make_shared<Mesh>(FixPath(L"../../../Assets/Models/quad_double_sided.obj").c_str(), device);
+	std::shared_ptr<Mesh> cubeMesh = std::make_shared<Mesh>("Cube", FixPath(L"../../../Assets/Meshes/cube.obj").c_str());
+	std::shared_ptr<Mesh> cylinderMesh = std::make_shared<Mesh>("Cylinder", FixPath(L"../../../Assets/Meshes/cylinder.obj").c_str());
+	std::shared_ptr<Mesh> helixMesh = std::make_shared<Mesh>("Helix", FixPath(L"../../../Assets/Meshes/helix.obj").c_str());
+	std::shared_ptr<Mesh> sphereMesh = std::make_shared<Mesh>("Sphere", FixPath(L"../../../Assets/Meshes/sphere.obj").c_str());
+	std::shared_ptr<Mesh> torusMesh = std::make_shared<Mesh>("Torus", FixPath(L"../../../Assets/Meshes/torus.obj").c_str());
+	std::shared_ptr<Mesh> quadMesh = std::make_shared<Mesh>("Quad", FixPath(L"../../../Assets/Meshes/quad.obj").c_str());
+	std::shared_ptr<Mesh> quad2sidedMesh = std::make_shared<Mesh>("Double-Sided Quad", FixPath(L"../../../Assets/Meshes/quad_double_sided.obj").c_str());
 
 	// Add all meshes to vector
-	meshes.insert(meshes.end(), {cubeMesh, cylinderMesh, helixMesh, sphereMesh, torusMesh, quadMesh, quad2sidedMesh});
+	meshes.insert(meshes.end(), { cubeMesh, cylinderMesh, helixMesh, sphereMesh, torusMesh, quadMesh, quad2sidedMesh });
 
 	// Create the game entities
 	entities.push_back(std::make_shared<GameEntity>(cubeMesh));
@@ -256,17 +230,15 @@ void Game::CreateGeometry()
 
 
 // --------------------------------------------------------
-// Handle resizing DirectX "stuff" to match the new window size.
-// For instance, updating our projection matrix's aspect ratio.
+// Handle resizing to match the new window size
+//  - Eventually, we'll want to update our 3D camera
 // --------------------------------------------------------
 void Game::OnResize()
 {
-	// Handle base-level DX resize stuff
-	DXCore::OnResize();
-
 	// Update the camera's projection to match the new aspect ratio
-	if (camera) camera->UpdateProjectionMatrix((float)windowWidth / windowHeight);
+	if (camera) camera->UpdateProjectionMatrix(Window::AspectRatio());
 }
+
 
 // --------------------------------------------------------
 // Update your game here - user input, move objects, AI, etc.
@@ -277,11 +249,11 @@ void Game::Update(float deltaTime, float totalTime)
 	// this frame's interface.  Note that the building
 	// of the UI could happen at any point during update.
 	UINewFrame(deltaTime);
-	BuildUI();
+	BuildUI(camera,	meshes, entities);
 
 	// Example input checking: Quit if the escape key is pressed
-	if (Input::GetInstance().KeyDown(VK_ESCAPE))
-		Quit();
+	if (Input::KeyDown(VK_ESCAPE))
+		Window::Quit();
 
 	// Spin the 3D models
 	for (auto& e : entities)
@@ -298,6 +270,7 @@ void Game::Update(float deltaTime, float totalTime)
 	camera->Update(deltaTime);
 }
 
+
 // --------------------------------------------------------
 // Clear the screen, redraw everything, present to the user
 // --------------------------------------------------------
@@ -307,14 +280,11 @@ void Game::Draw(float deltaTime, float totalTime)
 	// - These things should happen ONCE PER FRAME
 	// - At the beginning of Game::Draw() before drawing *anything*
 	{
-		// Clear the back buffer (erases what's on the screen)
-		const float bgColor[4] = { 0.4f, 0.6f, 0.75f, 1.0f }; // Cornflower Blue
-		context->ClearRenderTargetView(backBufferRTV.Get(), bgColor);
-
-		// Clear the depth buffer (resets per-pixel occlusion information)
-		context->ClearDepthStencilView(depthBufferDSV.Get(), D3D11_CLEAR_DEPTH, 1.0f, 0);
+		// Clear the back buffer (erase what's on screen) and depth buffer
+		const float color[4] = { 0.4f, 0.6f, 0.75f, 0.0f };
+		Graphics::Context->ClearRenderTargetView(Graphics::BackBufferRTV.Get(),	color);
+		Graphics::Context->ClearDepthStencilView(Graphics::DepthBufferDSV.Get(), D3D11_CLEAR_DEPTH, 1.0f, 0);
 	}
-
 
 	// DRAW geometry
 	// Loop through the game entities and draw each one
@@ -322,7 +292,7 @@ void Game::Draw(float deltaTime, float totalTime)
 	//   the vertex shader stage of the pipeline (see Init above)
 	for (auto& e : entities)
 	{
-		e->Draw(context, vsConstantBuffer, camera); // Now with a camera!
+		e->Draw(vsConstantBuffer, camera);
 	}
 
 	// Frame END
@@ -333,215 +303,16 @@ void Game::Draw(float deltaTime, float totalTime)
 		ImGui::Render();
 		ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 
-		// Present the back buffer to the user
-		//  - Puts the results of what we've drawn onto the window
-		//  - Without this, the user never sees anything
-		bool vsyncNecessary = vsync || !deviceSupportsTearing || isFullscreen;
-		swapChain->Present(
-			vsyncNecessary ? 1 : 0,
-			vsyncNecessary ? 0 : DXGI_PRESENT_ALLOW_TEARING);
+		// Present at the end of the frame
+		bool vsync = Graphics::VsyncState();
+		Graphics::SwapChain->Present(
+			vsync ? 1 : 0,
+			vsync ? 0 : DXGI_PRESENT_ALLOW_TEARING);
 
-		// Must re-bind buffers after presenting, as they become unbound
-		context->OMSetRenderTargets(1, backBufferRTV.GetAddressOf(), depthBufferDSV.Get());
+		// Re-bind back buffer and depth buffer after presenting
+		Graphics::Context->OMSetRenderTargets(
+			1,
+			Graphics::BackBufferRTV.GetAddressOf(),
+			Graphics::DepthBufferDSV.Get());
 	}
-}
-
-// --------------------------------------------------------
-// Prepares a new frame for the UI, feeding it fresh
-// input and time information for this new frame.
-// --------------------------------------------------------
-void Game::UINewFrame(float deltaTime)
-{
-	// Feed fresh input data to ImGui
-	ImGuiIO& io = ImGui::GetIO();
-	io.DeltaTime = deltaTime;
-	io.DisplaySize.x = (float)this->windowWidth;
-	io.DisplaySize.y = (float)this->windowHeight;
-
-	// Reset the frame
-	ImGui_ImplDX11_NewFrame();
-	ImGui_ImplWin32_NewFrame();
-	ImGui::NewFrame();
-
-	// Determine new input capture
-	Input& input = Input::GetInstance();
-	input.SetKeyboardCapture(io.WantCaptureKeyboard);
-	input.SetMouseCapture(io.WantCaptureMouse);
-}
-
-
-// --------------------------------------------------------
-// Builds the UI for the current frame
-// --------------------------------------------------------
-void Game::BuildUI()
-{
-	// Should we show the built-in demo window?
-	if (showUIDemoWindow)
-	{
-		ImGui::ShowDemoWindow();
-	}
-
-	// Actually build our custom UI, starting with a window
-	ImGui::Begin("Inspector");
-	{
-		// Set a specific amount of space for widget labels
-		ImGui::PushItemWidth(-160); // Negative value sets label width
-
-		// === Overall details ===
-		if (ImGui::TreeNode("App Details"))
-		{
-			ImGui::Spacing();
-			ImGui::Text("Frame rate: %f fps", ImGui::GetIO().Framerate);
-			ImGui::Text("Window Client Size: %dx%d", windowWidth, windowHeight);
-
-			// Should we show the demo window?
-			if (ImGui::Button(showUIDemoWindow ? "Hide ImGui Demo Window" : "Show ImGui Demo Window"))
-				showUIDemoWindow = !showUIDemoWindow;
-
-			ImGui::Spacing();
-
-			// Finalize the tree node
-			ImGui::TreePop();
-		}
-
-		// === Controls ===
-		if (ImGui::TreeNode("Controls"))
-		{
-			ImGui::Spacing();
-			ImGui::Text("(WASD, X, Space)");    ImGui::SameLine(175); ImGui::Text("Move camera");
-			ImGui::Text("(Left Click & Drag)"); ImGui::SameLine(175); ImGui::Text("Rotate camera");
-			ImGui::Text("(Left Shift)");        ImGui::SameLine(175); ImGui::Text("Hold to speed up camera");
-			ImGui::Text("(Left Ctrl)");         ImGui::SameLine(175); ImGui::Text("Hold to slow down camera");
-			ImGui::Spacing();
-
-			// Finalize the tree node
-			ImGui::TreePop();
-		}
-
-		// === Camera details ===
-		if (ImGui::TreeNode("Camera"))
-		{
-			// Show UI for current camera
-			CameraUI(camera);
-
-			// Finalize the tree node
-			ImGui::TreePop();
-		}
-
-		// === Meshes ===
-		if (ImGui::TreeNode("Meshes"))
-		{
-			// Loop and show the details for each mesh
-			for (int i = 0; i < meshes.size(); i++)
-			{
-				ImGui::Text("Mesh %d: %d indices", i, meshes[i]->GetIndexCount());
-			}
-
-			// Finalize the tree node
-			ImGui::TreePop();
-		}
-
-		// === Entities ===
-		if (ImGui::TreeNode("Scene Entities"))
-		{
-			// Loop and show the details for each entity
-			for (int i = 0; i < entities.size(); i++)
-			{
-				// New node for each entity
-				// Note the use of PushID(), so that each tree node and its widgets
-				// have unique internal IDs in the ImGui system
-				ImGui::PushID(i);
-				if (ImGui::TreeNode("Entity Node", "Entity %d", i))
-				{
-					// Build UI for one entity at a time
-					EntityUI(entities[i]);
-
-					ImGui::TreePop();
-				}
-				ImGui::PopID();
-			}
-
-			// Finalize the tree node
-			ImGui::TreePop();
-		}
-	}
-	ImGui::End();
-}
-
-
-// --------------------------------------------------------
-// Builds the UI for a single camera
-// --------------------------------------------------------
-void Game::CameraUI(std::shared_ptr<Camera> cam)
-{
-	ImGui::Spacing();
-
-	// Transform details
-	XMFLOAT3 pos = cam->GetTransform()->GetPosition();
-	XMFLOAT3 rot = cam->GetTransform()->GetPitchYawRoll();
-
-	if (ImGui::DragFloat3("Position", &pos.x, 0.01f))
-		cam->GetTransform()->SetPosition(pos);
-	if (ImGui::DragFloat3("Rotation (Radians)", &rot.x, 0.01f))
-		cam->GetTransform()->SetRotation(rot);
-	ImGui::Spacing();
-
-	// Clip planes
-	float nearClip = cam->GetNearClip();
-	float farClip = cam->GetFarClip();
-	if (ImGui::DragFloat("Near Clip Distance", &nearClip, 0.01f, 0.001f, 1.0f))
-		cam->SetNearClip(nearClip);
-	if (ImGui::DragFloat("Far Clip Distance", &farClip, 1.0f, 10.0f, 1000.0f))
-		cam->SetFarClip(farClip);
-
-	// Projection type
-	CameraProjectionType projType = cam->GetProjectionType();
-	int typeIndex = (int)projType;
-	if (ImGui::Combo("Projection Type", &typeIndex, "Perspective\0Orthographic"))
-	{
-		projType = (CameraProjectionType)typeIndex;
-		cam->SetProjectionType(projType);
-	}
-
-	// Projection details
-	if (projType == CameraProjectionType::Perspective)
-	{
-		// Convert field of view to degrees for UI
-		float fov = cam->GetFieldOfView() * 180.0f / XM_PI;
-		if (ImGui::SliderFloat("Field of View (Degrees)", &fov, 0.01f, 180.0f))
-			cam->SetFieldOfView(fov * XM_PI / 180.0f); // Back to radians
-	}
-	else if (projType == CameraProjectionType::Orthographic)
-	{
-		float wid = cam->GetOrthographicWidth();
-		if (ImGui::SliderFloat("Orthographic Width", &wid, 1.0f, 10.0f))
-			cam->SetOrthographicWidth(wid);
-	}
-
-	ImGui::Spacing();
-}
-
-
-// --------------------------------------------------------
-// Builds the UI for a single entity
-// --------------------------------------------------------
-void Game::EntityUI(std::shared_ptr<GameEntity> entity)
-{
-	ImGui::Spacing();
-
-	// Transform details
-	Transform* trans = entity->GetTransform();
-	XMFLOAT3 pos = trans->GetPosition();
-	XMFLOAT3 rot = trans->GetPitchYawRoll();
-	XMFLOAT3 sca = trans->GetScale();
-
-	if (ImGui::DragFloat3("Position", &pos.x, 0.01f)) trans->SetPosition(pos);
-	if (ImGui::DragFloat3("Rotation (Radians)", &rot.x, 0.01f)) trans->SetRotation(rot);
-	if (ImGui::DragFloat3("Scale", &sca.x, 0.01f)) trans->SetScale(sca);
-
-	// Mesh details
-	ImGui::Spacing();
-	ImGui::Text("Mesh Index Count: %d", entity->GetMesh()->GetIndexCount());
-
-	ImGui::Spacing();
 }

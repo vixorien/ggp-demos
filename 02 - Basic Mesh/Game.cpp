@@ -1,13 +1,18 @@
 #include "Game.h"
+#include "Graphics.h"
 #include "Vertex.h"
 #include "Input.h"
 #include "PathHelpers.h"
+#include "Window.h"
+#include "UIHelpers.h"
 
-#include "../Common/ImGui/imgui.h"
-#include "../Common/ImGui/imgui_impl_dx11.h"
-#include "../Common/ImGui/imgui_impl_win32.h"
+#include "ImGui/imgui.h"
+#include "ImGui/imgui_impl_dx11.h"
+#include "ImGui/imgui_impl_win32.h"
 
-// Needed for a helper function to read compiled shader files from the hard drive
+#include <DirectXMath.h>
+
+// Needed for a helper function to load pre-compiled shader files
 #pragma comment(lib, "d3dcompiler.lib")
 #include <d3dcompiler.h>
 
@@ -15,71 +20,24 @@
 using namespace DirectX;
 
 // --------------------------------------------------------
-// Constructor
-//
-// DXCore (base class) constructor will set up underlying fields.
-// DirectX itself, and our window, are not ready yet!
-//
-// hInstance - the application's OS-level handle (unique ID)
+// Called once per program, after the window and graphics API
+// are initialized but before the game loop begins
 // --------------------------------------------------------
-Game::Game(HINSTANCE hInstance)
-	: DXCore(
-		hInstance,			// The application's handle
-		L"DirectX Game",	// Text for the window's title bar (as a wide-character string)
-		1280,				// Width of the window's client area
-		720,				// Height of the window's client area
-		false,				// Sync the framerate to the monitor refresh? (lock framerate)
-		true),				// Show extra stats (fps) in title bar?
-	showUIDemoWindow(false)
-{
-
-#if defined(DEBUG) || defined(_DEBUG)
-	// Do we want a console window?  Probably only in debug mode
-	CreateConsoleWindow(500, 120, 32, 120);
-	printf("Console window created successfully.  Feel free to printf() here.\n");
-#endif
-
-}
-
-// --------------------------------------------------------
-// Destructor - Clean up anything our game has created:
-//  - Release all DirectX objects created here
-//  - Delete any objects to prevent memory leaks
-// --------------------------------------------------------
-Game::~Game()
-{
-	// Call delete or delete[] on any objects or arrays you've
-	// created using new or new[] within this class
-	// - Note: this is unnecessary if using smart pointers
-
-	// Call Release() on any Direct3D objects made within this class
-	// - Note: this is unnecessary for D3D objects stored in ComPtrs
-
-	// ImGui clean up
-	ImGui_ImplDX11_Shutdown();
-	ImGui_ImplWin32_Shutdown();
-	ImGui::DestroyContext();
-}
-
-// --------------------------------------------------------
-// Called once per program, after DirectX and the window
-// are initialized but before the game loop.
-// --------------------------------------------------------
-void Game::Init()
+void Game::Initialize()
 {
 	// Initialize ImGui itself & platform/renderer backends
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
-	ImGui_ImplWin32_Init(hWnd);
-	ImGui_ImplDX11_Init(device.Get(), context.Get());
+	ImGui_ImplWin32_Init(Window::Handle());
+	ImGui_ImplDX11_Init(Graphics::Device.Get(), Graphics::Context.Get());
 	ImGui::StyleColorsDark();
-	
+
 	// Helper methods for loading shaders, creating some basic
 	// geometry to draw and some simple camera matrices.
 	//  - You'll be expanding and/or replacing these later
 	LoadShaders();
 	CreateGeometry();
-	
+
 	// Set initial graphics API state
 	//  - These settings persist until we change them
 	//  - Some of these, like the primitive topology & input layout, probably won't change
@@ -88,20 +46,36 @@ void Game::Init()
 		// Tell the input assembler (IA) stage of the pipeline what kind of
 		// geometric primitives (points, lines or triangles) we want to draw.  
 		// Essentially: "What kind of shape should the GPU draw with our vertices?"
-		context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		Graphics::Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
 		// Ensure the pipeline knows how to interpret all the numbers stored in
 		// the vertex buffer. For this course, all of your vertices will probably
 		// have the same layout, so we can just set this once at startup.
-		context->IASetInputLayout(inputLayout.Get());
+		Graphics::Context->IASetInputLayout(inputLayout.Get());
 
 		// Set the active vertex and pixel shaders
 		//  - Once you start applying different shaders to different objects,
 		//    these calls will need to happen multiple times per frame
-		context->VSSetShader(vertexShader.Get(), 0, 0);
-		context->PSSetShader(pixelShader.Get(), 0, 0);
+		Graphics::Context->VSSetShader(vertexShader.Get(), 0, 0);
+		Graphics::Context->PSSetShader(pixelShader.Get(), 0, 0);
 	}
 }
+
+
+// --------------------------------------------------------
+// Clean up memory or objects created by this class
+// 
+// Note: Using smart pointers means there probably won't
+//       be much to manually clean up here!
+// --------------------------------------------------------
+Game::~Game()
+{
+	// ImGui clean up
+	ImGui_ImplDX11_Shutdown();
+	ImGui_ImplWin32_Shutdown();
+	ImGui::DestroyContext();
+}
+
 
 // --------------------------------------------------------
 // Loads shaders from compiled shader object (.cso) files
@@ -127,18 +101,18 @@ void Game::LoadShaders()
 		// Read our compiled shader code files into blobs
 		// - Essentially just "open the file and plop its contents here"
 		// - Uses the custom FixPath() helper from Helpers.h to ensure relative paths
-		// - Note the "" before the string - this tells the compiler the string uses wide characters
+		// - Note the "L" before the string - this tells the compiler the string uses wide characters
 		D3DReadFileToBlob(FixPath(L"PixelShader.cso").c_str(), &pixelShaderBlob);
 		D3DReadFileToBlob(FixPath(L"VertexShader.cso").c_str(), &vertexShaderBlob);
 
 		// Create the actual Direct3D shaders on the GPU
-		device->CreatePixelShader(
+		Graphics::Device->CreatePixelShader(
 			pixelShaderBlob->GetBufferPointer(),	// Pointer to blob's contents
 			pixelShaderBlob->GetBufferSize(),		// How big is that data?
 			0,										// No classes in this shader
 			pixelShader.GetAddressOf());			// Address of the ID3D11PixelShader pointer
 
-		device->CreateVertexShader(
+		Graphics::Device->CreateVertexShader(
 			vertexShaderBlob->GetBufferPointer(),	// Get a pointer to the blob's contents
 			vertexShaderBlob->GetBufferSize(),		// How big is that data?
 			0,										// No classes in this shader
@@ -164,7 +138,7 @@ void Game::LoadShaders()
 		inputElements[1].AlignedByteOffset = D3D11_APPEND_ALIGNED_ELEMENT;	// After the previous element
 
 		// Create the input layout, verifying our description against actual shader code
-		device->CreateInputLayout(
+		Graphics::Device->CreateInputLayout(
 			inputElements,							// An array of descriptions
 			2,										// How many elements in that array?
 			vertexShaderBlob->GetBufferPointer(),	// Pointer to the code of a shader that uses this layout
@@ -174,9 +148,8 @@ void Game::LoadShaders()
 }
 
 
-
 // --------------------------------------------------------
-// Creates the geometry we're going to draw - a single triangle for now
+// Creates the geometry we're going to draw
 // --------------------------------------------------------
 void Game::CreateGeometry()
 {
@@ -188,9 +161,8 @@ void Game::CreateGeometry()
 	XMFLOAT4 black = XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f);
 	XMFLOAT4 grey = XMFLOAT4(0.5f, 0.5f, 0.5f, 1.0f);
 
-	// === ASSIGNMENT 2 ===================================
 
-	// Set up the vertices and indices for the first mesh
+	// === Mesh 1 ===
 	Vertex verts1[] =
 	{
 		{ XMFLOAT3(+0.0f, +0.5f, +0.0f), red },
@@ -199,8 +171,7 @@ void Game::CreateGeometry()
 	};
 	unsigned int indices1[] = { 0, 1, 2 };
 
-
-	// Verts and indices for mesh 2
+	// === Mesh 2 ===
 	Vertex verts2[] =
 	{
 		{ XMFLOAT3(-0.75f, +0.75f, 0.0f), blue },	// Top left
@@ -214,8 +185,7 @@ void Game::CreateGeometry()
 		0, 2, 1		// for both triangles
 	};
 
-
-	// Verts and indices for mesh 3
+	// === Mesh 3 ===
 	Vertex verts3[] =
 	{
 		{ XMFLOAT3(+0.50f, +0.50f, 0.0f), grey },
@@ -236,26 +206,24 @@ void Game::CreateGeometry()
 
 	// Create meshes and add to vector
 	// - The ARRAYSIZE macro returns the size of a locally-defined array
-	std::shared_ptr<Mesh> mesh1 = std::make_shared<Mesh>(verts1, ARRAYSIZE(verts1), indices1, ARRAYSIZE(indices1), device);
-	std::shared_ptr<Mesh> mesh2 = std::make_shared<Mesh>(verts2, ARRAYSIZE(verts2), indices2, ARRAYSIZE(indices2), device);
-	std::shared_ptr<Mesh> mesh3 = std::make_shared<Mesh>(verts3, ARRAYSIZE(verts3), indices3, ARRAYSIZE(indices3), device);
+	std::shared_ptr<Mesh> mesh1 = std::make_shared<Mesh>("Triangle", verts1, ARRAYSIZE(verts1), indices1, ARRAYSIZE(indices1));
+	std::shared_ptr<Mesh> mesh2 = std::make_shared<Mesh>("Quad", verts2, ARRAYSIZE(verts2), indices2, ARRAYSIZE(indices2));
+	std::shared_ptr<Mesh> mesh3 = std::make_shared<Mesh>("Spaceship", verts3, ARRAYSIZE(verts3), indices3, ARRAYSIZE(indices3));
 
 	meshes.push_back(mesh1);
 	meshes.push_back(mesh2);
 	meshes.push_back(mesh3);
-
 }
 
 
 // --------------------------------------------------------
-// Handle resizing DirectX "stuff" to match the new window size.
-// For instance, updating our projection matrix's aspect ratio.
+// Handle resizing to match the new window size
+//  - Eventually, we'll want to update our 3D camera
 // --------------------------------------------------------
 void Game::OnResize()
 {
-	// Handle base-level DX resize stuff
-	DXCore::OnResize();
 }
+
 
 // --------------------------------------------------------
 // Update your game here - user input, move objects, AI, etc.
@@ -266,12 +234,13 @@ void Game::Update(float deltaTime, float totalTime)
 	// this frame's interface.  Note that the building
 	// of the UI could happen at any point during update.
 	UINewFrame(deltaTime);
-	BuildUI();
+	BuildUI(meshes);
 
 	// Example input checking: Quit if the escape key is pressed
-	if (Input::GetInstance().KeyDown(VK_ESCAPE))
-		Quit();
+	if (Input::KeyDown(VK_ESCAPE))
+		Window::Quit();
 }
+
 
 // --------------------------------------------------------
 // Clear the screen, redraw everything, present to the user
@@ -282,12 +251,10 @@ void Game::Draw(float deltaTime, float totalTime)
 	// - These things should happen ONCE PER FRAME
 	// - At the beginning of Game::Draw() before drawing *anything*
 	{
-		// Clear the back buffer (erases what's on the screen)
-		const float bgColor[4] = { 0.4f, 0.6f, 0.75f, 1.0f }; // Cornflower Blue
-		context->ClearRenderTargetView(backBufferRTV.Get(), bgColor);
-
-		// Clear the depth buffer (resets per-pixel occlusion information)
-		context->ClearDepthStencilView(depthBufferDSV.Get(), D3D11_CLEAR_DEPTH, 1.0f, 0);
+		// Clear the back buffer (erase what's on screen) and depth buffer
+		const float color[4] = { 0.4f, 0.6f, 0.75f, 0.0f };
+		Graphics::Context->ClearRenderTargetView(Graphics::BackBufferRTV.Get(),	color);
+		Graphics::Context->ClearDepthStencilView(Graphics::DepthBufferDSV.Get(), D3D11_CLEAR_DEPTH, 1.0f, 0);
 	}
 
 	// DRAW geometry
@@ -296,7 +263,7 @@ void Game::Draw(float deltaTime, float totalTime)
 	//   the vertex shader stage of the pipeline (see Init above)
 	for (auto& m : meshes)
 	{
-		m->SetBuffersAndDraw(context);
+		m->SetBuffersAndDraw();
 	}
 
 	// Frame END
@@ -307,91 +274,16 @@ void Game::Draw(float deltaTime, float totalTime)
 		ImGui::Render();
 		ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 
-		// Present the back buffer to the user
-		//  - Puts the results of what we've drawn onto the window
-		//  - Without this, the user never sees anything
-		bool vsyncNecessary = vsync || !deviceSupportsTearing || isFullscreen;
-		swapChain->Present(
-			vsyncNecessary ? 1 : 0,
-			vsyncNecessary ? 0 : DXGI_PRESENT_ALLOW_TEARING);
+		// Present at the end of the frame
+		bool vsync = Graphics::VsyncState();
+		Graphics::SwapChain->Present(
+			vsync ? 1 : 0,
+			vsync ? 0 : DXGI_PRESENT_ALLOW_TEARING);
 
-		// Must re-bind buffers after presenting, as they become unbound
-		context->OMSetRenderTargets(1, backBufferRTV.GetAddressOf(), depthBufferDSV.Get());
+		// Re-bind back buffer and depth buffer after presenting
+		Graphics::Context->OMSetRenderTargets(
+			1,
+			Graphics::BackBufferRTV.GetAddressOf(),
+			Graphics::DepthBufferDSV.Get());
 	}
 }
-
-// --------------------------------------------------------
-// Prepares a new frame for the UI, feeding it fresh
-// input and time information for this new frame.
-// --------------------------------------------------------
-void Game::UINewFrame(float deltaTime)
-{
-	// Feed fresh input data to ImGui
-	ImGuiIO& io = ImGui::GetIO();
-	io.DeltaTime = deltaTime;
-	io.DisplaySize.x = (float)this->windowWidth;
-	io.DisplaySize.y = (float)this->windowHeight;
-
-	// Reset the frame
-	ImGui_ImplDX11_NewFrame();
-	ImGui_ImplWin32_NewFrame();
-	ImGui::NewFrame();
-
-	// Determine new input capture
-	Input& input = Input::GetInstance();
-	input.SetKeyboardCapture(io.WantCaptureKeyboard);
-	input.SetMouseCapture(io.WantCaptureMouse);
-}
-
-
-// --------------------------------------------------------
-// Builds the UI for the current frame
-// --------------------------------------------------------
-void Game::BuildUI()
-{
-	// Should we show the built-in demo window?
-	if (showUIDemoWindow)
-	{
-		ImGui::ShowDemoWindow();
-	}
-
-	// Actually build our custom UI, starting with a window
-	ImGui::Begin("Inspector");
-	{
-		// Set a specific amount of space for widget labels
-		ImGui::PushItemWidth(-160); // Negative value sets label width
-
-		// === Overall details ===
-		if (ImGui::TreeNode("App Details"))
-		{
-			ImGui::Spacing();
-			ImGui::Text("Frame rate: %f fps", ImGui::GetIO().Framerate);
-			ImGui::Text("Window Client Size: %dx%d", windowWidth, windowHeight);
-			
-			// Should we show the demo window?
-			if (ImGui::Button(showUIDemoWindow ? "Hide ImGui Demo Window" : "Show ImGui Demo Window"))
-				showUIDemoWindow = !showUIDemoWindow;
-
-			ImGui::Spacing();
-
-			// Finalize the tree node
-			ImGui::TreePop();
-		}
-
-		// === Meshes ===
-		if (ImGui::TreeNode("Meshes"))
-		{
-			// Loop and show the details for each mesh
-			for(int i = 0; i < meshes.size(); i++)
-			{
-				ImGui::Text("Mesh %d: %d triangle(s)", i, meshes[i]->GetIndexCount() / 3);
-			}
-
-			// Finalize the tree node
-			ImGui::TreePop();
-		}
-	}
-	ImGui::End();
-}
-
-
