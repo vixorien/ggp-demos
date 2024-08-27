@@ -255,7 +255,7 @@ void Game::LoadAssetsAndCreateEntities()
 
 	// === Create the "randomized" entities, with a static floor ===========
 	std::shared_ptr<GameEntity> floor = std::make_shared<GameEntity>(cubeMesh, cobbleMat4x);
-	floor->GetTransform()->SetScale(50, 50, 50);
+	floor->GetTransform()->SetScale(25, 25, 25);
 	floor->GetTransform()->SetPosition(0, -27, 0);
 	entitiesRandom.push_back(floor);
 
