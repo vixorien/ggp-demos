@@ -154,5 +154,11 @@
     <FxCompile Include="FancyPixelShader.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
+    <FxCompile Include="UVPreviewPS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="NormalPreviewPS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

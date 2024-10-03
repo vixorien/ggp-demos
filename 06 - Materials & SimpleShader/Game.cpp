@@ -48,7 +48,7 @@ void Game::Initialize()
 
 	// Create the camera
 	camera = std::make_shared<FPSCamera>(
-		XMFLOAT3(0.0f, 2.0f, -15.0f),	// Position
+		XMFLOAT3(0.0f, 3.0f, -15.0f),	// Position
 		5.0f,					// Move speed
 		0.002f,					// Look speed
 		XM_PIDIV4,				// Field of view
@@ -82,6 +82,10 @@ void Game::LoadAssetsAndCreateEntities()
 	std::shared_ptr<SimpleVertexShader> basicVertexShader = std::make_shared<SimpleVertexShader>(Graphics::Device, Graphics::Context, FixPath(L"VertexShader.cso").c_str());
 	std::shared_ptr<SimplePixelShader> basicPixelShader = std::make_shared<SimplePixelShader>(Graphics::Device, Graphics::Context, FixPath(L"PixelShader.cso").c_str());
 	std::shared_ptr<SimplePixelShader> fancyPixelShader = std::make_shared<SimplePixelShader>(Graphics::Device, Graphics::Context, FixPath(L"FancyPixelShader.cso").c_str());
+	std::shared_ptr<SimplePixelShader> normalPreviewPS = std::make_shared<SimplePixelShader>(Graphics::Device, Graphics::Context, FixPath(L"NormalPreviewPS.cso").c_str());
+	std::shared_ptr<SimplePixelShader> uvPreviewPS = std::make_shared<SimplePixelShader>(Graphics::Device, Graphics::Context, FixPath(L"UVPreviewPS.cso").c_str());
+
+
 
 	// Load 3D models	
 	std::shared_ptr<Mesh> cubeMesh = std::make_shared<Mesh>("Cube", FixPath(L"../../../Assets/Meshes/cube.obj").c_str());
@@ -97,12 +101,14 @@ void Game::LoadAssetsAndCreateEntities()
 
 	// Create several different materials
 	std::shared_ptr<Material> matFancy = std::make_shared<Material>("Fancy", fancyPixelShader, basicVertexShader, XMFLOAT3(1, 1, 1));
+	std::shared_ptr<Material> matUV = std::make_shared<Material>("UV Preview", uvPreviewPS, basicVertexShader, XMFLOAT3(1, 1, 1));
+	std::shared_ptr<Material> matNorm = std::make_shared<Material>("Normal Preview", normalPreviewPS, basicVertexShader, XMFLOAT3(1, 1, 1));
 	std::shared_ptr<Material> matWhite = std::make_shared<Material>("Solid White", basicPixelShader, basicVertexShader, XMFLOAT3(1, 1, 1));
 	std::shared_ptr<Material> matRed = std::make_shared<Material>("Solid Red", basicPixelShader, basicVertexShader, XMFLOAT3(0.75f, 0, 0));
 	std::shared_ptr<Material> matPurple = std::make_shared<Material>("Solid Purple", basicPixelShader, basicVertexShader, XMFLOAT3(0.75f, 0, 0.6f));
 
 	// Add all materials to vector
-	materials.insert(materials.end(), { matFancy, matWhite, matRed, matPurple });
+	materials.insert(materials.end(), { matFancy, matUV, matNorm, matWhite, matRed, matPurple });
 
 	// Create the game entities
 	entities.push_back(std::make_shared<GameEntity>(cubeMesh, matWhite));
@@ -121,6 +127,24 @@ void Game::LoadAssetsAndCreateEntities()
 	entities[4]->GetTransform()->MoveAbsolute(3, 0, 0);
 	entities[5]->GetTransform()->MoveAbsolute(6, 0, 0);
 	entities[6]->GetTransform()->MoveAbsolute(9, 0, 0);
+
+	// Create more entities using the UV and Normal preview materials
+	int count = (int)entities.size();
+	for (int i = 0; i < count; i++)
+	{
+		std::shared_ptr<Mesh> mesh = entities[i]->GetMesh();
+		std::shared_ptr<GameEntity> geUV = std::make_shared<GameEntity>(mesh, matUV);
+		std::shared_ptr<GameEntity> geNorm = std::make_shared<GameEntity>(mesh, matNorm);
+
+		geUV->GetTransform()->MoveAbsolute(entities[i]->GetTransform()->GetPosition());
+		geUV->GetTransform()->MoveAbsolute(0, 3, 0);
+
+		geNorm->GetTransform()->MoveAbsolute(entities[i]->GetTransform()->GetPosition());
+		geNorm->GetTransform()->MoveAbsolute(0, 6, 0);
+
+		entities.push_back(geUV);
+		entities.push_back(geNorm);
+	}
 }
 
 

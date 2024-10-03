@@ -154,7 +154,9 @@
     <FxCompile Include="VertexShader.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
-    <FxCompile Include="NormalMapPS.hlsl" />
+    <FxCompile Include="NormalMapPS.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="Lighting.hlsli">
