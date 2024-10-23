@@ -172,12 +172,23 @@ void Game::LoadAssetsAndCreateEntities()
 	pointLight2.Position = XMFLOAT3(1.5f, 0, 0);
 	pointLight2.Range = 10.0f;
 
+	Light spotLight1 = {};
+	spotLight1.Color = XMFLOAT3(1, 1, 1);
+	spotLight1.Type = LIGHT_TYPE_SPOT;
+	spotLight1.Intensity = 2.0f;
+	spotLight1.Position = XMFLOAT3(6.0f, 1.5f, 0);
+	spotLight1.Direction = XMFLOAT3(0, -1, 0);
+	spotLight1.Range = 10.0f;
+	spotLight1.SpotOuterAngle = XMConvertToRadians(30.0f);
+	spotLight1.SpotInnerAngle = XMConvertToRadians(20.0f);
+
 	// Add all lights to the list
 	lights.push_back(dirLight1);
 	lights.push_back(dirLight2);
 	lights.push_back(dirLight3);
 	lights.push_back(pointLight1);
 	lights.push_back(pointLight2);
+	lights.push_back(spotLight1);
 
 	// Normalize directions of all non-point lights
 	for (int i = 0; i < lights.size(); i++)

@@ -20,8 +20,9 @@ struct Light
 	float	Intensity;
 	float3	Color;		// 48 bytes
 
-	float	SpotFalloff;
-	float3	Padding;	// 64 bytes
+	float	SpotInnerAngle;
+	float	SpotOuterAngle;
+	float2	Padding;	// 64 bytes
 };
 
 
@@ -119,11 +120,21 @@ float3 SpotLight(Light light, float3 normal, float3 worldPos, float3 camPos, flo
 {
 	// Calculate the spot falloff
 	float3 toLight = normalize(light.Position - worldPos);
-	float penumbra = pow(saturate(dot(-toLight, light.Direction)), light.SpotFalloff);
+	float pixelAngle = saturate(dot(-toLight, light.Direction));
+	
+	// Our spot angle is really the cosine of the angle due
+	// to the dot product, so we need the cosine of these angles, too
+	float cosOuter = cos(light.SpotOuterAngle);
+	float cosInner = cos(light.SpotInnerAngle);
+	float falloffRange = cosOuter - cosInner;
+	
+	// Linear falloff as the angle to the pixel gets closer to the outer range
+	float spotTerm = saturate((cosOuter - pixelAngle) / falloffRange);
 
 	// Combine with the point light calculation
 	// Note: This could be optimized a bit!  Doing a lot of the same work twice!
-	return PointLight(light, normal, worldPos, camPos, roughness, surfaceColor) * penumbra;
+	return PointLight(light, normal, worldPos, camPos, roughness, surfaceColor) * spotTerm;
+
 }
 
 #endif

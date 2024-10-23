@@ -2,7 +2,7 @@
 #include "ShaderStructs.hlsli"
 #include "Lighting.hlsli"
 
-#define NUM_LIGHTS 5
+#define NUM_LIGHTS 6
 
 cbuffer ExternalData : register(b0)
 {
