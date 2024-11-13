@@ -203,6 +203,8 @@ void BuildUI(
 			ImGui::Checkbox("Normal Map", &lightOptions.UseNormalMap);
 			ImGui::Checkbox("Roughness Map", &lightOptions.UseRoughnessMap);
 			ImGui::Checkbox("Metalness Map", &lightOptions.UseMetalMap);
+			ImGui::Separator();
+			ImGui::Checkbox("Use Burley Diffuse", &lightOptions.UseBurleyDiffuse);
 
 			ImGui::TreePop();
 			ImGui::Spacing();

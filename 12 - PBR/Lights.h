@@ -42,5 +42,6 @@ struct DemoLightingOptions
 	bool FreezeLightMovement;
 	bool DrawLights;
 	bool ShowSkybox;
+	bool UseBurleyDiffuse;
 	DirectX::XMFLOAT3 AmbientColor;
 };

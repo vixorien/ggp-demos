@@ -161,12 +161,29 @@ static const float TWO_PI = PI * 2.0f;
 static const float HALF_PI = PI / 2.0f;
 static const float QUARTER_PI = PI / 4.0f;
 
+// General helpers
+float Schlick_F0_F90(float3 v, float3 h, float f0, float f90)
+{
+	float VdotH = saturate(dot(v, h));
+	return f0 + (f90 - f0) * pow(1 - VdotH, 5);
+}
+
 // Lambert diffuse BRDF - Same as the basic lighting!
 float DiffusePBR(float3 normal, float3 dirToLight)
 {
 	return saturate(dot(normal, dirToLight));
 }
 
+// Burley diffuse BRDF
+float DiffuseBurleyPBR(float3 n, float3 l, float3 v, float rough) 
+{
+	float3 h = normalize(l+v);
+	float LdotH = dot(l, h);
+    float f90 = 0.5 + 2.0 * rough * LdotH * LdotH;
+    float lResult = Schlick_F0_F90(n, l, 1.0f, f90);
+    float vResult  = Schlick_F0_F90(n, v, 1.0f, f90);
+    return lResult * vResult * max(dot(n, l), 0);
+}
 
 
 // Normal Distribution Function: GGX (Trowbridge-Reitz)
@@ -299,14 +316,14 @@ float3 DiffuseEnergyConserve(float3 diffuse, float3 F, float metalness)
 // === LIGHT TYPES FOR PBR LIGHTING =================================
 
 
-float3 DirLightPBR(Light light, float3 normal, float3 worldPos, float3 camPos, float roughness, float metalness, float3 surfaceColor, float3 specularColor)
+float3 DirLightPBR(Light light, float3 normal, float3 worldPos, float3 camPos, float roughness, float metalness, float3 surfaceColor, float3 specularColor, bool useBurleyDiffuse)
 {
 	// Get normalize direction to the light
 	float3 toLight = normalize(-light.Direction);
 	float3 toCam = normalize(camPos - worldPos);
 
 	// Calculate the light amounts
-	float diff = DiffusePBR(normal, toLight);
+	float diff = useBurleyDiffuse ? DiffuseBurleyPBR(normal, toLight, toCam, roughness) : DiffusePBR(normal, toLight);
 	float3 F;
 	float3 spec = MicrofacetBRDF(normal, toLight, toCam, roughness, specularColor, F);
 	
@@ -319,7 +336,7 @@ float3 DirLightPBR(Light light, float3 normal, float3 worldPos, float3 camPos, f
 }
 
 
-float3 PointLightPBR(Light light, float3 normal, float3 worldPos, float3 camPos, float roughness, float metalness, float3 surfaceColor, float3 specularColor)
+float3 PointLightPBR(Light light, float3 normal, float3 worldPos, float3 camPos, float roughness, float metalness, float3 surfaceColor, float3 specularColor, bool useBurleyDiffuse)
 {
 	// Calc light direction
 	float3 toLight = normalize(light.Position - worldPos);
@@ -327,7 +344,7 @@ float3 PointLightPBR(Light light, float3 normal, float3 worldPos, float3 camPos,
 
 	// Calculate the light amounts
 	float atten = Attenuate(light, worldPos);
-	float diff = DiffusePBR(normal, toLight);
+	float diff = useBurleyDiffuse ? DiffuseBurleyPBR(normal, toLight, toCam, roughness) : DiffusePBR(normal, toLight);
 	float3 F;
 	float3 spec = MicrofacetBRDF(normal, toLight, toCam, roughness, specularColor, F);
 
@@ -340,7 +357,7 @@ float3 PointLightPBR(Light light, float3 normal, float3 worldPos, float3 camPos,
 }
 
 
-float3 SpotLightPBR(Light light, float3 normal, float3 worldPos, float3 camPos, float roughness, float metalness, float3 surfaceColor, float3 specularColor)
+float3 SpotLightPBR(Light light, float3 normal, float3 worldPos, float3 camPos, float roughness, float metalness, float3 surfaceColor, float3 specularColor, bool useBurleyDiffuse)
 {
 	// Calculate the spot falloff
 	float3 toLight = normalize(light.Position - worldPos);
@@ -348,7 +365,7 @@ float3 SpotLightPBR(Light light, float3 normal, float3 worldPos, float3 camPos, 
 
 	// Combine with the point light calculation
 	// Note: This could be optimized a bit
-	return PointLightPBR(light, normal, worldPos, camPos, roughness, metalness, surfaceColor, specularColor) * penumbra;
+	return PointLightPBR(light, normal, worldPos, camPos, roughness, metalness, surfaceColor, specularColor, useBurleyDiffuse) * penumbra;
 }
 
 

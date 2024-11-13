@@ -24,6 +24,7 @@ cbuffer ExternalData : register(b0)
 	int useNormalMap;
 	int useRoughnessMap;
 	int useAlbedoTexture;
+	int useBurleyDiffuse;
 }
 
 // Texture related resources
@@ -83,15 +84,15 @@ float4 main(VertexToPixel input) : SV_TARGET
 		switch (lights[i].Type)
 		{
 		case LIGHT_TYPE_DIRECTIONAL:
-			totalLight += DirLightPBR(light, input.normal, input.worldPos, cameraPosition, roughness, metal, surfaceColor.rgb, specColor);
+			totalLight += DirLightPBR(light, input.normal, input.worldPos, cameraPosition, roughness, metal, surfaceColor.rgb, specColor, useBurleyDiffuse);
 			break;
 
 		case LIGHT_TYPE_POINT:
-			totalLight += PointLightPBR(light, input.normal, input.worldPos, cameraPosition, roughness, metal, surfaceColor.rgb, specColor);
+			totalLight += PointLightPBR(light, input.normal, input.worldPos, cameraPosition, roughness, metal, surfaceColor.rgb, specColor, useBurleyDiffuse);
 			break;
 
 		case LIGHT_TYPE_SPOT:
-			totalLight += SpotLightPBR(light, input.normal, input.worldPos, cameraPosition, roughness, metal, surfaceColor.rgb, specColor);
+			totalLight += SpotLightPBR(light, input.normal, input.worldPos, cameraPosition, roughness, metal, surfaceColor.rgb, specColor, useBurleyDiffuse);
 			break;
 		}
 	}

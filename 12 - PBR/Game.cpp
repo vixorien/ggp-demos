@@ -59,6 +59,7 @@ void Game::Initialize()
 		.FreezeLightMovement = false,
 		.DrawLights = true,
 		.ShowSkybox = true,
+		.UseBurleyDiffuse = false,
 		.AmbientColor = XMFLOAT3(0,0,0)
 	};
 
@@ -617,6 +618,7 @@ void Game::Draw(float deltaTime, float totalTime)
 		ps->SetInt("useMetalMap", (int)lightOptions.UseMetalMap);
 		ps->SetInt("useNormalMap", (int)lightOptions.UseNormalMap);
 		ps->SetInt("useRoughnessMap", (int)lightOptions.UseRoughnessMap);
+		ps->SetInt("useBurleyDiffuse", (int)lightOptions.UseBurleyDiffuse);
 
 		// Draw one entity
 		e->Draw(camera);
