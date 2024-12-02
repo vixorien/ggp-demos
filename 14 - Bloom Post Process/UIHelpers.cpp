@@ -44,7 +44,8 @@ void BuildUI(
 	std::vector<std::shared_ptr<GameEntity>>& entities,
 	std::vector<std::shared_ptr<Material>>& materials,
 	std::vector<Light>& lights,
-	DemoLightingOptions& lightOptions)
+	DemoLightingOptions& lightOptions,
+	DemoBloomOptions& bloomOptions)
 {
 	// A static variable to track whether or not the demo window should be shown.  
 	//  - Static in this context means that the variable is created once 
@@ -272,9 +273,57 @@ void BuildUI(
 			ImGui::Checkbox("Show Skybox", &lightOptions.ShowSkybox);
 			ImGui::TreePop();
 		}
+
+		// === Bloom ===
+		if (ImGui::TreeNode("Bloom"))
+		{
+			ImGui::SliderInt("Bloom Levels", &bloomOptions.CurrentBloomLevels, 0, MaxDemoBloomLevels);
+			ImGui::SliderFloat("Bloom Threshold", &bloomOptions.BloomThreshold, 0.0f, 1.0f);
+			if(ImGui::SliderFloat("Bloom Intensity", &bloomOptions.BloomLevelIntensities[0], 0.0f, 1.0f))
+				for (int i = 1; i < MaxDemoBloomLevels; i++)
+					bloomOptions.BloomLevelIntensities[i] = bloomOptions.BloomLevelIntensities[0];
+			ImGui::Checkbox("Show Post Process Textures", &bloomOptions.ShowBloomTextures);
+
+			ImGui::TreePop();
+		}
 	}
 
 	ImGui::End();
+
+	// Bloom textures?
+	if (bloomOptions.ShowBloomTextures)
+	{
+		ImGui::Begin("Bloom Textures");
+
+		// Texture sizing
+		float width = max(ImGui::GetWindowSize().x - 5.0f, 5.0f);
+		ImVec2 size = ImVec2(width, width / Window::AspectRatio());
+
+		// Original Texture & Extract
+		ImGui::Text("Original Render Target");
+		ImGui::Image(bloomOptions.PostProcessSRV.Get(), size);
+		ImGui::Separator();
+
+		ImGui::Text("Bloom Extract");
+		ImGui::Image(bloomOptions.BloomExtractSRV.Get(), size);
+
+		// Shrink the size for below
+		size.x /= 2.0f;
+		size.y /= 2.0f;
+
+		// Draw individual blurs
+		for (int i = 0; i < bloomOptions.CurrentBloomLevels; i++)
+		{
+			ImGui::Separator();
+			ImGui::Text("H Blur"); ImGui::SameLine(width / 2.0f); ImGui::Text("V Blur");
+
+			ImGui::Image(bloomOptions.BlurHorizontalSRVs[i].Get(), size);
+			ImGui::SameLine();
+			ImGui::Image(bloomOptions.BlurVerticalSRVs[i].Get(), size);
+		}
+
+		ImGui::End();
+	}
 }
 
 

@@ -42,6 +42,18 @@ void Game::Initialize()
 	// Seed random
 	srand((unsigned int)time(0));
 
+	// Set up bloom options
+	bloomOptions = {
+		.CurrentBloomLevels = MaxDemoBloomLevels,
+		.ShowBloomTextures = true,
+		.BloomThreshold = 1.0f,
+		// SRVs must be updated each time they are recreated
+	};
+
+	// Set initial intensities (doesn't work with above syntax)
+	for (int i = 0; i < MaxDemoBloomLevels; i++)
+		bloomOptions.BloomLevelIntensities[i] = 1.0f;
+
 	// Set up the scene and create lights
 	LoadAssetsAndCreateEntities();
 	currentScene = &entitiesLineup;
@@ -62,16 +74,6 @@ void Game::Initialize()
 		.UseBurleyDiffuse = false,
 		.AmbientColor = XMFLOAT3(0,0,0)
 	};
-
-	// Defaults for bloom
-	bloomLevels = 5;
-	bloomThreshold = 1.0f;
-	bloomLevelIntensities[0] = 1.0f;
-	bloomLevelIntensities[1] = 1.0f;
-	bloomLevelIntensities[2] = 1.0f;
-	bloomLevelIntensities[3] = 1.0f;
-	bloomLevelIntensities[4] = 1.0f;
-	drawBloomTextures = false;
 
 	// Set initial graphics API state
 	Graphics::Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -191,12 +193,12 @@ void Game::LoadAssetsAndCreateEntities()
 
 	// Create the sky
 	sky = std::make_shared<Sky>(
-		FixPath(L"../../../Assets/Skies/Clouds Blue/right.png").c_str(),
-		FixPath(L"../../../Assets/Skies/Clouds Blue/left.png").c_str(),
-		FixPath(L"../../../Assets/Skies/Clouds Blue/up.png").c_str(),
-		FixPath(L"../../../Assets/Skies/Clouds Blue/down.png").c_str(),
-		FixPath(L"../../../Assets/Skies/Clouds Blue/front.png").c_str(),
-		FixPath(L"../../../Assets/Skies/Clouds Blue/back.png").c_str(),
+		FixPath(L"../../../Assets/Skies/Night Moon/right.png").c_str(),
+		FixPath(L"../../../Assets/Skies/Night Moon/left.png").c_str(),
+		FixPath(L"../../../Assets/Skies/Night Moon/up.png").c_str(),
+		FixPath(L"../../../Assets/Skies/Night Moon/down.png").c_str(),
+		FixPath(L"../../../Assets/Skies/Night Moon/front.png").c_str(),
+		FixPath(L"../../../Assets/Skies/Night Moon/back.png").c_str(),
 		cubeMesh,
 		skyVS,
 		skyPS,
@@ -514,16 +516,22 @@ void Game::ResizeAllPostProcessResources()
 {
 	ResizeOnePostProcessResource(ppRTV, ppSRV, 1.0f, DXGI_FORMAT_R16G16B16A16_FLOAT);
 	ResizeOnePostProcessResource(bloomExtractRTV, bloomExtractSRV, 0.5f, DXGI_FORMAT_R16G16B16A16_FLOAT);
+	bloomOptions.PostProcessSRV = ppSRV;
+	bloomOptions.BloomExtractSRV = bloomExtractSRV;
 
 	float rtScale = 0.5f;
-	for (int i = 0; i < MaxBloomLevels; i++)
+	for (int i = 0; i < MaxDemoBloomLevels; i++)
 	{
 		ResizeOnePostProcessResource(blurHorizontalRTV[i], blurHorizontalSRV[i], rtScale);
 		ResizeOnePostProcessResource(blurVerticalRTV[i], blurVerticalSRV[i], rtScale);
+		
+		bloomOptions.BlurHorizontalSRVs[i] = blurHorizontalSRV[i];
+		bloomOptions.BlurVerticalSRVs[i] = blurVerticalSRV[i];
 
 		// Each successive bloom level is half the resolution
 		rtScale *= 0.5f;
 	}
+
 }
 
 
@@ -596,7 +604,7 @@ void Game::Update(float deltaTime, float totalTime)
 	// this frame's interface.  Note that the building
 	// of the UI could happen at any point during update.
 	UINewFrame(deltaTime);
-	BuildUI(camera, meshes, *currentScene, materials, lights, lightOptions);
+	BuildUI(camera, meshes, *currentScene, materials, lights, lightOptions, bloomOptions);
 
 	// Example input checking: Quit if the escape key is pressed
 	if (Input::KeyDown(VK_ESCAPE))
@@ -705,7 +713,7 @@ void Game::Draw(float deltaTime, float totalTime)
 		Graphics::Context->ClearRenderTargetView(ppRTV.Get(), rtClearColor);
 		Graphics::Context->ClearRenderTargetView(bloomExtractRTV.Get(), rtClearColor);
 
-		for (int i = 0; i < MaxBloomLevels; i++)
+		for (int i = 0; i < MaxDemoBloomLevels; i++)
 		{
 			Graphics::Context->ClearRenderTargetView(blurHorizontalRTV[i].Get(), rtClearColor);
 			Graphics::Context->ClearRenderTargetView(blurVerticalRTV[i].Get(), rtClearColor);
@@ -770,14 +778,14 @@ void Game::Draw(float deltaTime, float totalTime)
 		BloomExtract();
 
 		// Any bloom actually happening?
-		if (bloomLevels >= 1)
+		if (bloomOptions.CurrentBloomLevels >= 1)
 		{
 			float levelScale = 0.5f;
 			SingleDirectionBlur(levelScale, XMFLOAT2(1, 0), blurHorizontalRTV[0], bloomExtractSRV); // Bloom extract is the source
 			SingleDirectionBlur(levelScale, XMFLOAT2(0, 1), blurVerticalRTV[0], blurHorizontalSRV[0]);
 
 			// Any other levels?
-			for (int i = 1; i < bloomLevels; i++)
+			for (int i = 1; i < bloomOptions.CurrentBloomLevels; i++)
 			{
 				levelScale *= 0.5f; // Half the size of the previous
 				SingleDirectionBlur(levelScale, XMFLOAT2(1, 0), blurHorizontalRTV[i], blurVerticalSRV[i - 1]); // Previous blur is the source
@@ -899,7 +907,7 @@ void Game::BloomExtract()
 	// Note: Sampler set already!
 
 	// Set post process specific data
-	bloomExtractPS->SetFloat("bloomThreshold", bloomThreshold);
+	bloomExtractPS->SetFloat("bloomThreshold", bloomOptions.BloomThreshold);
 	bloomExtractPS->CopyAllBufferData();
 
 	// Draw exactly 3 vertices for our "full screen triangle"
@@ -963,11 +971,11 @@ void Game::BloomCombine()
 	// Note: Sampler set already!
 
 	// Set post process specific data
-	bloomCombinePS->SetFloat("intensityLevel0", bloomLevelIntensities[0]);
-	bloomCombinePS->SetFloat("intensityLevel1", bloomLevelIntensities[1]);
-	bloomCombinePS->SetFloat("intensityLevel2", bloomLevelIntensities[2]);
-	bloomCombinePS->SetFloat("intensityLevel3", bloomLevelIntensities[3]);
-	bloomCombinePS->SetFloat("intensityLevel4", bloomLevelIntensities[4]);
+	bloomCombinePS->SetFloat("intensityLevel0", bloomOptions.BloomLevelIntensities[0]);
+	bloomCombinePS->SetFloat("intensityLevel1", bloomOptions.BloomLevelIntensities[1]);
+	bloomCombinePS->SetFloat("intensityLevel2", bloomOptions.BloomLevelIntensities[2]);
+	bloomCombinePS->SetFloat("intensityLevel3", bloomOptions.BloomLevelIntensities[3]);
+	bloomCombinePS->SetFloat("intensityLevel4", bloomOptions.BloomLevelIntensities[4]);
 	bloomCombinePS->CopyAllBufferData();
 
 	// Draw exactly 3 vertices for our "full screen triangle"

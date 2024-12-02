@@ -12,6 +12,7 @@
 #include "SimpleShader.h"
 #include "Lights.h"
 #include "Sky.h"
+#include "UIHelpers.h"
 
 class Game
 {
@@ -68,13 +69,8 @@ private:
 	std::shared_ptr<SimplePixelShader> solidColorPS;
 	std::shared_ptr<SimpleVertexShader> vertexShader;
 
-	// Post processing resources for bloom
-	static const int MaxBloomLevels = 5;
-
-	bool drawBloomTextures;
-	int bloomLevels;
-	float bloomThreshold;
-	float bloomLevelIntensities[MaxBloomLevels];
+	// Post processing options & resources for bloom
+	DemoBloomOptions bloomOptions;
 
 	std::shared_ptr<SimplePixelShader> bloomExtractPS;
 	std::shared_ptr<SimplePixelShader> gaussianBlurPS;
@@ -89,11 +85,11 @@ private:
 	Microsoft::WRL::ComPtr<ID3D11RenderTargetView> bloomExtractRTV;
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> bloomExtractSRV;
 
-	Microsoft::WRL::ComPtr<ID3D11RenderTargetView> blurHorizontalRTV[MaxBloomLevels];
-	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> blurHorizontalSRV[MaxBloomLevels];
+	Microsoft::WRL::ComPtr<ID3D11RenderTargetView> blurHorizontalRTV[MaxDemoBloomLevels];
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> blurHorizontalSRV[MaxDemoBloomLevels];
 
-	Microsoft::WRL::ComPtr<ID3D11RenderTargetView> blurVerticalRTV[MaxBloomLevels];
-	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> blurVerticalSRV[MaxBloomLevels];
+	Microsoft::WRL::ComPtr<ID3D11RenderTargetView> blurVerticalRTV[MaxDemoBloomLevels];
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> blurVerticalSRV[MaxDemoBloomLevels];
 
 	// General post process helpers
 	void ResizeAllPostProcessResources();

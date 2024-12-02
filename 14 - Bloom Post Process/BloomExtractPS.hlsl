@@ -18,7 +18,7 @@ SamplerState samplerOptions	: register(s0);
 float4 main(VertexToPixel input) : SV_TARGET
 {
 	// Grab this pixel's color
-	float4 pixelColor = pixels.Sample(samplerOptions, input.uv);
+	float3 pixelColor = pixels.Sample(samplerOptions, input.uv).rgb;
 
 
 
@@ -48,5 +48,5 @@ float4 main(VertexToPixel input) : SV_TARGET
 	
 	// Method 3: Remainder ===========================================
 	// Subtract the  threshold from the color and return what's left over
-	return max(pixelColor - bloomThreshold, 0);
+	return float4(max(pixelColor - bloomThreshold, 0), 1.0f);
 }

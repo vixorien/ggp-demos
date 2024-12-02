@@ -10,6 +10,20 @@
 #include "Material.h"
 #include "Lights.h"
 
+const int MaxDemoBloomLevels = 5;
+
+struct DemoBloomOptions
+{
+	int CurrentBloomLevels;
+	bool ShowBloomTextures;
+	float BloomThreshold;
+	float BloomLevelIntensities[MaxDemoBloomLevels];
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> PostProcessSRV;
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> BloomExtractSRV;
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> BlurHorizontalSRVs[MaxDemoBloomLevels];
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> BlurVerticalSRVs[MaxDemoBloomLevels];
+};
+
 // Informing IMGUI about the new frame
 void UINewFrame(float deltaTime);
 
@@ -20,7 +34,8 @@ void BuildUI(
 	std::vector<std::shared_ptr<GameEntity>>& entities,
 	std::vector<std::shared_ptr<Material>>& materials,
 	std::vector<Light>& lights,
-	DemoLightingOptions& lightOptions);
+	DemoLightingOptions& lightOptions,
+	DemoBloomOptions& bloomOptions);
 
 // Helpers for individual scene elements
 void UIMesh(std::shared_ptr<Mesh> mesh);
