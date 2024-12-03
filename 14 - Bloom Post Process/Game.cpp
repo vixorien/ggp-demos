@@ -44,9 +44,11 @@ void Game::Initialize()
 
 	// Set up bloom options
 	bloomOptions = {
+		.BloomExtractType = 0,
 		.CurrentBloomLevels = MaxDemoBloomLevels,
 		.ShowBloomTextures = true,
-		.BloomThreshold = 1.0f,
+		.BloomThreshold = 0.5f,
+		.SeparateIntensityPerLevel = false
 		// SRVs must be updated each time they are recreated
 	};
 
@@ -907,6 +909,7 @@ void Game::BloomExtract()
 	// Note: Sampler set already!
 
 	// Set post process specific data
+	bloomExtractPS->SetInt("extractType", bloomOptions.BloomExtractType);
 	bloomExtractPS->SetFloat("bloomThreshold", bloomOptions.BloomThreshold);
 	bloomExtractPS->CopyAllBufferData();
 

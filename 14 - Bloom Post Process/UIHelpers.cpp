@@ -277,11 +277,27 @@ void BuildUI(
 		// === Bloom ===
 		if (ImGui::TreeNode("Bloom"))
 		{
-			ImGui::SliderInt("Bloom Levels", &bloomOptions.CurrentBloomLevels, 0, MaxDemoBloomLevels);
+			// Extraction
+			ImGui::Combo("Extraction Type", &bloomOptions.BloomExtractType, "Remainder\0Threshold Ratio\0Luminance");
 			ImGui::SliderFloat("Bloom Threshold", &bloomOptions.BloomThreshold, 0.0f, 1.0f);
-			if(ImGui::SliderFloat("Bloom Intensity", &bloomOptions.BloomLevelIntensities[0], 0.0f, 1.0f))
+			ImGui::Spacing();
+
+			// Levels
+			ImGui::SliderInt("Bloom Levels", &bloomOptions.CurrentBloomLevels, 0, MaxDemoBloomLevels);
+			ImGui::Checkbox("Separate Intensities Per Level", &bloomOptions.SeparateIntensityPerLevel);
+			if (bloomOptions.SeparateIntensityPerLevel)
+			{
+				for (int i = 0; i < MaxDemoBloomLevels; i++)
+					ImGui::SliderFloat(("Level " + std::to_string(i)).c_str(), &bloomOptions.BloomLevelIntensities[i], 0.0f, 1.0f);
+			}
+			else
+			{
+				ImGui::SliderFloat("Bloom Intensity", &bloomOptions.BloomLevelIntensities[0], 0.0f, 1.0f);
 				for (int i = 1; i < MaxDemoBloomLevels; i++)
 					bloomOptions.BloomLevelIntensities[i] = bloomOptions.BloomLevelIntensities[0];
+			}
+
+			ImGui::Spacing();
 			ImGui::Checkbox("Show Post Process Textures", &bloomOptions.ShowBloomTextures);
 
 			ImGui::TreePop();

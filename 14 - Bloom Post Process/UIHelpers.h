@@ -14,9 +14,11 @@ const int MaxDemoBloomLevels = 5;
 
 struct DemoBloomOptions
 {
+	int BloomExtractType;
 	int CurrentBloomLevels;
 	bool ShowBloomTextures;
 	float BloomThreshold;
+	bool SeparateIntensityPerLevel;
 	float BloomLevelIntensities[MaxDemoBloomLevels];
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> PostProcessSRV;
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> BloomExtractSRV;
