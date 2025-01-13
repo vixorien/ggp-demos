@@ -5,6 +5,7 @@
 #include "PathHelpers.h"
 #include "Window.h"
 #include "UIHelpers.h"
+#include "AssetPath.h"
 
 #include "ImGui/imgui.h"
 #include "ImGui/imgui_impl_dx11.h"
@@ -121,40 +122,40 @@ void Game::LoadAssetsAndCreateEntities()
 
 	// Quick pre-processor macro for simplifying texture loading calls below
 #define LoadTexture(path, srv) CreateWICTextureFromFile(Graphics::Device.Get(), Graphics::Context.Get(), FixPath(path).c_str(), 0, srv.GetAddressOf());
-	LoadTexture(L"../../../Assets/Textures/PBR/cobblestone_albedo.png", cobbleA);
-	LoadTexture(L"../../../Assets/Textures/PBR/cobblestone_normals.png", cobbleN);
-	LoadTexture(L"../../../Assets/Textures/PBR/cobblestone_roughness.png", cobbleR);
-	LoadTexture(L"../../../Assets/Textures/PBR/cobblestone_metal.png", cobbleM);
+	LoadTexture(AssetPath + L"Textures/PBR/cobblestone_albedo.png", cobbleA);
+	LoadTexture(AssetPath + L"Textures/PBR/cobblestone_normals.png", cobbleN);
+	LoadTexture(AssetPath + L"Textures/PBR/cobblestone_roughness.png", cobbleR);
+	LoadTexture(AssetPath + L"Textures/PBR/cobblestone_metal.png", cobbleM);
 
-	LoadTexture(L"../../../Assets/Textures/PBR/floor_albedo.png", floorA);
-	LoadTexture(L"../../../Assets/Textures/PBR/floor_normals.png", floorN);
-	LoadTexture(L"../../../Assets/Textures/PBR/floor_roughness.png", floorR);
-	LoadTexture(L"../../../Assets/Textures/PBR/floor_metal.png", floorM);
+	LoadTexture(AssetPath + L"Textures/PBR/floor_albedo.png", floorA);
+	LoadTexture(AssetPath + L"Textures/PBR/floor_normals.png", floorN);
+	LoadTexture(AssetPath + L"Textures/PBR/floor_roughness.png", floorR);
+	LoadTexture(AssetPath + L"Textures/PBR/floor_metal.png", floorM);
 
-	LoadTexture(L"../../../Assets/Textures/PBR/paint_albedo.png", paintA);
-	LoadTexture(L"../../../Assets/Textures/PBR/paint_normals.png", paintN);
-	LoadTexture(L"../../../Assets/Textures/PBR/paint_roughness.png", paintR);
-	LoadTexture(L"../../../Assets/Textures/PBR/paint_metal.png", paintM);
+	LoadTexture(AssetPath + L"Textures/PBR/paint_albedo.png", paintA);
+	LoadTexture(AssetPath + L"Textures/PBR/paint_normals.png", paintN);
+	LoadTexture(AssetPath + L"Textures/PBR/paint_roughness.png", paintR);
+	LoadTexture(AssetPath + L"Textures/PBR/paint_metal.png", paintM);
 
-	LoadTexture(L"../../../Assets/Textures/PBR/scratched_albedo.png", scratchedA);
-	LoadTexture(L"../../../Assets/Textures/PBR/scratched_normals.png", scratchedN);
-	LoadTexture(L"../../../Assets/Textures/PBR/scratched_roughness.png", scratchedR);
-	LoadTexture(L"../../../Assets/Textures/PBR/scratched_metal.png", scratchedM);
+	LoadTexture(AssetPath + L"Textures/PBR/scratched_albedo.png", scratchedA);
+	LoadTexture(AssetPath + L"Textures/PBR/scratched_normals.png", scratchedN);
+	LoadTexture(AssetPath + L"Textures/PBR/scratched_roughness.png", scratchedR);
+	LoadTexture(AssetPath + L"Textures/PBR/scratched_metal.png", scratchedM);
 
-	LoadTexture(L"../../../Assets/Textures/PBR/bronze_albedo.png", bronzeA);
-	LoadTexture(L"../../../Assets/Textures/PBR/bronze_normals.png", bronzeN);
-	LoadTexture(L"../../../Assets/Textures/PBR/bronze_roughness.png", bronzeR);
-	LoadTexture(L"../../../Assets/Textures/PBR/bronze_metal.png", bronzeM);
+	LoadTexture(AssetPath + L"Textures/PBR/bronze_albedo.png", bronzeA);
+	LoadTexture(AssetPath + L"Textures/PBR/bronze_normals.png", bronzeN);
+	LoadTexture(AssetPath + L"Textures/PBR/bronze_roughness.png", bronzeR);
+	LoadTexture(AssetPath + L"Textures/PBR/bronze_metal.png", bronzeM);
 
-	LoadTexture(L"../../../Assets/Textures/PBR/rough_albedo.png", roughA);
-	LoadTexture(L"../../../Assets/Textures/PBR/rough_normals.png", roughN);
-	LoadTexture(L"../../../Assets/Textures/PBR/rough_roughness.png", roughR);
-	LoadTexture(L"../../../Assets/Textures/PBR/rough_metal.png", roughM);
+	LoadTexture(AssetPath + L"Textures/PBR/rough_albedo.png", roughA);
+	LoadTexture(AssetPath + L"Textures/PBR/rough_normals.png", roughN);
+	LoadTexture(AssetPath + L"Textures/PBR/rough_roughness.png", roughR);
+	LoadTexture(AssetPath + L"Textures/PBR/rough_metal.png", roughM);
 
-	LoadTexture(L"../../../Assets/Textures/PBR/wood_albedo.png", woodA);
-	LoadTexture(L"../../../Assets/Textures/PBR/wood_normals.png", woodN);
-	LoadTexture(L"../../../Assets/Textures/PBR/wood_roughness.png", woodR);
-	LoadTexture(L"../../../Assets/Textures/PBR/wood_metal.png", woodM);
+	LoadTexture(AssetPath + L"Textures/PBR/wood_albedo.png", woodA);
+	LoadTexture(AssetPath + L"Textures/PBR/wood_normals.png", woodN);
+	LoadTexture(AssetPath + L"Textures/PBR/wood_roughness.png", woodR);
+	LoadTexture(AssetPath + L"Textures/PBR/wood_metal.png", woodM);
 #undef LoadTexture
 
 
@@ -167,13 +168,13 @@ void Game::LoadAssetsAndCreateEntities()
 	std::shared_ptr<SimplePixelShader> skyPS = std::make_shared<SimplePixelShader>(Graphics::Device, Graphics::Context, FixPath(L"SkyPS.cso").c_str());
 
 	// Load 3D models	
-	std::shared_ptr<Mesh> cubeMesh = std::make_shared<Mesh>("Cube", FixPath(L"../../../Assets/Meshes/cube.obj").c_str());
-	std::shared_ptr<Mesh> cylinderMesh = std::make_shared<Mesh>("Cylinder", FixPath(L"../../../Assets/Meshes/cylinder.obj").c_str());
-	std::shared_ptr<Mesh> helixMesh = std::make_shared<Mesh>("Helix", FixPath(L"../../../Assets/Meshes/helix.obj").c_str());
-	std::shared_ptr<Mesh> sphereMesh = std::make_shared<Mesh>("Sphere", FixPath(L"../../../Assets/Meshes/sphere.obj").c_str());
-	std::shared_ptr<Mesh> torusMesh = std::make_shared<Mesh>("Torus", FixPath(L"../../../Assets/Meshes/torus.obj").c_str());
-	std::shared_ptr<Mesh> quadMesh = std::make_shared<Mesh>("Quad", FixPath(L"../../../Assets/Meshes/quad.obj").c_str());
-	std::shared_ptr<Mesh> quad2sidedMesh = std::make_shared<Mesh>("Double-Sided Quad", FixPath(L"../../../Assets/Meshes/quad_double_sided.obj").c_str());
+	std::shared_ptr<Mesh> cubeMesh = std::make_shared<Mesh>("Cube", FixPath(AssetPath + L"Meshes/cube.obj").c_str());
+	std::shared_ptr<Mesh> cylinderMesh = std::make_shared<Mesh>("Cylinder", FixPath(AssetPath + L"Meshes/cylinder.obj").c_str());
+	std::shared_ptr<Mesh> helixMesh = std::make_shared<Mesh>("Helix", FixPath(AssetPath + L"Meshes/helix.obj").c_str());
+	std::shared_ptr<Mesh> sphereMesh = std::make_shared<Mesh>("Sphere", FixPath(AssetPath + L"Meshes/sphere.obj").c_str());
+	std::shared_ptr<Mesh> torusMesh = std::make_shared<Mesh>("Torus", FixPath(AssetPath + L"Meshes/torus.obj").c_str());
+	std::shared_ptr<Mesh> quadMesh = std::make_shared<Mesh>("Quad", FixPath(AssetPath + L"Meshes/quad.obj").c_str());
+	std::shared_ptr<Mesh> quad2sidedMesh = std::make_shared<Mesh>("Double-Sided Quad", FixPath(AssetPath + L"Meshes/quad_double_sided.obj").c_str());
 
 	// Add all meshes to vector
 	meshes.insert(meshes.end(), { cubeMesh, cylinderMesh, helixMesh, sphereMesh, torusMesh, quadMesh, quad2sidedMesh });
@@ -181,12 +182,12 @@ void Game::LoadAssetsAndCreateEntities()
 
 	// Create the sky
 	sky = std::make_shared<Sky>(
-		FixPath(L"../../../Assets/Skies/Clouds Blue/right.png").c_str(),
-		FixPath(L"../../../Assets/Skies/Clouds Blue/left.png").c_str(),
-		FixPath(L"../../../Assets/Skies/Clouds Blue/up.png").c_str(),
-		FixPath(L"../../../Assets/Skies/Clouds Blue/down.png").c_str(),
-		FixPath(L"../../../Assets/Skies/Clouds Blue/front.png").c_str(),
-		FixPath(L"../../../Assets/Skies/Clouds Blue/back.png").c_str(),
+		FixPath(AssetPath + L"Skies/Clouds Blue/right.png").c_str(),
+		FixPath(AssetPath + L"Skies/Clouds Blue/left.png").c_str(),
+		FixPath(AssetPath + L"Skies/Clouds Blue/up.png").c_str(),
+		FixPath(AssetPath + L"Skies/Clouds Blue/down.png").c_str(),
+		FixPath(AssetPath + L"Skies/Clouds Blue/front.png").c_str(),
+		FixPath(AssetPath + L"Skies/Clouds Blue/back.png").c_str(),
 		cubeMesh,
 		skyVS,
 		skyPS,

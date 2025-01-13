@@ -186,6 +186,7 @@
     <ClCompile Include="UIHelpers.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\Common\AssetPath.h" />
     <ClInclude Include="..\Common\Camera.h" />
     <ClInclude Include="..\Common\Graphics.h" />
     <ClInclude Include="..\Common\ImGui\imconfig.h" />

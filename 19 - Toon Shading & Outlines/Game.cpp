@@ -5,6 +5,7 @@
 #include "PathHelpers.h"
 #include "Window.h"
 #include "UIHelpers.h"
+#include "AssetPath.h"
 
 #include "ImGui/imgui.h"
 #include "ImGui/imgui_impl_dx11.h"
@@ -125,16 +126,16 @@ void Game::LoadAssetsAndCreateEntities()
 
 	// Quick pre-processor macro for simplifying texture loading calls below
 #define LoadTexture(path, srv) CreateWICTextureFromFile(Graphics::Device.Get(), Graphics::Context.Get(), FixPath(path).c_str(), 0, srv.GetAddressOf());
-	LoadTexture(L"../../../Assets/Textures/cushion.png", cushionA);
-	LoadTexture(L"../../../Assets/Textures/cushion_normals.png", cushionN);
-	LoadTexture(L"../../../Assets/Textures/PBR/crate_wood_albedo.png", crateA);
-	LoadTexture(L"../../../Assets/Textures/mando.png", mandoA);
-	LoadTexture(L"../../../Assets/Textures/container.png", containerA);
+	LoadTexture(AssetPath + L"Textures/cushion.png", cushionA);
+	LoadTexture(AssetPath + L"Textures/cushion_normals.png", cushionN);
+	LoadTexture(AssetPath + L"Textures/PBR/crate_wood_albedo.png", crateA);
+	LoadTexture(AssetPath + L"Textures/mando.png", mandoA);
+	LoadTexture(AssetPath + L"Textures/container.png", containerA);
 
-	LoadTexture(L"../../../Assets/Textures/Ramps/toonRamp1.png", toonRamp1);
-	LoadTexture(L"../../../Assets/Textures/Ramps/toonRamp2.png", toonRamp2);
-	LoadTexture(L"../../../Assets/Textures/Ramps/toonRamp3.png", toonRamp3);
-	LoadTexture(L"../../../Assets/Textures/Ramps/toonRampSpecular.png", specularRamp);
+	LoadTexture(AssetPath + L"Textures/Ramps/toonRamp1.png", toonRamp1);
+	LoadTexture(AssetPath + L"Textures/Ramps/toonRamp2.png", toonRamp2);
+	LoadTexture(AssetPath + L"Textures/Ramps/toonRamp3.png", toonRamp3);
+	LoadTexture(AssetPath + L"Textures/Ramps/toonRampSpecular.png", specularRamp);
 #undef LoadTexture
 
 	// Load shaders (some are saved for later)
@@ -152,13 +153,13 @@ void Game::LoadAssetsAndCreateEntities()
 	std::shared_ptr<SimplePixelShader> skyPS = std::make_shared<SimplePixelShader>(Graphics::Device, Graphics::Context, FixPath(L"SkyPS.cso").c_str());
 
 	// Load 3D models	
-	quadMesh = std::make_shared<Mesh>("Quad", FixPath(L"../../../Assets/Meshes/quad.obj").c_str());
-	std::shared_ptr<Mesh> cubeMesh = std::make_shared<Mesh>("Cube", FixPath(L"../../../Assets/Meshes/cube.obj").c_str());
-	std::shared_ptr<Mesh> sphereMesh = std::make_shared<Mesh>("Sphere", FixPath(L"../../../Assets/Meshes/sphere.obj").c_str());
-	std::shared_ptr<Mesh> torusMesh = std::make_shared<Mesh>("Torus", FixPath(L"../../../Assets/Meshes/torus.obj").c_str());
-	std::shared_ptr<Mesh> crateMesh = std::make_shared<Mesh>("Crate", FixPath(L"../../../Assets/Meshes/crate_wood.obj").c_str());
-	std::shared_ptr<Mesh> mandoMesh = std::make_shared<Mesh>("Mando", FixPath(L"../../../Assets/Meshes/mando.obj").c_str());
-	std::shared_ptr<Mesh> containerMesh = std::make_shared<Mesh>("Container", FixPath(L"../../../Assets/Meshes/container.obj").c_str());
+	quadMesh = std::make_shared<Mesh>("Quad", FixPath(AssetPath + L"Meshes/quad.obj").c_str());
+	std::shared_ptr<Mesh> cubeMesh = std::make_shared<Mesh>("Cube", FixPath(AssetPath + L"Meshes/cube.obj").c_str());
+	std::shared_ptr<Mesh> sphereMesh = std::make_shared<Mesh>("Sphere", FixPath(AssetPath + L"Meshes/sphere.obj").c_str());
+	std::shared_ptr<Mesh> torusMesh = std::make_shared<Mesh>("Torus", FixPath(AssetPath + L"Meshes/torus.obj").c_str());
+	std::shared_ptr<Mesh> crateMesh = std::make_shared<Mesh>("Crate", FixPath(AssetPath + L"Meshes/crate_wood.obj").c_str());
+	std::shared_ptr<Mesh> mandoMesh = std::make_shared<Mesh>("Mando", FixPath(AssetPath + L"Meshes/mando.obj").c_str());
+	std::shared_ptr<Mesh> containerMesh = std::make_shared<Mesh>("Container", FixPath(AssetPath + L"Meshes/container.obj").c_str());
 
 	// Add all meshes to vector
 	meshes.insert(meshes.end(), { quadMesh, cubeMesh, sphereMesh, torusMesh, crateMesh, mandoMesh, containerMesh });
@@ -166,12 +167,12 @@ void Game::LoadAssetsAndCreateEntities()
 
 	// Create the sky
 	sky = std::make_shared<Sky>(
-		FixPath(L"../../../Assets/Skies/Clouds Blue/right.png").c_str(),
-		FixPath(L"../../../Assets/Skies/Clouds Blue/left.png").c_str(),
-		FixPath(L"../../../Assets/Skies/Clouds Blue/up.png").c_str(),
-		FixPath(L"../../../Assets/Skies/Clouds Blue/down.png").c_str(),
-		FixPath(L"../../../Assets/Skies/Clouds Blue/front.png").c_str(),
-		FixPath(L"../../../Assets/Skies/Clouds Blue/back.png").c_str(),
+		FixPath(AssetPath + L"Skies/Clouds Blue/right.png").c_str(),
+		FixPath(AssetPath + L"Skies/Clouds Blue/left.png").c_str(),
+		FixPath(AssetPath + L"Skies/Clouds Blue/up.png").c_str(),
+		FixPath(AssetPath + L"Skies/Clouds Blue/down.png").c_str(),
+		FixPath(AssetPath + L"Skies/Clouds Blue/front.png").c_str(),
+		FixPath(AssetPath + L"Skies/Clouds Blue/back.png").c_str(),
 		cubeMesh,
 		skyVS,
 		skyPS,
