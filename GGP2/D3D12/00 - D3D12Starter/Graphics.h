@@ -16,7 +16,7 @@ namespace Graphics
 
 	// --- GLOBAL VARS ---
 
-	// Primary D3D11 API objects
+	// Primary D3D12 API objects
 	inline Microsoft::WRL::ComPtr<ID3D12Device>		Device;
 	inline Microsoft::WRL::ComPtr<IDXGISwapChain>	SwapChain;
 
