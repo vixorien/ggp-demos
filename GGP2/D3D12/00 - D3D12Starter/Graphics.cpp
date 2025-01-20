@@ -1,5 +1,4 @@
 #include "Graphics.h"
-#include <dxgi1_6.h>
 
 // Tell the drivers to use high-performance GPU in multi-GPU systems (like laptops)
 extern "C"
@@ -609,8 +608,26 @@ void Graphics::PrintDebugMessages()
 		// Print and clean up memory
 		if (message)
 		{
-			printf("%s\n", message->pDescription);
+			// Color code based on severity
+			switch (message->Severity)
+			{
+			case D3D12_MESSAGE_SEVERITY_CORRUPTION:
+			case D3D12_MESSAGE_SEVERITY_ERROR:
+				printf("\x1B[91m"); break; // RED
+
+			case D3D12_MESSAGE_SEVERITY_WARNING:
+				printf("\x1B[93m"); break; // YELLOW
+
+			case D3D12_MESSAGE_SEVERITY_INFO:
+			case D3D12_MESSAGE_SEVERITY_MESSAGE:
+				printf("\x1B[96m"); break; // CYAN
+			}
+
+			printf("%s\n\n", message->pDescription);
 			free(message);
+
+			// Reset color
+			printf("\x1B[0m");
 		}
 	}
 
