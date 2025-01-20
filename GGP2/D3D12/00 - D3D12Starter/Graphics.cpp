@@ -59,16 +59,6 @@ HRESULT Graphics::Initialize(unsigned int windowWidth, unsigned int windowHeight
 	// the device doesn't support screen tearing
 	vsyncDesired = vsyncIfPossible;
 
-#if defined(DEBUG) || defined(_DEBUG)
-	// If we're in debug mode in visual studio, we also
-	// want to enable the DX12 debug layer to see some
-	// errors and warnings in Visual Studio's output window
-	// when things go wrong!
-	ID3D12Debug* debugController;
-	D3D12GetDebugInterface(IID_PPV_ARGS(&debugController));
-	debugController->EnableDebugLayer();
-#endif
-
 	// Determine if screen tearing ("vsync off") is available
 	// - This is necessary due to variable refresh rate displays
 	Microsoft::WRL::ComPtr<IDXGIFactory5> factory;
@@ -85,11 +75,17 @@ HRESULT Graphics::Initialize(unsigned int windowWidth, unsigned int windowHeight
 		supportsTearing = SUCCEEDED(featureCheck) && tearingSupported;
 	}
 
-	// This will hold options for DirectX initialization
-	unsigned int deviceFlags = 0;
+	// If we're in debug mode in visual studio, we also
+	// want to enable the D3D12 debug layer to see some
+	// errors and warnings in Visual Studio's output window
+	// when things go wrong!
+#if defined(DEBUG) || defined(_DEBUG)
+	ID3D12Debug* debugController;
+	D3D12GetDebugInterface(IID_PPV_ARGS(&debugController));
+	debugController->EnableDebugLayer();
+#endif
 
-
-	// Create the DX 12 device and check which feature level
+	// Create the D3D12 device and check which feature level
 	// we can reliably use in our application
 	{
 		HRESULT createResult = D3D12CreateDevice(
@@ -123,7 +119,7 @@ HRESULT Graphics::Initialize(unsigned int windowWidth, unsigned int windowHeight
 	Device->QueryInterface(IID_PPV_ARGS(&InfoQueue));
 #endif
 
-	// Set up DX12 command allocator / queue / list,
+	// Set up D3D12 command allocator / queue / list,
 	// which are necessary pieces for issuing standard API calls
 	{
 		// Set up allocator
@@ -131,19 +127,19 @@ HRESULT Graphics::Initialize(unsigned int windowWidth, unsigned int windowHeight
 			D3D12_COMMAND_LIST_TYPE_DIRECT,
 			IID_PPV_ARGS(CommandAllocator.GetAddressOf()));
 
-	// Command queue
-	D3D12_COMMAND_QUEUE_DESC qDesc = {};
-	qDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
-	qDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
-	Device->CreateCommandQueue(&qDesc, IID_PPV_ARGS(CommandQueue.GetAddressOf()));
+		// Command queue
+		D3D12_COMMAND_QUEUE_DESC qDesc = {};
+		qDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
+		qDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
+		Device->CreateCommandQueue(&qDesc, IID_PPV_ARGS(CommandQueue.GetAddressOf()));
 
-	// Command list
-	Device->CreateCommandList(
-		0,								// Which physical GPU will handle these tasks?  0 for single GPU setup
-		D3D12_COMMAND_LIST_TYPE_DIRECT,	// Type of command list - direct is for standard API calls
-		CommandAllocator.Get(),			// The allocator for this list
-		0,								// Initial pipeline state - none for now
-		IID_PPV_ARGS(CommandList.GetAddressOf()));
+		// Command list
+		Device->CreateCommandList(
+			0,								// Which physical GPU will handle these tasks?  0 for single GPU setup
+			D3D12_COMMAND_LIST_TYPE_DIRECT,	// Type of command list - direct is for standard API calls
+			CommandAllocator.Get(),			// The allocator for this list
+			0,								// Initial pipeline state - none for now
+			IID_PPV_ARGS(CommandList.GetAddressOf()));
 	}
 
 	// Swap chain creation
@@ -326,7 +322,6 @@ void Graphics::ResizeBuffers(unsigned int width, unsigned int height)
 	// get it at applications start up
 	SIZE_T RTVDescriptorSize = (SIZE_T)Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
-
 	// Go through the steps to setup the back buffers again
 	// Note: This assumes the descriptor heap already exists
 	// and that the rtvDescriptorSize was previously set
@@ -476,7 +471,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> Graphics::CreateStaticBuffer(size_t dataS
 		&props,
 		D3D12_HEAP_FLAG_NONE,
 		&desc,
-		D3D12_RESOURCE_STATE_COPY_DEST, // Will eventually be "common", but we're copying to it first!
+		D3D12_RESOURCE_STATE_COPY_DEST,
 		0,
 		IID_PPV_ARGS(buffer.GetAddressOf()));
 
@@ -485,7 +480,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> Graphics::CreateStaticBuffer(size_t dataS
 	uploadProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
 	uploadProps.CreationNodeMask = 1;
 	uploadProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-	uploadProps.Type = D3D12_HEAP_TYPE_UPLOAD; // Can only ever be Generic_Read state
+	uploadProps.Type = D3D12_HEAP_TYPE_UPLOAD;
 	uploadProps.VisibleNodeMask = 1;
 
 	Microsoft::WRL::ComPtr<ID3D12Resource> uploadHeap;
@@ -532,7 +527,6 @@ Microsoft::WRL::ComPtr<ID3D12Resource> Graphics::CreateStaticBuffer(size_t dataS
 // 
 // Always wait before reseting command allocator, as it should not
 // be reset while the GPU is processing a command list
-// See: https://docs.microsoft.com/en-us/windows/desktop/api/d3d12/nf-d3d12-id3d12commandallocator-reset
 // --------------------------------------------------------
 void Graphics::ResetAllocatorAndCommandList()
 {
