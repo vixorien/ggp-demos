@@ -20,9 +20,6 @@ using namespace DirectX;
 // --------------------------------------------------------
 void Game::Initialize()
 {
-	// Helper methods for loading shaders, creating some basic
-	// geometry to draw and some simple camera matrices.
-	//  - You'll be expanding and/or replacing these later
 	CreateRootSigAndPipelineState();
 	CreateGeometry();
 }
@@ -370,7 +367,6 @@ void Game::Draw(float deltaTime, float totalTime)
 		// Wait for the GPU to be done and then reset the command list & allocator
 		Graphics::WaitForGPU();
 		Graphics::ResetAllocatorAndCommandList();
-		
 	}
 }
 
