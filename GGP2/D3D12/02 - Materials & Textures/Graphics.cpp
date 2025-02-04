@@ -1,5 +1,10 @@
 #include "Graphics.h"
 
+#include "WICTextureLoader.h"
+#include "ResourceUploadBatch.h"
+
+#include <vector>
+
 // Tell the drivers to use high-performance GPU in multi-GPU systems (like laptops)
 extern "C"
 {
@@ -25,19 +30,24 @@ namespace Graphics
 		// Descriptor heap management
 		SIZE_T cbvSrvDescriptorHeapIncrementSize = 0;
 		unsigned int cbvDescriptorOffset = 0;
+		unsigned int srvDescriptorOffset = MaxConstantBuffers; // Assume first SRV will be after all possible CBVs
 
 		// CB upload heap management
 		UINT64 cbUploadHeapSizeInBytes = 0;
 		UINT64 cbUploadHeapOffsetInBytes = 0;
 		void* cbUploadHeapStartAddress = 0;
+
+		// Textures
+		std::vector<Microsoft::WRL::ComPtr<ID3D12Resource>> textures;
+		std::vector<Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>> cpuSideTextureDescriptorHeaps;
 	}
 }
 
 // Getters
 bool Graphics::VsyncState() { return vsyncDesired || !supportsTearing || isFullscreen; }
 unsigned int Graphics::SwapChainIndex() { return currentBackBufferIndex; }
-std::wstring Graphics::APIName() 
-{ 
+std::wstring Graphics::APIName()
+{
 	switch (featureLevel)
 	{
 	case D3D_FEATURE_LEVEL_11_0: return L"D3D11";
@@ -101,7 +111,7 @@ HRESULT Graphics::Initialize(unsigned int windowWidth, unsigned int windowHeight
 			0,						// Not explicitly specifying which adapter (GPU)
 			D3D_FEATURE_LEVEL_11_0,	// MINIMUM feature level - NOT the level we'll necessarily turn on
 			IID_PPV_ARGS(Device.GetAddressOf()));	// Macro to grab necessary IDs of device
-		if (FAILED(createResult)) 
+		if (FAILED(createResult))
 			return createResult;
 
 		// Now that we have a device, determine the maximum
@@ -183,7 +193,7 @@ HRESULT Graphics::Initialize(unsigned int windowWidth, unsigned int windowHeight
 	// descriptor heap?  This differs per GPU so we need to 
 	// get it at applications start up
 	SIZE_T RTVDescriptorSize = (SIZE_T)Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-	
+
 	// Create back buffers
 	{
 		// First create a descriptor heap for RTVs
@@ -273,72 +283,72 @@ HRESULT Graphics::Initialize(unsigned int windowWidth, unsigned int windowHeight
 		WaitFenceCounter = 0;
 	}
 
-// Create the CBV/SRV descriptor heap
-{
-	// Ask the device for the increment size for CBV descriptor heaps
-	// This can vary by GPU so we need to query for it
-	cbvSrvDescriptorHeapIncrementSize = (SIZE_T)Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	// Create the CBV/SRV descriptor heap
+	{
+		// Ask the device for the increment size for CBV descriptor heaps
+		// This can vary by GPU so we need to query for it
+		cbvSrvDescriptorHeapIncrementSize = (SIZE_T)Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 
-	// Describe the descriptor heap we want to make
-	D3D12_DESCRIPTOR_HEAP_DESC dhDesc = {};
-	dhDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE; // Shaders can see these!
-	dhDesc.NodeMask = 0; // Node here means physical GPU - we only have 1 so its index is 0
-	dhDesc.NumDescriptors = MaxConstantBuffers; // How many descriptors will we need?
-	dhDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV; // This heap can store CBVs, SRVs and UAVs
+		// Describe the descriptor heap we want to make
+		D3D12_DESCRIPTOR_HEAP_DESC dhDesc = {};
+		dhDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE; // Shaders can see these!
+		dhDesc.NodeMask = 0; // Node here means physical GPU - we only have 1 so its index is 0
+		dhDesc.NumDescriptors = MaxConstantBuffers + MaxTextureDescriptors; // How many descriptors will we need?  **Now including texture descriptors (SRVs)!**
+		dhDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV; // This heap can store CBVs, SRVs and UAVs
 
-	Device->CreateDescriptorHeap(&dhDesc, IID_PPV_ARGS(CBVSRVDescriptorHeap.GetAddressOf()));
+		Device->CreateDescriptorHeap(&dhDesc, IID_PPV_ARGS(CBVSRVDescriptorHeap.GetAddressOf()));
 
-	// Assume the first CBV will be at the beginning of the heap
-	// This will increase as we use more CBVs and will wrap back to 0
-	cbvDescriptorOffset = 0;
-}
+		// Assume the first CBV will be at the beginning of the heap
+		// This will increase as we use more CBVs and will wrap back to 0
+		cbvDescriptorOffset = 0;
+	}
 
-// Create an upload heap for constant buffer data
-{
-	// This heap MUST have a size that is a multiple of 256
-	// We'll support up to the max number of CBs if they're
-	// all 256 bytes or less, or fewer overall CBs if they're larger
-	cbUploadHeapSizeInBytes = (UINT64)MaxConstantBuffers * 256;
+	// Create an upload heap for constant buffer data
+	{
+		// This heap MUST have a size that is a multiple of 256
+		// We'll support up to the max number of CBs if they're
+		// all 256 bytes or less, or fewer overall CBs if they're larger
+		cbUploadHeapSizeInBytes = (UINT64)MaxConstantBuffers * 256;
 
-	// Assume the first CB will start at the beginning of the heap
-	// This offset changes as we use more CBs, and wraps around when full
-	cbUploadHeapOffsetInBytes = 0;
+		// Assume the first CB will start at the beginning of the heap
+		// This offset changes as we use more CBs, and wraps around when full
+		cbUploadHeapOffsetInBytes = 0;
 
-	// Create the upload heap for our constant buffer
-	D3D12_HEAP_PROPERTIES heapProps = {};
-	heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-	heapProps.CreationNodeMask = 1;
-	heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-	heapProps.Type = D3D12_HEAP_TYPE_UPLOAD; // Upload heap since we'll be copying often!
-	heapProps.VisibleNodeMask = 1;
+		// Create the upload heap for our constant buffer
+		D3D12_HEAP_PROPERTIES heapProps = {};
+		heapProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+		heapProps.CreationNodeMask = 1;
+		heapProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+		heapProps.Type = D3D12_HEAP_TYPE_UPLOAD; // Upload heap since we'll be copying often!
+		heapProps.VisibleNodeMask = 1;
 
-	// Fill out description
-	D3D12_RESOURCE_DESC resDesc = {};
-	resDesc.Alignment = 0;
-	resDesc.DepthOrArraySize = 1;
-	resDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
-	resDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
-	resDesc.Format = DXGI_FORMAT_UNKNOWN;
-	resDesc.Height = 1;
-	resDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
-	resDesc.MipLevels = 1;
-	resDesc.SampleDesc.Count = 1;
-	resDesc.SampleDesc.Quality = 0;
-	resDesc.Width = cbUploadHeapSizeInBytes; // Must be 256 byte aligned!
+		// Fill out description
+		D3D12_RESOURCE_DESC resDesc = {};
+		resDesc.Alignment = 0;
+		resDesc.DepthOrArraySize = 1;
+		resDesc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+		resDesc.Flags = D3D12_RESOURCE_FLAG_NONE;
+		resDesc.Format = DXGI_FORMAT_UNKNOWN;
+		resDesc.Height = 1;
+		resDesc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+		resDesc.MipLevels = 1;
+		resDesc.SampleDesc.Count = 1;
+		resDesc.SampleDesc.Quality = 0;
+		resDesc.Width = cbUploadHeapSizeInBytes; // Must be 256 byte aligned!
 
-	// Create a constant buffer resource heap
-	Device->CreateCommittedResource(
-		&heapProps,
-		D3D12_HEAP_FLAG_NONE,
-		&resDesc,
-		D3D12_RESOURCE_STATE_GENERIC_READ,
-		0,
-		IID_PPV_ARGS(CBUploadHeap.GetAddressOf()));
+		// Create a constant buffer resource heap
+		Device->CreateCommittedResource(
+			&heapProps,
+			D3D12_HEAP_FLAG_NONE,
+			&resDesc,
+			D3D12_RESOURCE_STATE_GENERIC_READ,
+			0,
+			IID_PPV_ARGS(CBUploadHeap.GetAddressOf()));
 
-	// Keep mapped!
-	D3D12_RANGE range{ 0, 0 };
-	CBUploadHeap->Map(0, &range, &cbUploadHeapStartAddress);
-}
+		// Keep mapped!
+		D3D12_RANGE range{ 0, 0 };
+		CBUploadHeap->Map(0, &range, &cbUploadHeapStartAddress);
+	}
 
 	// Wait for the GPU before we proceed
 	WaitForGPU();
@@ -489,6 +499,60 @@ void Graphics::AdvanceSwapChainIndex()
 
 
 // --------------------------------------------------------
+// Loads a texture using the DirectX Toolkit and creates a
+// non-shader-visible SRV descriptor heap to hold its SRV.  
+// The handle to this descriptor is returned so materials
+// can copy this texture's SRV to the overall heap later.
+// 
+// file - The image file to attempt to load
+// generateMips - Should mip maps be generated? (defaults to true)
+// --------------------------------------------------------
+D3D12_CPU_DESCRIPTOR_HANDLE Graphics::LoadTexture(const wchar_t* file, bool generateMips)
+{
+	// Helper function from DXTK for uploading a resource
+	// (like a texture) to the appropriate GPU memory
+	DirectX::ResourceUploadBatch upload(Device.Get());
+	upload.Begin();
+
+	// Attempt to create the texture
+	Microsoft::WRL::ComPtr<ID3D12Resource> texture;
+	DirectX::CreateWICTextureFromFile(Device.Get(), upload, file, texture.GetAddressOf(), generateMips);
+
+	// Perform the upload and wait for it to finish before returning the texture
+	auto finish = upload.End(CommandQueue.Get());
+	finish.wait();
+
+	// Now that we have the texture, add to our list and make a CPU-side descriptor heap
+	// just for this texture's SRV.  Note that it would probably be better to put all 
+	// texture SRVs into the same descriptor heap, but we don't know how many we'll need
+	// until they're all loaded and this is a quick and dirty implementation!
+	textures.push_back(texture);
+
+	// Create the CPU-SIDE descriptor heap for our descriptor
+	D3D12_DESCRIPTOR_HEAP_DESC dhDesc = {};
+	dhDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE; // Non-shader visible for CPU-side-only descriptor heap!
+	dhDesc.NodeMask = 0;
+	dhDesc.NumDescriptors = 1;
+	dhDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+
+	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descHeap;
+	Device->CreateDescriptorHeap(&dhDesc, IID_PPV_ARGS(descHeap.GetAddressOf()));
+
+	// Add to our list of heaps (to keep the resource alive)
+	cpuSideTextureDescriptorHeaps.push_back(descHeap);
+
+	// Create the SRV on this descriptor heap
+	// Note: Using a null description results in the "default" SRV (same format, all mips, all array slices, etc.)
+	D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = descHeap->GetCPUDescriptorHandleForHeapStart();
+	Device->CreateShaderResourceView(texture.Get(), 0, cpuHandle);
+
+	// Return the CPU descriptor handle, which can be used to
+	// copy the descriptor to a shader-visible heap later
+	return cpuHandle;
+}
+
+
+// --------------------------------------------------------
 // Helper for creating a static buffer that will get
 // data once and remain immutable
 // 
@@ -592,7 +656,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> Graphics::CreateStaticBuffer(size_t dataS
 	localList->Close();
 	ID3D12CommandList* list[] = { localList.Get() };
 	CommandQueue->ExecuteCommandLists(1, list);
-	
+
 	WaitForGPU();
 	return buffer;
 }
@@ -672,6 +736,33 @@ D3D12_GPU_DESCRIPTOR_HANDLE Graphics::FillNextConstantBufferAndGetGPUDescriptorH
 		// so it can be set as part of the root signature during drawing
 		return gpuHandle;
 	}
+}
+
+
+// --------------------------------------------------------
+// Copies one or more SRVs starting at the given CPU handle
+// to the final CBV/SRV descriptor heap, and returns
+// the GPU handle to the beginning of this section.
+// 
+// firstDescriptorToCopy - The handle to the first descriptor
+// numDescriptorsToCopy - How many to copy
+// --------------------------------------------------------
+D3D12_GPU_DESCRIPTOR_HANDLE Graphics::CopySRVsToDescriptorHeapAndGetGPUDescriptorHandle(D3D12_CPU_DESCRIPTOR_HANDLE firstDescriptorToCopy, unsigned int numDescriptorsToCopy)
+{
+	// Grab the actual heap start on both sides and offset to the next open SRV portion
+	D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = CBVSRVDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+	D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle = CBVSRVDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
+
+	cpuHandle.ptr += (SIZE_T)srvDescriptorOffset * cbvSrvDescriptorHeapIncrementSize;
+	gpuHandle.ptr += (SIZE_T)srvDescriptorOffset * cbvSrvDescriptorHeapIncrementSize;
+
+	// We know where to copy these descriptors, so copy all of them and remember the new offset
+	Device->CopyDescriptorsSimple(numDescriptorsToCopy, cpuHandle, firstDescriptorToCopy, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	srvDescriptorOffset += numDescriptorsToCopy;
+
+	// Pass back the GPU handle to the start of this section
+	// in the final CBV/SRV heap so the caller can use it later
+	return gpuHandle;
 }
 
 
