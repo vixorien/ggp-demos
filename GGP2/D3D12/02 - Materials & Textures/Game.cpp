@@ -525,7 +525,7 @@ void Game::Draw(float deltaTime, float totalTime)
 
 				// Set the SRV descriptor handle for this material's textures
 				// Note: This assumes that descriptor table 2 is for textures (as per our root sig)
-				Graphics::CommandList->SetGraphicsRootDescriptorTable(2, mat->GetFinalGPUHandleForTextures());
+				Graphics::CommandList->SetGraphicsRootDescriptorTable(2, mat->GetFinalGPUHandleForSRVs());
 			}
 
 			// Set up the data we intend to use for drawing this entity

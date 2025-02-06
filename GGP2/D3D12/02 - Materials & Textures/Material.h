@@ -22,7 +22,7 @@ public:
 	DirectX::XMFLOAT2 GetUVScale();
 	DirectX::XMFLOAT2 GetUVOffset();
 	DirectX::XMFLOAT3 GetColorTint();
-	D3D12_GPU_DESCRIPTOR_HANDLE GetFinalGPUHandleForTextures();
+	D3D12_GPU_DESCRIPTOR_HANDLE GetFinalGPUHandleForSRVs();
 
 	void SetPipelineState(Microsoft::WRL::ComPtr<ID3D12PipelineState> pipelineState);
 	void SetUVScale(DirectX::XMFLOAT2 scale);

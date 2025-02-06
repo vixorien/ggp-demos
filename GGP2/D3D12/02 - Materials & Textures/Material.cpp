@@ -24,7 +24,7 @@ Microsoft::WRL::ComPtr<ID3D12PipelineState> Material::GetPipelineState() { retur
 DirectX::XMFLOAT2 Material::GetUVScale() { return uvScale; }
 DirectX::XMFLOAT2 Material::GetUVOffset() { return uvOffset; }
 DirectX::XMFLOAT3 Material::GetColorTint() { return colorTint; }
-D3D12_GPU_DESCRIPTOR_HANDLE Material::GetFinalGPUHandleForTextures() { return finalGPUHandleForSRVs; }
+D3D12_GPU_DESCRIPTOR_HANDLE Material::GetFinalGPUHandleForSRVs() { return finalGPUHandleForSRVs; }
 
 
 // Setters
