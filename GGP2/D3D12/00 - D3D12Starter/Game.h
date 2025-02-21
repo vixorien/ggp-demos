@@ -7,13 +7,12 @@ class Game
 {
 public:
 	// Basic OOP setup
-	Game() = default;
+	Game();
 	~Game();
 	Game(const Game&) = delete; // Remove copy constructor
 	Game& operator=(const Game&) = delete; // Remove copy-assignment operator
 
 	// Primary functions
-	void Initialize();
 	void Update(float deltaTime, float totalTime);
 	void Draw(float deltaTime, float totalTime);
 	void OnResize();

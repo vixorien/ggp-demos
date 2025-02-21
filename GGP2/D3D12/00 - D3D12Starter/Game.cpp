@@ -15,10 +15,10 @@
 using namespace DirectX;
 
 // --------------------------------------------------------
-// Called once per program, the window and graphics API
+// The constructor is called after the window and graphics API
 // are initialized but before the game loop begins
 // --------------------------------------------------------
-void Game::Initialize()
+Game::Game()
 {
 	CreateRootSigAndPipelineState();
 	CreateGeometry();
