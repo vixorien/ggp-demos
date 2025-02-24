@@ -1,5 +1,6 @@
 #include <fstream>
 #include <vector>
+#include <stdexcept>
 
 #include "Mesh.h"
 #include "Graphics.h"
@@ -38,8 +39,8 @@ Mesh::Mesh(const char* name, const std::wstring& objFile) :
 
 	// Check for successful open
 	if (!obj.is_open())
-		return;
-
+		throw std::invalid_argument("Error opening file: Invalid file path or file is inaccessible");
+		
 	// Variables used while reading the file
 	std::vector<XMFLOAT3> positions;	// Positions from the file
 	std::vector<XMFLOAT3> normals;		// Normals from the file
