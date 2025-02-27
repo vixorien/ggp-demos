@@ -8,7 +8,7 @@
 
 struct MeshRaytracingData
 {
-	D3D12_GPU_DESCRIPTOR_HANDLE IndexbufferSRV{ };
+	D3D12_GPU_DESCRIPTOR_HANDLE IndexBufferSRV{ };
 	D3D12_GPU_DESCRIPTOR_HANDLE VertexBufferSRV{ };
 	Microsoft::WRL::ComPtr<ID3D12Resource> BLAS;
 	unsigned int HitGroupIndex = 0;

@@ -582,7 +582,7 @@ MeshRaytracingData RayTracing::CreateBottomLevelAccelerationStructureForMesh(Mes
 	// Note: These must come one after the other in the descriptor heap, and index must come first
 	//       This is due to the way we've set up the root signature (expects a table of these)
 	D3D12_CPU_DESCRIPTOR_HANDLE ib_cpu, vb_cpu;
-	Graphics::ReserveDescriptorHeapSlot(&ib_cpu, &raytracingData.IndexbufferSRV);
+	Graphics::ReserveDescriptorHeapSlot(&ib_cpu, &raytracingData.IndexBufferSRV);
 	Graphics::ReserveDescriptorHeapSlot(&vb_cpu, &raytracingData.VertexBufferSRV);
 
 	// Index buffer SRV
@@ -631,7 +631,7 @@ MeshRaytracingData RayTracing::CreateBottomLevelAccelerationStructureForMesh(Mes
 		tablePointer += ShaderTableRecordSize * raytracingData.HitGroupIndex; // Skip to this hit group
 		tablePointer += D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES; // Get past the identifier
 		tablePointer += sizeof(D3D12_GPU_DESCRIPTOR_HANDLE); // Skip first descriptor, which is for a CBV
-		memcpy(tablePointer, &raytracingData.IndexbufferSRV, sizeof(D3D12_GPU_DESCRIPTOR_HANDLE)); // Copy descriptor to table
+		memcpy(tablePointer, &raytracingData.IndexBufferSRV, sizeof(D3D12_GPU_DESCRIPTOR_HANDLE)); // Copy descriptor to table
 	}
 	ShaderTable->Unmap(0, 0);
 
@@ -685,7 +685,7 @@ void RayTracing::CreateTopLevelAccelerationStructureForScene(std::vector<std::sh
 		// - mesh index tells us which cbuffer
 		// - instance ID tells us which instance in that cbuffer
 		XMFLOAT3 c = scene[i]->GetMaterial()->GetColorTint();
-		entityData[meshBlasIndex].color[id.InstanceID] = XMFLOAT4(c.x, c.y, c.z, (float)((i + 1) % 2)); // Using alpha channel as "roughness"
+		entityData[meshBlasIndex].color[id.InstanceID] = XMFLOAT4(c.x, c.y, c.z, 1);
 
 		// On to the next instance for this mesh
 		instanceIDs[meshBlasIndex]++;
@@ -792,15 +792,6 @@ void RayTracing::CreateTopLevelAccelerationStructureForScene(std::vector<std::sh
 	}
 	ShaderTable->Unmap(0, 0);
 
-
-	//// All done - execute, wait and reset command list
-	//DXRCommandList->Close();
-
-	//ID3D12CommandList* lists[] = { DXRCommandList.Get() };
-	//Graphics::CommandQueue->ExecuteCommandLists(1, lists);
-
-	//Graphics::WaitForGPU();
-	//Graphics::ResetAllocatorAndCommandList(0);
 }
 
 

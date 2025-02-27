@@ -492,7 +492,7 @@ void RayTracing::ResizeOutputUAV(
 // NOTE: This demo assumes exactly one BLAS, so running this 
 // method more than once is not advised!
 // --------------------------------------------------------
-void RayTracing::CreateBLAS(std::shared_ptr<Mesh> mesh)
+void RayTracing::CreateBottomLevelAccelerationStructureForMesh(Mesh* mesh)
 {
 	// Don't bother if DXR isn't available
 	if (!dxrAvailable)
@@ -591,10 +591,9 @@ void RayTracing::CreateBLAS(std::shared_ptr<Mesh> mesh)
 
 	// We need to put this mesh's SRVs into the shader table
 	// - In a larger application, each unique mesh will need its own entry in the shader table!
+	unsigned char* tablePointer = 0;
+	ShaderTable->Map(0, 0, (void**)&tablePointer);
 	{
-		unsigned char* tablePointer = 0;
-		ShaderTable->Map(0, 0, (void**)&tablePointer);
-
 		// Get past the raygen and miss shaders in the shader table
 		tablePointer += ShaderTableRecordSize + ShaderTableRecordSize;
 
@@ -607,10 +606,9 @@ void RayTracing::CreateBLAS(std::shared_ptr<Mesh> mesh)
 			tablePointer,
 			&indexBufferSRV,
 			sizeof(D3D12_GPU_DESCRIPTOR_HANDLE));
-
-		// All done
-		ShaderTable->Unmap(0, 0);
 	}
+	// All done
+	ShaderTable->Unmap(0, 0);
 }
 
 
@@ -619,7 +617,7 @@ void RayTracing::CreateBLAS(std::shared_ptr<Mesh> mesh)
 // up of one or more BLAS instances, each with their own
 // unique transform.  This demo uses exactly one BLAS instance.
 // --------------------------------------------------------
-void RayTracing::CreateTLAS()
+void RayTracing::CreateTopLevelAccelerationStructureForScene()
 {
 	// Don't bother if DXR isn't available or the AS is finalized already
 	if (!dxrAvailable)
@@ -699,11 +697,7 @@ void RayTracing::CreateTLAS()
 
 
 	// All done - execute, wait and reset command list
-	DXRCommandList->Close();
-
-	ID3D12CommandList* lists[] = { DXRCommandList.Get() };
-	Graphics::CommandQueue->ExecuteCommandLists(1, lists);
-
+	Graphics::CloseAndExecuteCommandList();
 	Graphics::WaitForGPU();
 	Graphics::ResetAllocatorAndCommandList(0);
 }

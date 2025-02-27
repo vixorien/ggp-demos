@@ -148,20 +148,11 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="PixelShader.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="VertexShader.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="Raytracing.hlsl">
+    <FxCompile Include="RayTracing.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="Lighting.hlsli">
-      <Filter>Shaders</Filter>
-    </None>
     <None Include="packages.config" />
   </ItemGroup>
 </Project>

@@ -18,7 +18,7 @@ public:
 	D3D12_VERTEX_BUFFER_VIEW GetVertexBufferView();
 	D3D12_INDEX_BUFFER_VIEW GetIndexBufferView();
 	Microsoft::WRL::ComPtr<ID3D12Resource> GetVertexBuffer();
-		Microsoft::WRL::ComPtr<ID3D12Resource> GetIndexBuffer();
+	Microsoft::WRL::ComPtr<ID3D12Resource> GetIndexBuffer();
 	const char* GetName();
 	size_t GetIndexCount();
 	size_t GetVertexCount();

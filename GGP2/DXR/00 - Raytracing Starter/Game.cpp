@@ -52,6 +52,12 @@ void Game::Initialize()
 
 		ImGui_ImplDX12_Init(&info);
 	}
+
+	// Initialize raytracing
+	RayTracing::Initialize(
+		Window::Width(),
+		Window::Height(),
+		FixPath(L"RayTracing.cso"));
 	
 	// Create the camera
 	camera = std::make_shared<FPSCamera>(
@@ -67,18 +73,12 @@ void Game::Initialize()
 	// Load mesh(es)
 	sphereMesh = std::make_shared<Mesh>("Sphere", FixPath(AssetPath + L"Meshes/sphere.obj").c_str());
 
-	// Initialize raytracing
-	RayTracing::Initialize(
-		Window::Width(),
-		Window::Height(),
-		FixPath(L"Raytracing.cso"));
-
 	// Last step in raytracing setup is to create the accel structures,
 	// which require mesh data.  Currently just a single mesh is handled!
-	RayTracing::CreateBLAS(sphereMesh);
+	RayTracing::CreateBottomLevelAccelerationStructureForMesh(sphereMesh.get());
 
-	// Once we have all of the BLAS ready, we can make a TLAS
-	RayTracing::CreateTLAS();
+	// Once we have all of the BLASs ready, we can make a TLAS
+	RayTracing::CreateTopLevelAccelerationStructureForScene();
 
 	// Finalize any initialization and wait for the GPU
 	// before proceeding to the game loop
