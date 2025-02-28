@@ -136,14 +136,6 @@ void RayTracing::CreateRaytracingRootSignatures()
 
 	// Create a local root signature enabling shaders to have unique data from shader tables
 	{
-		// cbuffer for hit group data
-		D3D12_DESCRIPTOR_RANGE cbufferRange = {};
-		cbufferRange.BaseShaderRegister = 1;
-		cbufferRange.NumDescriptors = 1;
-		cbufferRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-		cbufferRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
-		cbufferRange.RegisterSpace = 0;
-
 		// Table of 2 starting at register(t1)
 		D3D12_DESCRIPTOR_RANGE geometrySRVRange = {};
 		geometrySRVRange.BaseShaderRegister = 1;
@@ -152,20 +144,14 @@ void RayTracing::CreateRaytracingRootSignatures()
 		geometrySRVRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 		geometrySRVRange.RegisterSpace = 0;
 
-		// Two params: Tables for constant buffer and geometry
-		D3D12_ROOT_PARAMETER rootParams[2] = {};
+		// One parameter: Descriptor table housing the index and vertex buffer descriptors
+		D3D12_ROOT_PARAMETER rootParams[1] = {};
 
-		// Constant buffer at register(b1)
+		// Range of SRVs for geometry (verts & indices)
 		rootParams[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 		rootParams[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 		rootParams[0].DescriptorTable.NumDescriptorRanges = 1;
-		rootParams[0].DescriptorTable.pDescriptorRanges = &cbufferRange;
-
-		// Range of SRVs for geometry (verts & indices)
-		rootParams[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-		rootParams[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-		rootParams[1].DescriptorTable.NumDescriptorRanges = 1;
-		rootParams[1].DescriptorTable.pDescriptorRanges = &geometrySRVRange;
+		rootParams[0].DescriptorTable.pDescriptorRanges = &geometrySRVRange;
 
 		// Create the local root sig (ensure we denote it as a local sig)
 		Microsoft::WRL::ComPtr<ID3DBlob> blob;
@@ -597,11 +583,11 @@ void RayTracing::CreateBottomLevelAccelerationStructureForMesh(Mesh* mesh)
 		// Get past the raygen and miss shaders in the shader table
 		tablePointer += ShaderTableRecordSize + ShaderTableRecordSize;
 
-		// In the shader table, we need to get past the identifier and first CBV descriptor
-		tablePointer += D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES + sizeof(D3D12_GPU_DESCRIPTOR_HANDLE);
+		// In the shader table, we need to get past the identifier
+		tablePointer += D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
 
 		// Memcpy the index buffer's SRV to the table
-		// - This is assuming that the index buffer SRV is IMMEDIATELY followed by the vertex buffer SRV in the heap
+		// - We're assuming that the index buffer SRV is IMMEDIATELY followed by the vertex buffer SRV in the heap
 		memcpy(
 			tablePointer,
 			&indexBufferSRV,

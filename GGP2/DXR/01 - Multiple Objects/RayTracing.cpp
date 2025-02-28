@@ -149,14 +149,6 @@ void RayTracing::CreateRaytracingRootSignatures()
 
 	// Create a local root signature enabling shaders to have unique data from shader tables
 	{
-		// cbuffer for hit group data
-		D3D12_DESCRIPTOR_RANGE cbufferRange = {};
-		cbufferRange.BaseShaderRegister = 1;
-		cbufferRange.NumDescriptors = 1;
-		cbufferRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-		cbufferRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
-		cbufferRange.RegisterSpace = 0;
-
 		// Table of 2 starting at register(t1)
 		D3D12_DESCRIPTOR_RANGE geometrySRVRange = {};
 		geometrySRVRange.BaseShaderRegister = 1;
@@ -165,20 +157,29 @@ void RayTracing::CreateRaytracingRootSignatures()
 		geometrySRVRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 		geometrySRVRange.RegisterSpace = 0;
 
-		// Two params: Tables for constant buffer and geometry
+		// cbuffer for hit group data
+		D3D12_DESCRIPTOR_RANGE cbufferRange = {};
+		cbufferRange.BaseShaderRegister = 1;
+		cbufferRange.NumDescriptors = 1;
+		cbufferRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
+		cbufferRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
+		cbufferRange.RegisterSpace = 0;
+
+		// Two params: Tables for geometry and cbuffer
 		D3D12_ROOT_PARAMETER rootParams[2] = {};
 
-		// Constant buffer at register(b1)
+		// Range of SRVs for geometry (verts & indices)
 		rootParams[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 		rootParams[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 		rootParams[0].DescriptorTable.NumDescriptorRanges = 1;
-		rootParams[0].DescriptorTable.pDescriptorRanges = &cbufferRange;
+		rootParams[0].DescriptorTable.pDescriptorRanges = &geometrySRVRange;
 
-		// Range of SRVs for geometry (verts & indices)
+		// Constant buffer at register(b1)
 		rootParams[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
 		rootParams[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
 		rootParams[1].DescriptorTable.NumDescriptorRanges = 1;
-		rootParams[1].DescriptorTable.pDescriptorRanges = &geometrySRVRange;
+		rootParams[1].DescriptorTable.pDescriptorRanges = &cbufferRange;
+
 
 		// Create the local root sig (ensure we denote it as a local sig)
 		Microsoft::WRL::ComPtr<ID3DBlob> blob;
@@ -630,7 +631,6 @@ MeshRaytracingData RayTracing::CreateBottomLevelAccelerationStructureForMesh(Mes
 		tablePointer += ShaderTableRecordSize * 2; // Get past raygen and miss shaders
 		tablePointer += ShaderTableRecordSize * raytracingData.HitGroupIndex; // Skip to this hit group
 		tablePointer += D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES; // Get past the identifier
-		tablePointer += sizeof(D3D12_GPU_DESCRIPTOR_HANDLE); // Skip first descriptor, which is for a CBV
 		memcpy(tablePointer, &raytracingData.IndexBufferSRV, sizeof(D3D12_GPU_DESCRIPTOR_HANDLE)); // Copy descriptor to table
 	}
 	ShaderTable->Unmap(0, 0);
@@ -654,7 +654,7 @@ void RayTracing::CreateTopLevelAccelerationStructureForScene(std::vector<std::sh
 	// Create vector of instance descriptions
 	std::vector<D3D12_RAYTRACING_INSTANCE_DESC> instanceDescs;
 
-	// Create a vector of instance IDs
+	// Create a vector of instance IDs and another for per-BLAS entity data
 	std::vector<unsigned int> instanceIDs;
 	std::vector<RaytracingEntityData> entityData;
 	instanceIDs.resize(blasCount); // One per BLAS (mesh) - all starting at zero due to resize()
@@ -672,20 +672,20 @@ void RayTracing::CreateTopLevelAccelerationStructureForScene(std::vector<std::sh
 		unsigned int meshBlasIndex = mesh->GetRaytracingData().HitGroupIndex;
 
 		// Create this description and add to our overall set of descriptions
-		D3D12_RAYTRACING_INSTANCE_DESC id = {};
-		id.InstanceContributionToHitGroupIndex = meshBlasIndex;
-		id.InstanceID = instanceIDs[meshBlasIndex];
-		id.InstanceMask = 0xFF;
-		memcpy(&id.Transform, &transform, sizeof(float) * 3 * 4); // Copy first [3][4] elements
-		id.AccelerationStructure = mesh->GetRaytracingData().BLAS->GetGPUVirtualAddress();
-		id.Flags = D3D12_RAYTRACING_INSTANCE_FLAG_NONE;
-		instanceDescs.push_back(id);
+		D3D12_RAYTRACING_INSTANCE_DESC instDesc = {};
+		instDesc.InstanceContributionToHitGroupIndex = meshBlasIndex;
+		instDesc.InstanceID = instanceIDs[meshBlasIndex];
+		instDesc.InstanceMask = 0xFF;
+		memcpy(&instDesc.Transform, &transform, sizeof(float) * 3 * 4); // Copy first [3][4] elements
+		instDesc.AccelerationStructure = mesh->GetRaytracingData().BLAS->GetGPUVirtualAddress();
+		instDesc.Flags = D3D12_RAYTRACING_INSTANCE_FLAG_NONE;
+		instanceDescs.push_back(instDesc);
 
 		// Set up the entity data for this entity, too
 		// - mesh index tells us which cbuffer
 		// - instance ID tells us which instance in that cbuffer
 		XMFLOAT3 c = scene[i]->GetMaterial()->GetColorTint();
-		entityData[meshBlasIndex].color[id.InstanceID] = XMFLOAT4(c.x, c.y, c.z, 1);
+		entityData[meshBlasIndex].color[instDesc.InstanceID] = XMFLOAT4(c.x, c.y, c.z, 1);
 
 		// On to the next instance for this mesh
 		instanceIDs[meshBlasIndex]++;
@@ -767,8 +767,6 @@ void RayTracing::CreateTopLevelAccelerationStructureForScene(std::vector<std::sh
 	DXRCommandList->BuildRaytracingAccelerationStructure(&buildDesc, 0, 0);
 
 	// Set up a barrier to wait until the TLAS is actually built to proceed
-	// Note: Probably unnecessary because we're about to execute and wait below,
-	//       but keeping this here in the event we adjust when we execute.
 	D3D12_RESOURCE_BARRIER tlasBarrier = {};
 	tlasBarrier.Type = D3D12_RESOURCE_BARRIER_TYPE_UAV;
 	tlasBarrier.UAV.pResource = TLAS.Get();
@@ -785,6 +783,7 @@ void RayTracing::CreateTopLevelAccelerationStructureForScene(std::vector<std::sh
 		// Need to get to the first descriptor in this hit group's record
 		unsigned char* hitGroupPointer = tablePointer + ShaderTableRecordSize * i;
 		hitGroupPointer += D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES; // Get past identifier
+		hitGroupPointer += sizeof(D3D12_GPU_DESCRIPTOR_HANDLE); // Get past geometry SRV
 
 		// Copy the data to the CB ring buffer and grab associated CBV to place in shader table
 		D3D12_GPU_DESCRIPTOR_HANDLE cbv = Graphics::FillNextConstantBufferAndGetGPUDescriptorHandle(&entityData[i], sizeof(RaytracingEntityData));
