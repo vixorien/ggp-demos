@@ -631,7 +631,7 @@ MeshRayTracingData RayTracing::CreateBottomLevelAccelerationStructureForMesh(Mes
 		tablePointer += ShaderTableRecordSize * 2; // Get past raygen and miss shaders
 		tablePointer += ShaderTableRecordSize * rayTracingData.HitGroupIndex; // Skip to this hit group
 		tablePointer += D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES; // Get past the identifier
-		memcpy(tablePointer, &raytracingData.IndexBufferSRV, sizeof(D3D12_GPU_DESCRIPTOR_HANDLE)); // Copy descriptor to table
+		memcpy(tablePointer, &rayTracingData.IndexBufferSRV, sizeof(D3D12_GPU_DESCRIPTOR_HANDLE)); // Copy descriptor to table
 	}
 	ShaderTable->Unmap(0, 0);
 
@@ -672,14 +672,14 @@ void RayTracing::CreateTopLevelAccelerationStructureForScene(std::vector<std::sh
 		unsigned int meshBlasIndex = mesh->GetRayTracingData().HitGroupIndex;
 
 		// Create this description and add to our overall set of descriptions
-		D3D12_RAYTRACING_INSTANCE_DESC id = {};
-		id.InstanceContributionToHitGroupIndex = meshBlasIndex;
-		id.InstanceID = instanceIDs[meshBlasIndex];
-		id.InstanceMask = 0xFF;
-		memcpy(&id.Transform, &transform, sizeof(float) * 3 * 4); // Copy first [3][4] elements
-		id.AccelerationStructure = mesh->GetRaytracingData().BLAS->GetGPUVirtualAddress();
-		id.Flags = D3D12_RAYTRACING_INSTANCE_FLAG_NONE;
-		instanceDescs.push_back(id);
+		D3D12_RAYTRACING_INSTANCE_DESC instDesc = {};
+		instDesc.InstanceContributionToHitGroupIndex = meshBlasIndex;
+		instDesc.InstanceID = instanceIDs[meshBlasIndex];
+		instDesc.InstanceMask = 0xFF;
+		memcpy(&instDesc.Transform, &transform, sizeof(float) * 3 * 4); // Copy first [3][4] elements
+		instDesc.AccelerationStructure = mesh->GetRayTracingData().BLAS->GetGPUVirtualAddress();
+		instDesc.Flags = D3D12_RAYTRACING_INSTANCE_FLAG_NONE;
+		instanceDescs.push_back(instDesc);
 
 		// Set up the entity data for this entity, too
 		// - mesh index tells us which cbuffer
