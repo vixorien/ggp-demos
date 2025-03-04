@@ -82,12 +82,8 @@ void Game::Initialize()
 
 	// Finalize any initialization and wait for the GPU
 	// before proceeding to the game loop
-	// Note: NOT resetting the allocator here because
-	//       that will happen at the beginning of Draw()
 	Graphics::CloseAndExecuteCommandList();
 	Graphics::WaitForGPU();
-
-	// Also reset the command list and allocator for the first frame
 	Graphics::ResetAllocatorAndCommandList(0);
 
 }
