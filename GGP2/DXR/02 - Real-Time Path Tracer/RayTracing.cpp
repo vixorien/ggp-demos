@@ -288,7 +288,7 @@ void RayTracing::CreateRaytracingPipelineState(std::wstring raytracingShaderLibr
 
 	// === Shader config (payload) ===
 	D3D12_RAYTRACING_SHADER_CONFIG shaderConfigDesc = {};
-	shaderConfigDesc.MaxPayloadSizeInBytes = sizeof(DirectX::XMFLOAT3);	// Assuming a float3 color for now
+	shaderConfigDesc.MaxPayloadSizeInBytes = sizeof(DirectX::XMFLOAT3) + sizeof(unsigned int) * 2;	// Float3 and two unsigned integers!
 	shaderConfigDesc.MaxAttributeSizeInBytes = sizeof(DirectX::XMFLOAT2); // Assuming a float2 for barycentric coords for now
 
 	D3D12_STATE_SUBOBJECT shaderConfigSubObj = {};
@@ -685,7 +685,8 @@ void RayTracing::CreateTopLevelAccelerationStructureForScene(std::vector<std::sh
 		// - mesh index tells us which cbuffer
 		// - instance ID tells us which instance in that cbuffer
 		XMFLOAT3 c = scene[i]->GetMaterial()->GetColorTint();
-		entityData[meshBlasIndex].color[id.InstanceID] = XMFLOAT4(c.x, c.y, c.z, 1);
+		float r = scene[i]->GetMaterial()->GetRoughness();
+		entityData[meshBlasIndex].color[id.InstanceID] = XMFLOAT4(c.x, c.y, c.z, r); // Storing roughness in unused alpha channel!
 
 		// On to the next instance for this mesh
 		instanceIDs[meshBlasIndex]++;
@@ -823,6 +824,7 @@ void RayTracing::Raytrace(std::shared_ptr<Camera> camera, Microsoft::WRL::ComPtr
 	// Grab and fill a constant buffer
 	RaytracingSceneData sceneData = {};
 	sceneData.cameraPosition = camera->GetTransform()->GetPosition();
+	sceneData.raysPerPixel = 25;
 
 	DirectX::XMFLOAT4X4 view = camera->GetView();
 	DirectX::XMFLOAT4X4 proj = camera->GetProjection();
