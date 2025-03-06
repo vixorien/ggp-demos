@@ -51,7 +51,7 @@ void Game::Initialize()
 
 	// Create the camera
 	camera = std::make_shared<FPSCamera>(
-		XMFLOAT3(0.0f, 2.0f, -15.0f),	// Position
+		XMFLOAT3(0.0f, 4.0f, -15.0f),	// Position
 		5.0f,					// Move speed
 		0.002f,					// Look speed
 		XM_PIDIV4,				// Field of view
@@ -59,6 +59,7 @@ void Game::Initialize()
 		0.01f,					// Near clip
 		100.0f,					// Far clip
 		CameraProjectionType::Perspective);
+	camera->GetTransform()->Rotate(0.2f, 0, 0);
 }
 
 
@@ -96,11 +97,11 @@ void Game::LoadAssetsAndCreateEntities()
 	// Load textures
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> rockSRV;
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> tilesSRV;
-	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> cobblestoneSRV;
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> crateSRV;
 
 	CreateWICTextureFromFile(Graphics::Device.Get(), Graphics::Context.Get(), FixPath(AssetPath + L"Textures/rock.png").c_str(), 0, rockSRV.GetAddressOf());
 	CreateWICTextureFromFile(Graphics::Device.Get(), Graphics::Context.Get(), FixPath(AssetPath + L"Textures/tiles.png").c_str(), 0, tilesSRV.GetAddressOf());
-	CreateWICTextureFromFile(Graphics::Device.Get(), Graphics::Context.Get(), FixPath(AssetPath + L"Textures/cobblestone.png").c_str(), 0, cobblestoneSRV.GetAddressOf());
+	CreateWICTextureFromFile(Graphics::Device.Get(), Graphics::Context.Get(), FixPath(AssetPath + L"Textures/crate.png").c_str(), 0, crateSRV.GetAddressOf());
 
 
 	// Load shaders
@@ -124,27 +125,31 @@ void Game::LoadAssetsAndCreateEntities()
 	matRock->AddSampler("BasicSampler", sampler);
 	matRock->AddTextureSRV("SurfaceTexture", rockSRV);
 
-	std::shared_ptr<Material> matRockRed = std::make_shared<Material>("Rock Red", basicPixelShader, basicVertexShader, XMFLOAT3(1, 0.3f, 0.3f), XMFLOAT2(2, 2));
-	matRockRed->AddSampler("BasicSampler", sampler);
-	matRockRed->AddTextureSRV("SurfaceTexture", rockSRV);
+	std::shared_ptr<Material> matRockBlue = std::make_shared<Material>("Rock Blue", basicPixelShader, basicVertexShader, XMFLOAT3(0.1f, 0.6f, 1.0f), XMFLOAT2(2, 2));
+	matRockBlue->AddSampler("BasicSampler", sampler);
+	matRockBlue->AddTextureSRV("SurfaceTexture", rockSRV);
 
 	std::shared_ptr<Material> matTiles = std::make_shared<Material>("Tiles", basicPixelShader, basicVertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(1, 1));
 	matTiles->AddSampler("BasicSampler", sampler);
 	matTiles->AddTextureSRV("SurfaceTexture", tilesSRV);
+	
+	std::shared_ptr<Material> matTileRed = std::make_shared<Material>("Tile Red", basicPixelShader, basicVertexShader, XMFLOAT3(1, 0.3f, 0.3f), XMFLOAT2(2, 2));
+	matTileRed->AddSampler("BasicSampler", sampler);
+	matTileRed->AddTextureSRV("SurfaceTexture", tilesSRV);
 
-	std::shared_ptr<Material> matCobblestone = std::make_shared<Material>("Cobblestone", basicPixelShader, basicVertexShader, XMFLOAT3(1, 1, 1));
-	matCobblestone->AddSampler("BasicSampler", sampler);
-	matCobblestone->AddTextureSRV("SurfaceTexture", cobblestoneSRV);
+	std::shared_ptr<Material> matCrate = std::make_shared<Material>("Crate", basicPixelShader, basicVertexShader, XMFLOAT3(1, 1, 1));
+	matCrate->AddSampler("BasicSampler", sampler);
+	matCrate->AddTextureSRV("SurfaceTexture", crateSRV);
 
 	// Add all materials to vector
-	materials.insert(materials.end(), { matTiles, matRock, matRockRed, matCobblestone });
+	materials.insert(materials.end(), { matRock, matRockBlue, matTiles, matTileRed, matCrate });
 
 	// Create the game entities
-	entities.push_back(std::make_shared<GameEntity>(cubeMesh, matTiles));
-	entities.push_back(std::make_shared<GameEntity>(cylinderMesh, matRock));
+	entities.push_back(std::make_shared<GameEntity>(cubeMesh, matCrate));
+	entities.push_back(std::make_shared<GameEntity>(cylinderMesh, matRockBlue));
 	entities.push_back(std::make_shared<GameEntity>(helixMesh, matTiles));
 	entities.push_back(std::make_shared<GameEntity>(sphereMesh, matRock));
-	entities.push_back(std::make_shared<GameEntity>(torusMesh, matRockRed));
+	entities.push_back(std::make_shared<GameEntity>(torusMesh, matTileRed));
 	entities.push_back(std::make_shared<GameEntity>(quadMesh, matTiles));
 	entities.push_back(std::make_shared<GameEntity>(quad2sidedMesh, matRock));
 
@@ -206,7 +211,7 @@ void Game::Draw(float deltaTime, float totalTime)
 	// - At the beginning of Game::Draw() before drawing *anything*
 	{
 		// Clear the back buffer (erase what's on screen) and depth buffer
-		const float color[4] = { 0.4f, 0.6f, 0.75f, 0.0f };
+		const float color[4] = { 0.25f, 0.25f, 0.25f, 0.0f };
 		Graphics::Context->ClearRenderTargetView(Graphics::BackBufferRTV.Get(),	color);
 		Graphics::Context->ClearDepthStencilView(Graphics::DepthBufferDSV.Get(), D3D11_CLEAR_DEPTH, 1.0f, 0);
 	}
