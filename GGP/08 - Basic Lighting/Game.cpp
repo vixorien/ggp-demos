@@ -165,22 +165,22 @@ void Game::LoadAssetsAndCreateEntities()
 	// Create lights - Must respect the
 	// max lights defined in the pixel shader!
 	Light dirLight1 = {};
-	dirLight1.Color = XMFLOAT3(1, 1, 1);
+	dirLight1.Color = XMFLOAT3(1, 0, 0);
 	dirLight1.Type = LIGHT_TYPE_DIRECTIONAL;
 	dirLight1.Intensity = 1.0f;
-	dirLight1.Direction = XMFLOAT3(1, 0.5f, 0.5f);
+	dirLight1.Direction = XMFLOAT3(1, 0, 0);
 
 	Light dirLight2 = {};
-	dirLight2.Color = XMFLOAT3(1, 1, 1);
+	dirLight2.Color = XMFLOAT3(0, 1, 0);
 	dirLight2.Type = LIGHT_TYPE_DIRECTIONAL;
 	dirLight2.Intensity = 1.0f;
-	dirLight2.Direction = XMFLOAT3(-0.25f, -1, 0.75f);
+	dirLight2.Direction = XMFLOAT3(0, -1, 0);
 
 	Light dirLight3 = {};
-	dirLight3.Color = XMFLOAT3(1, 1, 1);
+	dirLight3.Color = XMFLOAT3(0, 0, 1);
 	dirLight3.Type = LIGHT_TYPE_DIRECTIONAL;
 	dirLight3.Intensity = 1.0f;
-	dirLight3.Direction = XMFLOAT3(-1, 1, -0.5f);
+	dirLight3.Direction = XMFLOAT3(-1, 1, -0.5f); // Will be normalized below
 
 	Light pointLight1 = {};
 	pointLight1.Color = XMFLOAT3(1, 1, 1);
@@ -196,18 +196,29 @@ void Game::LoadAssetsAndCreateEntities()
 	pointLight2.Position = XMFLOAT3(1.5f, 0, 0);
 	pointLight2.Range = 10.0f;
 
+	Light spotLight1 = {};
+	spotLight1.Color = XMFLOAT3(1, 1, 1);
+	spotLight1.Type = LIGHT_TYPE_SPOT;
+	spotLight1.Intensity = 2.0f;
+	spotLight1.Position = XMFLOAT3(6.0f, 1.5f, 0);
+	spotLight1.Direction = XMFLOAT3(0, -1, 0);
+	spotLight1.Range = 10.0f;
+	spotLight1.SpotOuterAngle = XMConvertToRadians(30.0f);
+	spotLight1.SpotInnerAngle = XMConvertToRadians(20.0f);
+
 	// Add all lights to the list
 	lights.push_back(dirLight1);
 	lights.push_back(dirLight2);
 	lights.push_back(dirLight3);
 	lights.push_back(pointLight1);
 	lights.push_back(pointLight2);
+	lights.push_back(spotLight1);
 
 	// Normalize directions of all non-point lights
 	for (int i = 0; i < lights.size(); i++)
 		if (lights[i].Type != LIGHT_TYPE_POINT)
 			XMStoreFloat3(
-				&lights[i].Direction, 
+				&lights[i].Direction,
 				XMVector3Normalize(XMLoadFloat3(&lights[i].Direction))
 			);
 }
@@ -276,6 +287,7 @@ void Game::Draw(float deltaTime, float totalTime)
 		std::shared_ptr<SimplePixelShader> ps = e->GetMaterial()->GetPixelShader();
 		ps->SetFloat3("ambientColor", ambientColor);
 		ps->SetFloat("time", totalTime);
+		ps->SetInt("lightCount", (int)lights.size());
 		ps->SetData("lights", &lights[0], sizeof(Light) * (int)lights.size());
 
 		// Draw one entity

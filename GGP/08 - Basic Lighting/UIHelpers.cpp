@@ -366,7 +366,17 @@ void UILight(Light& light)
 	// Spot falloff
 	if (light.Type == LIGHT_TYPE_SPOT)
 	{
-		ImGui::SliderFloat("Spot Falloff", &light.SpotFalloff, 0.1f, 128.0f);
+		if (ImGui::SliderFloat("Spot Inner Angle", &light.SpotInnerAngle, 0.0f, XM_PI))
+		{
+			// Dragging inner angle, ensure outer is never smaller
+			light.SpotOuterAngle = max(light.SpotInnerAngle + 0.001f, light.SpotOuterAngle);
+		}
+
+		if (ImGui::SliderFloat("Spot Outer Angle", &light.SpotOuterAngle, 0.0f, XM_PI))
+		{
+			// Dragging outer angle, ensure inner is never larger
+			light.SpotInnerAngle = min(light.SpotInnerAngle, light.SpotOuterAngle - 0.001f);
+		}
 	}
 
 	// Color details

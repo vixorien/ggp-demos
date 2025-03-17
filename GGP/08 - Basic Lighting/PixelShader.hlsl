@@ -2,12 +2,11 @@
 #include "ShaderStructs.hlsli"
 #include "Lighting.hlsli"
 
-#define NUM_LIGHTS 5
-
 cbuffer ExternalData : register(b0)
 {
 	// Scene related
-	Light lights[NUM_LIGHTS];
+	Light lights[MAX_LIGHTS];
+	int lightCount;
 	float3 ambientColor;
 
 	// Camera related
@@ -50,12 +49,12 @@ float4 main(VertexToPixel input) : SV_TARGET
 	float3 totalLight = ambientColor * surfaceColor;
 	
 	// Loop and handle all lights
-	for (int i = 0; i < NUM_LIGHTS; i++)
+	for (int i = 0; i < lightCount; i++)
 	{
 		// Grab this light and normalize the direction (just in case)
 		Light light = lights[i];
 		light.Direction = normalize(light.Direction);
-
+		
 		// Run the correct lighting calculation based on the light's type
 		switch (lights[i].Type)
 		{
