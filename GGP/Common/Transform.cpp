@@ -337,7 +337,7 @@ DirectX::XMFLOAT4X4 Transform::GetWorldMatrix()
 DirectX::XMFLOAT4X4 Transform::GetWorldInverseTransposeMatrix()
 {
 	UpdateMatrices();
-	return worldMatrix;
+	return worldInverseTransposeMatrix;
 }
 
 void Transform::UpdateMatrices()

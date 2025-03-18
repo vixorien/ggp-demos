@@ -34,7 +34,7 @@ float4 main(VertexToPixel input) : SV_TARGET
 {
 	// Clean up un-normalized normals
 	input.normal = normalize(input.normal);
-
+	
 	// Adjust the uv coords
 	input.uv = input.uv * uvScale + uvOffset;
 
