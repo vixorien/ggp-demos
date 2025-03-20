@@ -210,12 +210,6 @@ void RayGen()
 	// Get the ray indices
 	uint2 rayIndices = DispatchRaysIndex().xy;
 	
-	float rng = rand((float2)rayIndices / DispatchRaysDimensions().xy);
-	
-	OutputColor[rayIndices] = rng.xxxx;
-	return;
-	
-
 	// Average of all rays per pixel
 	float3 totalColor = float3(0, 0, 0);
 	

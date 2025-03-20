@@ -126,7 +126,7 @@ void Game::LoadAssetsAndCreateEntities()
 	meshes.insert(meshes.end(), { cubeMesh, cylinderMesh, helixMesh, sphereMesh, torusMesh, quadMesh, quad2sidedMesh });
 
 	// Create several different materials
-	std::shared_ptr<Material> matTiles = std::make_shared<Material>("Tiles", basicPixelShader, basicVertexShader, XMFLOAT3(1, 1, 1), 0.0f, XMFLOAT2(5, 5));
+	std::shared_ptr<Material> matTiles = std::make_shared<Material>("Tiles", basicPixelShader, basicVertexShader, XMFLOAT3(1, 1, 1), 0.0f, XMFLOAT2(2, 2));
 	matTiles->AddSampler("BasicSampler", sampler);
 	matTiles->AddTextureSRV("SurfaceTexture", tilesSRV);
 	matTiles->AddTextureSRV("SpecularMap", tilesSpecularSRV);
@@ -164,23 +164,25 @@ void Game::LoadAssetsAndCreateEntities()
 
 	// Create lights - Must respect the
 	// max lights defined in the pixel shader!
+	ambientColor = XMFLOAT3(0.1f, 0.15f, 0.18f);
+
 	Light dirLight1 = {};
 	dirLight1.Color = XMFLOAT3(1, 0, 0);
 	dirLight1.Type = LIGHT_TYPE_DIRECTIONAL;
-	dirLight1.Intensity = 1.0f;
-	dirLight1.Direction = XMFLOAT3(1, 0, 0);
+	dirLight1.Intensity = 0.5f;
+	dirLight1.Direction = XMFLOAT3(1, 0, 0.5f); // Will be normalized below
 
 	Light dirLight2 = {};
-	dirLight2.Color = XMFLOAT3(0, 1, 0);
+	dirLight2.Color = XMFLOAT3(1, 1, 1);
 	dirLight2.Type = LIGHT_TYPE_DIRECTIONAL;
-	dirLight2.Intensity = 1.0f;
-	dirLight2.Direction = XMFLOAT3(0, -1, 0);
+	dirLight2.Intensity = 0.5f;
+	dirLight2.Direction = XMFLOAT3(-0.1f, -1, 0); // Will be normalized below
 
 	Light dirLight3 = {};
-	dirLight3.Color = XMFLOAT3(0, 0, 1);
+	dirLight3.Color = XMFLOAT3(1, 1, 1);
 	dirLight3.Type = LIGHT_TYPE_DIRECTIONAL;
-	dirLight3.Intensity = 1.0f;
-	dirLight3.Direction = XMFLOAT3(-1, 1, -0.5f); // Will be normalized below
+	dirLight3.Intensity = 0.5f;
+	dirLight3.Direction = XMFLOAT3(-1, 1, 0.5f); // Will be normalized below
 
 	Light pointLight1 = {};
 	pointLight1.Color = XMFLOAT3(1, 1, 1);
@@ -190,14 +192,14 @@ void Game::LoadAssetsAndCreateEntities()
 	pointLight1.Range = 10.0f;
 
 	Light pointLight2 = {};
-	pointLight2.Color = XMFLOAT3(1, 1, 1);
+	pointLight2.Color = XMFLOAT3(0, 1, 0);
 	pointLight2.Type = LIGHT_TYPE_POINT;
-	pointLight2.Intensity = 0.5f;
+	pointLight2.Intensity = 1.0f;
 	pointLight2.Position = XMFLOAT3(1.5f, 0, 0);
 	pointLight2.Range = 10.0f;
 
 	Light spotLight1 = {};
-	spotLight1.Color = XMFLOAT3(1, 1, 1);
+	spotLight1.Color = XMFLOAT3(0, 0, 1);
 	spotLight1.Type = LIGHT_TYPE_SPOT;
 	spotLight1.Intensity = 2.0f;
 	spotLight1.Position = XMFLOAT3(6.0f, 1.5f, 0);
