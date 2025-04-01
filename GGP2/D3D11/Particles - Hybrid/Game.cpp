@@ -309,6 +309,7 @@ void Game::LoadAssetsAndCreateEntities()
 		5.0f,							// Particle lifetime
 		0.1f,							// Start size
 		4.0f,							// End size
+		false,							// Constrain Y Axis rotation
 		XMFLOAT4(1, 0.1f, 0.1f, 0.7f),	// Start color
 		XMFLOAT4(1, 0.6f, 0.1f, 0),		// End color
 		XMFLOAT3(-2, 2, 0),				// Start velocity
@@ -327,6 +328,7 @@ void Game::LoadAssetsAndCreateEntities()
 		2.0f,							// Particle lifetime
 		3.0f,							// Start size
 		2.0f,							// End size
+		false,							// Constrain Y Axis rotation
 		XMFLOAT4(0.2f, 0.1f, 0.1f, 0.0f),// Start color
 		XMFLOAT4(0.2f, 0.7f, 0.1f, 1.0f),// End color
 		XMFLOAT3(0, 0, 0),				// Start velocity
@@ -345,13 +347,14 @@ void Game::LoadAssetsAndCreateEntities()
 		2.0f,							// Particle lifetime
 		2.0f,							// Start size
 		0.0f,							// End size
+		false,							// Constrain Y Axis rotation
 		XMFLOAT4(0.1f, 0.2f, 0.5f, 0.0f),// Start color
 		XMFLOAT4(0.1f, 0.1f, 0.3f, 3.0f),// End color (ending with high alpha so we hit 1.0 sooner)
 		XMFLOAT3(0, 0, 0),				// Start velocity
 		XMFLOAT3(0.1f, 0, 0.1f),		// Velocity randomness range
 		XMFLOAT3(-2.5f, -1, 0),			// Emitter position
 		XMFLOAT3(1, 0, 1),				// Position randomness range
-		XMFLOAT2(0, 0),				// Random rotation - startMin, startMax
+		XMFLOAT2(0, 0),					// Random rotation - startMin, startMax
 		XMFLOAT2(-3, 3),				// Random rotation - endMin, endMax
 		XMFLOAT3(0, -2, 0),				// Constant acceleration
 		starParticle));
@@ -363,6 +366,7 @@ void Game::LoadAssetsAndCreateEntities()
 		2.0f,					// Particle lifetime
 		2.0f,					// Start size
 		2.0f,					// End size
+		false,					// Constrain Y Axis rotation
 		XMFLOAT4(1, 1, 1, 1),	// Start color
 		XMFLOAT4(1, 1, 1, 0),	// End color
 		XMFLOAT3(0, 0, 0),		// Start velocity
@@ -373,7 +377,6 @@ void Game::LoadAssetsAndCreateEntities()
 		XMFLOAT2(-2, 2),		// Random rotation - endMin, endMax
 		XMFLOAT3(0, 0, 0),		// Constant acceleration
 		animParticle,
-		true,
 		8,
 		8));
 
@@ -528,7 +531,7 @@ void Game::Update(float deltaTime, float totalTime)
 	// this frame's interface.  Note that the building
 	// of the UI could happen at any point during update.
 	UINewFrame(deltaTime);
-	BuildUI(camera, meshes, entities, materials, lights, lightOptions);
+	BuildUI(camera, meshes, entities, materials, emitters, lights, lightOptions);
 
 	// Example input checking: Quit if the escape key is pressed
 	if (Input::KeyDown(VK_ESCAPE))

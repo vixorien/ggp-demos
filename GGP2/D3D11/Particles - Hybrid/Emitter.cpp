@@ -12,6 +12,7 @@ Emitter::Emitter(
 	float lifetime,
 	float startSize,
 	float endSize,
+	bool constrainYAxis,
 	DirectX::XMFLOAT4 startColor,
 	DirectX::XMFLOAT4 endColor,
 	DirectX::XMFLOAT3 startVelocity,
@@ -22,44 +23,45 @@ Emitter::Emitter(
 	DirectX::XMFLOAT2 rotationEndMinMax,
 	DirectX::XMFLOAT3 emitterAcceleration,
 	std::shared_ptr<Material> material,
-	bool isSpriteSheet,
 	unsigned int spriteSheetWidth,
 	unsigned int spriteSheetHeight,
-	float spriteSheetSpeedScale)
-	:
-	material(material),
-	maxParticles(maxParticles),
-	particlesPerSecond(particlesPerSecond),
-	lifetime(lifetime),
-	startSize(startSize),
-	endSize(endSize),
-	constrainYAxis(constrainYAxis),
-	startColor(startColor),
-	endColor(endColor),
-	positionRandomRange(positionRandomRange),
-	startVelocity(startVelocity),
-	velocityRandomRange(velocityRandomRange),
-	emitterAcceleration(emitterAcceleration),
-	rotationStartMinMax(rotationStartMinMax),
-	rotationEndMinMax(rotationEndMinMax),
-	spriteSheetWidth(max(spriteSheetWidth, 1)),
-	spriteSheetHeight(max(spriteSheetHeight, 1)),
-	spriteSheetFrameWidth(1.0f / spriteSheetWidth),
-	spriteSheetFrameHeight(1.0f / spriteSheetHeight),
-	spriteSheetSpeedScale(spriteSheetSpeedScale),
-	particles(0)
+	float spriteSheetSpeedScale,
+	bool paused,
+	bool visible) :
+		material(material),
+		maxParticles(maxParticles),
+		particlesPerSecond(particlesPerSecond), 
+		secondsPerParticle(1.0f / particlesPerSecond),
+		lifetime(lifetime),
+		startSize(startSize),
+		endSize(endSize),
+		startColor(startColor),
+		endColor(endColor),
+		constrainYAxis(constrainYAxis),
+		positionRandomRange(positionRandomRange),
+		startVelocity(startVelocity),
+		velocityRandomRange(velocityRandomRange),
+		emitterAcceleration(emitterAcceleration),
+		rotationStartMinMax(rotationStartMinMax),
+		rotationEndMinMax(rotationEndMinMax),
+		spriteSheetWidth(max(spriteSheetWidth, 1)),
+		spriteSheetHeight(max(spriteSheetHeight, 1)),
+		spriteSheetFrameWidth(1.0f / spriteSheetWidth),
+		spriteSheetFrameHeight(1.0f / spriteSheetHeight),
+		spriteSheetSpeedScale(spriteSheetSpeedScale),
+		paused(paused),
+		visible(visible),
+		particles(0),
+		totalEmitterTime(0)
 {
-	// Calculate emission rate
-	secondsPerParticle = 1.0f / particlesPerSecond;
+	transform = std::make_shared<Transform>();
+	transform->SetPosition(emitterPosition);
 
 	// Set up emission and lifetime stats
 	timeSinceLastEmit = 0.0f;
 	livingParticleCount = 0;
-	indexFirstAlive = 0;
-	indexFirstDead = 0;
-
-	transform = std::make_shared<Transform>();
-	transform->SetPosition(emitterPosition);
+	firstAliveIndex = 0;
+	firstDeadIndex = 0;
 
 	// Actually create the array and underlying GPU resources
 	CreateParticlesAndGPUResources();
@@ -137,11 +139,18 @@ void Emitter::CreateParticlesAndGPUResources()
 
 void Emitter::Update(float dt, float currentTime)
 {
+	if (paused)
+		return;
+
+	// Add to the time
+	timeSinceLastEmit += dt;
+	totalEmitterTime += dt;
+
 	// Anything to update?
 	if (livingParticleCount > 0)
 	{
 		// Update all particles - Check cyclic buffer first
-		if (indexFirstAlive < indexFirstDead)
+		if (firstAliveIndex < firstDeadIndex)
 		{
 			// First alive is BEFORE first dead, so the "living" particles are contiguous
 			// 
@@ -149,10 +158,10 @@ void Emitter::Update(float dt, float currentTime)
 			// |    dead    |            alive       |         dead    |
 
 			// First alive is before first dead, so no wrapping
-			for (int i = indexFirstAlive; i < indexFirstDead; i++)
-				UpdateSingleParticle(currentTime, i);
+			for (int i = firstAliveIndex; i < firstDeadIndex; i++)
+				UpdateSingleParticle(totalEmitterTime, i);
 		}
-		else if (indexFirstDead < indexFirstAlive)
+		else if (firstDeadIndex < firstAliveIndex)
 		{
 			// First alive is AFTER first dead, so the "living" particles wrap around
 			// 
@@ -160,12 +169,12 @@ void Emitter::Update(float dt, float currentTime)
 			// |    alive    |            dead       |         alive   |
 
 			// Update first half (from firstAlive to max particles)
-			for (int i = indexFirstAlive; i < maxParticles; i++)
-				UpdateSingleParticle(currentTime, i);
+			for (int i = firstAliveIndex; i < maxParticles; i++)
+				UpdateSingleParticle(totalEmitterTime, i);
 
 			// Update second half (from 0 to first dead)
-			for (int i = 0; i < indexFirstDead; i++)
-				UpdateSingleParticle(currentTime, i);
+			for (int i = 0; i < firstDeadIndex; i++)
+				UpdateSingleParticle(totalEmitterTime, i);
 		}
 		else
 		{
@@ -176,17 +185,15 @@ void Emitter::Update(float dt, float currentTime)
 			// 0 -------- FIRST DEAD -------------------------------- MAX
 			// |    alive     |                   alive                |
 			for (int i = 0; i < maxParticles; i++)
-				UpdateSingleParticle(currentTime, i);
+				UpdateSingleParticle(totalEmitterTime, i);
 		}
 	}
 
-	// Add to the time
-	timeSinceLastEmit += dt;
 
 	// Enough time to emit?
 	while (timeSinceLastEmit > secondsPerParticle)
 	{
-		EmitParticle(currentTime);
+		EmitParticle(totalEmitterTime);
 		timeSinceLastEmit -= secondsPerParticle;
 	}
 }
@@ -200,8 +207,8 @@ void Emitter::UpdateSingleParticle(float currentTime, int index)
 	if (age >= lifetime)
 	{
 		// Recent death, so retire by moving alive count (and wrap)
-		indexFirstAlive++;
-		indexFirstAlive %= maxParticles;
+		firstAliveIndex++;
+		firstAliveIndex %= maxParticles;
 		livingParticleCount--;
 	}
 }
@@ -213,7 +220,7 @@ void Emitter::EmitParticle(float currentTime)
 		return;
 
 	// Which particle is spawning?
-	int spawnedIndex = indexFirstDead;
+	int spawnedIndex = firstDeadIndex;
 
 	// Update the spawn time
 	particles[spawnedIndex].EmitTime = currentTime;
@@ -235,8 +242,8 @@ void Emitter::EmitParticle(float currentTime)
 	particles[spawnedIndex].EndRotation = RandomRange(rotationEndMinMax.x, rotationEndMinMax.y);
 
 	// Increment the first dead particle (since it's now alive)
-	indexFirstDead++;
-	indexFirstDead %= maxParticles; // Wrap
+	firstDeadIndex++;
+	firstDeadIndex %= maxParticles; // Wrap
 
 	// One more living particle
 	livingParticleCount++;
@@ -244,6 +251,9 @@ void Emitter::EmitParticle(float currentTime)
 
 void Emitter::Draw(std::shared_ptr<Camera> camera, float currentTime, bool debugWireframe)
 {
+	if (!visible)
+		return;
+
 	CopyParticlesToGPU();
 
 	// Set up buffers - note that we're NOT using a vertex buffer!
@@ -264,7 +274,7 @@ void Emitter::Draw(std::shared_ptr<Camera> camera, float currentTime, bool debug
 	std::shared_ptr<SimpleVertexShader> vs = material->GetVertexShader();
 	vs->SetMatrix4x4("view", camera->GetView());
 	vs->SetMatrix4x4("projection", camera->GetProjection());
-	vs->SetFloat("currentTime", currentTime);
+	vs->SetFloat("currentTime", totalEmitterTime);
 	vs->SetFloat("lifetime", lifetime);
 	vs->SetFloat3("acceleration", emitterAcceleration);
 	vs->SetFloat("startSize", startSize);
@@ -303,12 +313,12 @@ void Emitter::CopyParticlesToGPU()
 	Graphics::Context->Map(particleDataBuffer.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
 
 	// How are living particles arranged in the buffer?
-	if (indexFirstAlive < indexFirstDead)
+	if (firstAliveIndex < firstDeadIndex)
 	{
 		// Only copy from FirstAlive -> FirstDead
 		memcpy(
 			mapped.pData, // Destination = start of particle buffer
-			particles + indexFirstAlive, // Source = particle array, offset to first living particle
+			particles + firstAliveIndex, // Source = particle array, offset to first living particle
 			sizeof(Particle) * livingParticleCount); // Amount = number of particles (measured in BYTES!)
 	}
 	else
@@ -317,13 +327,13 @@ void Emitter::CopyParticlesToGPU()
 		memcpy(
 			mapped.pData, // Destination = start of particle buffer
 			particles, // Source = start of particle array
-			sizeof(Particle) * indexFirstDead); // Amount = particles up to first dead (measured in BYTES!)
+			sizeof(Particle) * firstDeadIndex); // Amount = particles up to first dead (measured in BYTES!)
 
 		// ALSO copy from FirstAlive -> End
 		memcpy(
-			(void*)((Particle*)mapped.pData + indexFirstDead), // Destination = particle buffer, AFTER the data we copied in previous memcpy()
-			particles + indexFirstAlive,  // Source = particle array, offset to first living particle
-			sizeof(Particle) * (maxParticles - indexFirstAlive)); // Amount = number of living particles at end of array (measured in BYTES!)
+			(void*)((Particle*)mapped.pData + firstDeadIndex), // Destination = particle buffer, AFTER the data we copied in previous memcpy()
+			particles + firstAliveIndex,  // Source = particle array, offset to first living particle
+			sizeof(Particle) * (maxParticles - firstAliveIndex)); // Amount = number of living particles at end of array (measured in BYTES!)
 	}
 
 	// Unmap now that we're done copying
@@ -354,10 +364,9 @@ void Emitter::SetMaxParticles(int maxParticles)
 	// Reset emission details
 	timeSinceLastEmit = 0.0f;
 	livingParticleCount = 0;
-	indexFirstAlive = 0;
-	indexFirstDead = 0;
+	firstAliveIndex = 0;
+	firstDeadIndex = 0;
 }
-
 
 bool Emitter::IsSpriteSheet()
 {

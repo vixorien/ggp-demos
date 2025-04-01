@@ -9,62 +9,90 @@ Emitter::Emitter(
 	float lifetime,
 	float startSize,
 	float endSize,
+	bool constrainYAxis,
 	DirectX::XMFLOAT4 startColor,
 	DirectX::XMFLOAT4 endColor,
 	DirectX::XMFLOAT3 startVelocity,
 	DirectX::XMFLOAT3 velocityRandomRange,
 	DirectX::XMFLOAT3 emitterPosition,
 	DirectX::XMFLOAT3 positionRandomRange,
-	DirectX::XMFLOAT4 rotationRandomRanges,
+	DirectX::XMFLOAT2 rotationStartMinMax,
+	DirectX::XMFLOAT2 rotationEndMinMax,
 	DirectX::XMFLOAT3 emitterAcceleration,
 	std::shared_ptr<Material> material,
-	bool isSpriteSheet,
 	unsigned int spriteSheetWidth,
-	unsigned int spriteSheetHeight
-)
+	unsigned int spriteSheetHeight,
+	float spriteSheetSpeedScale,
+	bool paused,
+	bool visible) :
+		material(material),
+		maxParticles(maxParticles),
+		particlesPerSecond(particlesPerSecond),
+		secondsPerParticle(1.0f / particlesPerSecond),
+		lifetime(lifetime),
+		startSize(startSize),
+		endSize(endSize),
+		startColor(startColor),
+		endColor(endColor),
+		constrainYAxis(constrainYAxis),
+		positionRandomRange(positionRandomRange),
+		startVelocity(startVelocity),
+		velocityRandomRange(velocityRandomRange),
+		emitterAcceleration(emitterAcceleration),
+		rotationStartMinMax(rotationStartMinMax),
+		rotationEndMinMax(rotationEndMinMax),
+		spriteSheetWidth(max(spriteSheetWidth, 1)),
+		spriteSheetHeight(max(spriteSheetHeight, 1)),
+		spriteSheetFrameWidth(1.0f / spriteSheetWidth),
+		spriteSheetFrameHeight(1.0f / spriteSheetHeight),
+		spriteSheetSpeedScale(spriteSheetSpeedScale),
+		paused(paused),
+		visible(visible),
+		particles(0),
+		localParticleVertices(0)
 {
 	transform = std::make_shared<Transform>();
-
-	// Save params
-	this->material = material;
-
-	this->isSpriteSheet = isSpriteSheet;
-	this->spriteSheetWidth = max(spriteSheetWidth, 1);
-	this->spriteSheetHeight = max(spriteSheetHeight, 1);
-	this->spriteSheetFrameWidth = 1.0f / this->spriteSheetWidth;
-	this->spriteSheetFrameHeight = 1.0f / this->spriteSheetHeight;
-
-	this->maxParticles = maxParticles;
-	this->lifetime = lifetime;
-	this->startColor = startColor;
-	this->endColor = endColor;
-	this->startVelocity = startVelocity;
-	this->startSize = startSize;
-	this->endSize = endSize;
-	this->particlesPerSecond = particlesPerSecond;
-	this->secondsPerParticle = 1.0f / particlesPerSecond;
-
-	this->velocityRandomRange = velocityRandomRange;
-	this->positionRandomRange = positionRandomRange;
-	this->rotationRandomRanges = rotationRandomRanges;
-
 	this->transform->SetPosition(emitterPosition);
-	this->emitterAcceleration = emitterAcceleration;
 
-	timeSinceEmit = 0;
+	// Set up emission and lifetime stats
+	timeSinceLastEmit = 0;
 	livingParticleCount = 0;
 	firstAliveIndex = 0;
 	firstDeadIndex = 0;
 
-	// Make the particle array
-	particles = new Particle[maxParticles];
-	ZeroMemory(particles, sizeof(Particle) * maxParticles);
-
-	// Set up UVs
+	// Set up Default UVs
 	DefaultUVs[0] = XMFLOAT2(0, 0);
 	DefaultUVs[1] = XMFLOAT2(1, 0);
 	DefaultUVs[2] = XMFLOAT2(1, 1);
 	DefaultUVs[3] = XMFLOAT2(0, 1);
+
+	// Actually create the array and underlying GPU resources
+	CreateParticlesAndGPUResources();
+}
+
+
+Emitter::~Emitter()
+{
+	delete[] particles;
+	delete[] localParticleVertices;
+}
+
+std::shared_ptr<Transform> Emitter::GetTransform() { return transform; }
+std::shared_ptr<Material> Emitter::GetMaterial() { return material; }
+void Emitter::SetMaterial(std::shared_ptr<Material> material) { this->material = material; }
+
+
+void Emitter::CreateParticlesAndGPUResources()
+{
+	// Delete and release existing resources
+	if (particles) delete[] particles;
+	if (localParticleVertices) delete[] localParticleVertices;
+	indexBuffer.Reset();
+	vertexBuffer.Reset();
+
+	// Set up the particle array
+	particles = new Particle[maxParticles];
+	ZeroMemory(particles, sizeof(Particle) * maxParticles);
 
 	// Create UV's here, as those will usually stay the same
 	localParticleVertices = new ParticleVertex[4 * maxParticles];
@@ -75,9 +103,6 @@ Emitter::Emitter(
 		localParticleVertices[i + 2].UV = DefaultUVs[2];
 		localParticleVertices[i + 3].UV = DefaultUVs[3];
 	}
-
-
-	// Create buffers for drawing particles
 
 	// DYNAMIC vertex buffer (no initial data necessary)
 	D3D11_BUFFER_DESC vbDesc = {};
@@ -114,18 +139,12 @@ Emitter::Emitter(
 }
 
 
-Emitter::~Emitter()
-{
-	delete[] particles;
-	delete[] localParticleVertices;
-}
-
-std::shared_ptr<Transform> Emitter::GetTransform() { return transform; }
-std::shared_ptr<Material> Emitter::GetMaterial() { return material; }
-void Emitter::SetMaterial(std::shared_ptr<Material> material) { this->material = material; }
 
 void Emitter::Update(float dt)
 {
+	if (paused)
+		return;
+
 	// Update all particles - Check cyclic buffer first
 	if (firstAliveIndex < firstDeadIndex)
 	{
@@ -155,13 +174,13 @@ void Emitter::Update(float dt)
 	}
 
 	// Add to the time
-	timeSinceEmit += dt;
+	timeSinceLastEmit += dt;
 
 	// Enough time to emit?
-	while (timeSinceEmit > secondsPerParticle)
+	while (timeSinceLastEmit > secondsPerParticle)
 	{
 		SpawnParticle();
-		timeSinceEmit -= secondsPerParticle;
+		timeSinceLastEmit -= secondsPerParticle;
 	}
 }
 
@@ -236,12 +255,12 @@ void Emitter::SpawnParticle()
 	particles[firstDeadIndex].StartVelocity.y += (((float)rand() / RAND_MAX) * 2 - 1) * velocityRandomRange.y;
 	particles[firstDeadIndex].StartVelocity.z += (((float)rand() / RAND_MAX) * 2 - 1) * velocityRandomRange.z;
 
-	float rotStartMin = rotationRandomRanges.x;
-	float rotStartMax = rotationRandomRanges.y;
+	float rotStartMin = rotationStartMinMax.x;
+	float rotStartMax = rotationStartMinMax.y;
 	particles[firstDeadIndex].RotationStart = ((float)rand() / RAND_MAX) * (rotStartMax - rotStartMin) + rotStartMin;
 
-	float rotEndMin = rotationRandomRanges.z;
-	float rotEndMax = rotationRandomRanges.w;
+	float rotEndMin = rotationEndMinMax.x;
+	float rotEndMax = rotationEndMinMax.y;
 	particles[firstDeadIndex].RotationEnd = ((float)rand() / RAND_MAX) * (rotEndMax - rotEndMin) + rotEndMin;
 
 	// Increment and wrap
@@ -296,7 +315,7 @@ void Emitter::CopyOneParticle(int index, std::shared_ptr<Camera> camera)
 	localParticleVertices[i + 3].Color = particles[index].Color;
 
 	// If it's a spritesheet, we need to update UV coords as the particle ages
-	if (isSpriteSheet)
+	if (IsSpriteSheet())
 	{
 		// How old is this particle as a percentage
 		float agePercent = particles[index].Age / lifetime;
@@ -325,7 +344,7 @@ XMFLOAT3 Emitter::CalcParticleVertexPosition(int particleIndex, int quadCornerIn
 	// Get the right and up vectors out of the view matrix
 	XMFLOAT4X4 view = camera->GetView();
 	XMVECTOR camRight = XMVectorSet(view._11, view._21, view._31, 0);
-	XMVECTOR camUp = XMVectorSet(view._12, view._22, view._32, 0);
+	XMVECTOR camUp = constrainYAxis ? XMVectorSet(0,1,0,0) : XMVectorSet(view._12, view._22, view._32, 0);
 
 	// Determine the offset of this corner of the quad
 	// Since the UV's are already set when the emitter is created, 
@@ -355,6 +374,9 @@ XMFLOAT3 Emitter::CalcParticleVertexPosition(int particleIndex, int quadCornerIn
 
 void Emitter::Draw(std::shared_ptr<Camera> camera, bool debugWireframe)
 {
+	if (!visible)
+		return;
+
 	// Copy to dynamic buffer
 	CopyParticlesToGPU(camera);
 
@@ -386,3 +408,35 @@ void Emitter::Draw(std::shared_ptr<Camera> camera, bool debugWireframe)
 }
 
 
+int Emitter::GetParticlesPerSecond()
+{
+	return particlesPerSecond;
+}
+
+void Emitter::SetParticlesPerSecond(int particlesPerSecond)
+{
+	this->particlesPerSecond = max(1, particlesPerSecond);
+	this->secondsPerParticle = 1.0f / particlesPerSecond;
+}
+
+int Emitter::GetMaxParticles()
+{
+	return maxParticles;
+}
+
+void Emitter::SetMaxParticles(int maxParticles)
+{
+	this->maxParticles = max(1, maxParticles);
+	CreateParticlesAndGPUResources();
+
+	// Reset emission details
+	timeSinceLastEmit = 0.0f;
+	livingParticleCount = 0;
+	firstAliveIndex = 0;
+	firstDeadIndex = 0;
+}
+
+bool Emitter::IsSpriteSheet()
+{
+	return spriteSheetHeight > 1 || spriteSheetWidth > 1;
+}

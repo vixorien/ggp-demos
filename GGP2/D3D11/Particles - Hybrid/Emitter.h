@@ -33,6 +33,7 @@ public:
 		float lifetime,
 		float startSize,
 		float endSize,
+		bool constrainYAxis,
 		DirectX::XMFLOAT4 startColor,
 		DirectX::XMFLOAT4 endColor,
 		DirectX::XMFLOAT3 startVelocity,
@@ -43,10 +44,11 @@ public:
 		DirectX::XMFLOAT2 rotationEndMinMax,
 		DirectX::XMFLOAT3 emitterAcceleration,
 		std::shared_ptr<Material> material,
-		bool isSpriteSheet = false,
 		unsigned int spriteSheetWidth = 1,
 		unsigned int spriteSheetHeight = 1,
-		float spriteSheetSpeedScale = 1.0f
+		float spriteSheetSpeedScale = 1.0f,
+		bool paused = false,
+		bool visible = true
 	);
 	~Emitter();
 
@@ -77,6 +79,8 @@ public:
 	float startSize;
 	float endSize;
 	bool constrainYAxis;
+	bool paused;
+	bool visible;
 
 	// Particle randomization ranges
 	DirectX::XMFLOAT3 positionRandomRange;
@@ -89,25 +93,26 @@ public:
 	bool IsSpriteSheet();
 
 private:
+
 	// Emission
+	int maxParticles;
 	int particlesPerSecond;
 	float secondsPerParticle;
 	float timeSinceLastEmit;
-
-	// Array of particle data
-	Particle* particles;
-	int maxParticles;
-
-	// Lifetime tracking
-	int indexFirstDead;
-	int indexFirstAlive;
-	int livingParticleCount;
+	float totalEmitterTime;
 
 	// Sprite sheet options
 	int spriteSheetWidth;
 	int spriteSheetHeight;
 	float spriteSheetFrameWidth;
 	float spriteSheetFrameHeight;
+
+	// Particle array
+	Particle* particles;
+	int firstDeadIndex;
+	int firstAliveIndex;
+	int livingParticleCount;
+	void CreateParticlesAndGPUResources();
 
 	// Rendering
 	Microsoft::WRL::ComPtr<ID3D11Buffer> particleDataBuffer;
@@ -119,7 +124,6 @@ private:
 	std::shared_ptr<Material> material;
 
 	// Creation and copy methods
-	void CreateParticlesAndGPUResources();
 	void CopyParticlesToGPU();
 
 	// Simulation methods

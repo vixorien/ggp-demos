@@ -39,18 +39,22 @@ public:
 		float lifetime,
 		float startSize,
 		float endSize,
+		bool constrainYAxis,
 		DirectX::XMFLOAT4 startColor,
 		DirectX::XMFLOAT4 endColor,
 		DirectX::XMFLOAT3 startVelocity,
 		DirectX::XMFLOAT3 velocityRandomRange,
 		DirectX::XMFLOAT3 emitterPosition,
 		DirectX::XMFLOAT3 positionRandomRange,
-		DirectX::XMFLOAT4 rotationRandomRanges,
+		DirectX::XMFLOAT2 rotationStartMinMax,
+		DirectX::XMFLOAT2 rotationEndMinMax,
 		DirectX::XMFLOAT3 emitterAcceleration,
 		std::shared_ptr<Material> material,
-		bool isSpriteSheet = false,
 		unsigned int spriteSheetWidth = 1,
-		unsigned int spriteSheetHeight = 1
+		unsigned int spriteSheetHeight = 1,
+		float spriteSheetSpeedScale = 1.0f,
+		bool paused = false,
+		bool visible = true
 	);
 	~Emitter();
 
@@ -63,40 +67,59 @@ public:
 	std::shared_ptr<Material> GetMaterial();
 	void SetMaterial(std::shared_ptr<Material> material);
 
+	// Lifetime and emission
+	float lifetime;
+	int GetParticlesPerSecond();
+	void SetParticlesPerSecond(int particlesPerSecond);
+	int GetMaxParticles();
+	void SetMaxParticles(int maxParticles);
+
+	// Emitter-level data (this is the same for all particles)
+	DirectX::XMFLOAT3 emitterAcceleration;
+	DirectX::XMFLOAT3 startVelocity;
+
+	// Particle visual data (interpolated
+	DirectX::XMFLOAT4 startColor;
+	DirectX::XMFLOAT4 endColor;
+	float startSize;
+	float endSize;
+	bool constrainYAxis;
+	bool paused;
+	bool visible;
+
+	// Particle randomization ranges
+	DirectX::XMFLOAT3 positionRandomRange;
+	DirectX::XMFLOAT3 velocityRandomRange;
+	DirectX::XMFLOAT2 rotationStartMinMax;
+	DirectX::XMFLOAT2 rotationEndMinMax;
+
+	// Sprite sheet animation
+	float spriteSheetSpeedScale;
+	bool IsSpriteSheet();
+
 private:
-	// Emission properties
+
+	// Emission
+	int maxParticles;
 	int particlesPerSecond;
 	float secondsPerParticle;
-	float timeSinceEmit;
+	float timeSinceLastEmit;
+	float totalEmitterTime;
 
-	bool isSpriteSheet;
+	// Sprite sheet options
 	int spriteSheetWidth;
 	int spriteSheetHeight;
 	float spriteSheetFrameWidth;
 	float spriteSheetFrameHeight;
 
-	int livingParticleCount;
-	float lifetime;
-
 	DirectX::XMFLOAT2 DefaultUVs[4];
-
-	DirectX::XMFLOAT3 emitterAcceleration;
-	DirectX::XMFLOAT3 startVelocity;
-
-	DirectX::XMFLOAT3 positionRandomRange;
-	DirectX::XMFLOAT3 velocityRandomRange;
-	DirectX::XMFLOAT4 rotationRandomRanges; // Min start, max start, min end, max end
-
-	DirectX::XMFLOAT4 startColor;
-	DirectX::XMFLOAT4 endColor;
-	float startSize;
-	float endSize;
 
 	// Particle array
 	Particle* particles;
-	int maxParticles;
 	int firstDeadIndex;
 	int firstAliveIndex;
+	int livingParticleCount;
+	void CreateParticlesAndGPUResources();
 
 	// Rendering
 	ParticleVertex* localParticleVertices;

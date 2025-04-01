@@ -43,6 +43,7 @@ void BuildUI(
 	std::vector<std::shared_ptr<Mesh>>& meshes,
 	std::vector<std::shared_ptr<GameEntity>>& entities,
 	std::vector<std::shared_ptr<Material>>& materials,
+	std::vector<std::shared_ptr<Emitter>>& emitters,
 	std::vector<Light>& lights,
 	DemoLightingOptions& lightOptions)
 {
@@ -272,6 +273,25 @@ void BuildUI(
 			ImGui::Checkbox("Show Skybox", &lightOptions.ShowSkybox);
 			ImGui::TreePop();
 		}
+
+		// === Emitters ===
+		if (ImGui::TreeNode("Particle Emitters"))
+		{
+			
+			for (int i = 0; i < emitters.size(); i++)
+			{
+				// New node for each light
+				ImGui::PushID(i);
+				if (ImGui::TreeNode("Emitter", "Emitter %d", i))
+				{
+					// Build UI for one entity at a time
+					UIEmitter(emitters[i]);
+					ImGui::TreePop();
+				}
+				ImGui::PopID();
+			}
+			ImGui::TreePop();
+		}
 	}
 
 	ImGui::End();
@@ -446,4 +466,84 @@ void UILight(Light& light)
 	// Color details
 	ImGui::ColorEdit3("Color", &light.Color.x);
 	ImGui::SliderFloat("Intensity", &light.Intensity, 0.0f, 10.0f);
+}
+
+// --------------------------------------------------------
+// Builds the UI for a single emitter
+// --------------------------------------------------------
+void UIEmitter(std::shared_ptr<Emitter> emitter)
+{
+	// Emission
+	ImGui::Text("Emission & Lifetime");
+	{
+		ImGui::Indent(5.0f);
+
+		ImGui::Checkbox("Paused", &emitter->paused);
+
+		int maxPart = emitter->GetMaxParticles();
+		if (ImGui::DragInt("Max Particles", &maxPart, 1.0f, 1, 2000))
+			emitter->SetMaxParticles(maxPart);
+
+		int partPerSec = emitter->GetParticlesPerSecond();
+		if (ImGui::DragInt("Particles Per Second", &partPerSec, 1.0f, 1, 2000))
+			emitter->SetParticlesPerSecond(partPerSec);
+
+		ImGui::SliderFloat("Lifetime", &emitter->lifetime, 0.1f, 25.0f);
+
+		ImGui::Indent(-5.0f);
+	}
+
+	// Overall movement data
+	ImGui::Spacing();
+	ImGui::Text("Movement");
+	{
+		ImGui::Indent(5.0f);
+
+		XMFLOAT3 pos = emitter->GetTransform()->GetPosition();
+		if (ImGui::DragFloat3("Emitter Position", &pos.x, 0.05f))
+			emitter->GetTransform()->SetPosition(pos);
+		ImGui::DragFloat3("Position Randomness", &emitter->positionRandomRange.x, 0.05f);
+
+		ImGui::DragFloat3("Starting Velocity", &emitter->startVelocity.x, 0.05f);
+		ImGui::DragFloat3("Velocity Randomness", &emitter->velocityRandomRange.x, 0.05f);
+
+		ImGui::DragFloat3("Acceleration", &emitter->emitterAcceleration.x, 0.05f);
+		ImGui::Indent(-5.0f);
+	}
+
+	// Visuals
+	ImGui::Spacing();
+	ImGui::Text("Visuals");
+	{
+		ImGui::Indent(5.0f);
+		ImGui::Checkbox("Visible", &emitter->visible);
+
+
+		ImGui::ColorEdit4("Starting Color", &emitter->startColor.x);
+		ImGui::ColorEdit4("Ending Color", &emitter->endColor.x);
+
+		ImGui::SliderFloat("Starting Size", &emitter->startSize, 0.0f, 10.0f);
+		ImGui::SliderFloat("Ending Size", &emitter->endSize, 0.0f, 10.0f);
+
+		ImGui::DragFloatRange2(
+			"Rotation Start Range",
+			&emitter->rotationStartMinMax.x,
+			&emitter->rotationStartMinMax.y,
+			0.01f);
+
+		ImGui::DragFloatRange2(
+			"Rotation End Range",
+			&emitter->rotationEndMinMax.x,
+			&emitter->rotationEndMinMax.y,
+			0.01f);
+
+		ImGui::Checkbox("Constrain Rotation on Y", &emitter->constrainYAxis);
+
+		if (emitter->IsSpriteSheet())
+		{
+			ImGui::SliderFloat("Sprite Sheet Animation Speed", &emitter->spriteSheetSpeedScale, 0.0f, 10.0f);
+		}
+
+		ImGui::Indent(-5.0f);
+	}
 }
