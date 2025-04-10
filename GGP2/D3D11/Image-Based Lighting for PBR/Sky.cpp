@@ -12,7 +12,7 @@ Sky::Sky(
 	std::shared_ptr<SimpleVertexShader> skyVS,
 	std::shared_ptr<SimplePixelShader> skyPS,
 	Microsoft::WRL::ComPtr<ID3D11SamplerState> samplerOptions,
-	IBLOptions iblOptions)
+	IBLOptions& iblOptions)
 	:
 	skySRV(cubeMap),
 	skyMesh(mesh),
@@ -36,7 +36,7 @@ Sky::Sky(
 	std::shared_ptr<SimpleVertexShader> skyVS,
 	std::shared_ptr<SimplePixelShader> skyPS,
 	Microsoft::WRL::ComPtr<ID3D11SamplerState> samplerOptions,
-	IBLOptions iblOptions)
+	IBLOptions& iblOptions)
 	:
 	skyMesh(mesh),
 	samplerOptions(samplerOptions),
@@ -67,7 +67,7 @@ Sky::Sky(
 	std::shared_ptr<SimpleVertexShader> skyVS,
 	std::shared_ptr<SimplePixelShader> skyPS,
 	Microsoft::WRL::ComPtr<ID3D11SamplerState> samplerOptions,
-	IBLOptions iblOptions)
+	IBLOptions& iblOptions)
 	:
 	skyMesh(mesh),
 	samplerOptions(samplerOptions),
@@ -221,7 +221,7 @@ Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Sky::CreateCubemap(const wchar_
 // cube map for indirect diffuse lighting.  This requires rendering each face
 // of the resulting cube map, one at a time.
 // ----------------------------------------------------------------------------
-void Sky::IBLCreateIrradianceMap(IBLOptions iblOptions)
+void Sky::IBLCreateIrradianceMap(IBLOptions& iblOptions)
 {
 	printf("Creating IBL irradiance map for indirect diffuse lighting...");
 
@@ -350,7 +350,7 @@ void Sky::IBLCreateIrradianceMap(IBLOptions iblOptions)
 // of the resulting cube map, as more "blurry" reflections are stored in successive
 // mip levels of the convolved (blurred) map.
 // ----------------------------------------------------------------------------
-void Sky::IBLCreateConvolvedSpecularMap(IBLOptions iblOptions)
+void Sky::IBLCreateConvolvedSpecularMap(IBLOptions& iblOptions)
 {
 	printf("Creating convolved environment map for indirect specular lighting...");
 
@@ -491,7 +491,7 @@ void Sky::IBLCreateConvolvedSpecularMap(IBLOptions iblOptions)
 // It could technically be generated once, saved out and loaded back in, 
 // rather than re-computing it each time.
 // ----------------------------------------------------------------------------
-void Sky::IBLCreateBRDFLookUpTexture(IBLOptions iblOptions)
+void Sky::IBLCreateBRDFLookUpTexture(IBLOptions& iblOptions)
 {
 	printf("Creating pre-calculated environment BRDF lookup texture...");
 
@@ -507,7 +507,7 @@ void Sky::IBLCreateBRDFLookUpTexture(IBLOptions iblOptions)
 	texDesc.Height = IBLLookUpTextureSize;
 	texDesc.ArraySize = 1; // Single texture
 	texDesc.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
-	texDesc.Format = DXGI_FORMAT_R16G16_UNORM;  // Only two channels, each of which is double the precision
+	texDesc.Format = DXGI_FORMAT_R16G16_FLOAT;  // Only two channels, each of which is double the precision
 	texDesc.MipLevels = 1; // Just one mip level
 	texDesc.MiscFlags = 0; // NOT a cube map!
 	texDesc.SampleDesc.Count = 1; // Can't be zero
@@ -588,6 +588,10 @@ void Sky::IBLCreateBRDFLookUpTexture(IBLOptions iblOptions)
 	// Restore the old render target and viewport
 	Graphics::Context->OMSetRenderTargets(1, prevRTV.GetAddressOf(), prevDSV.Get());
 	Graphics::Context->RSSetViewports(1, &prevVP);
+
+
+	// Save SRV for debug
+	iblOptions.BRDFLookUpSRV = brdfLookUpMap;
 
 	printf("done!\n");
 }

@@ -14,6 +14,9 @@ struct IBLOptions
 	std::shared_ptr<SimplePixelShader> IBLIrradiancePS;
 	std::shared_ptr<SimplePixelShader> IBLSpecularConvolutionPS;
 	std::shared_ptr<SimplePixelShader> IBLBRDFLookUpPS;
+
+	// SRVs for debug drawing
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> BRDFLookUpSRV;
 };
 
 class Sky
@@ -27,7 +30,7 @@ public:
 		std::shared_ptr<SimpleVertexShader> skyVS,
 		std::shared_ptr<SimplePixelShader> skyPS,
 		Microsoft::WRL::ComPtr<ID3D11SamplerState> samplerOptions,
-		IBLOptions iblOptions
+		IBLOptions& iblOptions
 	);
 
 	// Constructor that loads a DDS cube map file
@@ -37,7 +40,7 @@ public:
 		std::shared_ptr<SimpleVertexShader> skyVS,
 		std::shared_ptr<SimplePixelShader> skyPS,
 		Microsoft::WRL::ComPtr<ID3D11SamplerState> samplerOptions,
-		IBLOptions iblOptions
+		IBLOptions& iblOptions
 	);
 
 	// Constructor that loads 6 textures and makes a cube map
@@ -52,7 +55,7 @@ public:
 		std::shared_ptr<SimpleVertexShader> skyVS,
 		std::shared_ptr<SimplePixelShader> skyPS,
 		Microsoft::WRL::ComPtr<ID3D11SamplerState> samplerOptions,
-		IBLOptions iblOptions
+		IBLOptions& iblOptions
 	);
 
 	~Sky();
@@ -103,8 +106,8 @@ private:
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> brdfLookUpMap;		// Holds some pre-calculated BRDF results
 
 	// IBL precompute steps
-	void IBLCreateIrradianceMap(IBLOptions iblOptions);
-	void IBLCreateConvolvedSpecularMap(IBLOptions iblOptions);
-	void IBLCreateBRDFLookUpTexture(IBLOptions iblOptions);
+	void IBLCreateIrradianceMap(IBLOptions& iblOptions);
+	void IBLCreateConvolvedSpecularMap(IBLOptions& iblOptions);
+	void IBLCreateBRDFLookUpTexture(IBLOptions& iblOptions);
 };
 

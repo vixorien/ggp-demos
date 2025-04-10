@@ -78,7 +78,7 @@ float4 main(VertexToPixel input) : SV_TARGET
 	//       nDotV is X
 	float roughness = input.uv.y;
 	float nDotV = input.uv.x;
-
+	
 	// Handle this pixel and save
 	float2 brdf = IntegrateBRDF(roughness, nDotV);
 	return float4(brdf, 0, 1);

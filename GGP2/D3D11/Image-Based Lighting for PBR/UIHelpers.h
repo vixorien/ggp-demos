@@ -11,6 +11,8 @@
 #include "Lights.h"
 #include "Sky.h"
 
+#include "ImGui/imgui.h"
+
 
 // Informing IMGUI about the new frame
 void UINewFrame(float deltaTime);
@@ -31,3 +33,5 @@ void UIEntity(std::shared_ptr<GameEntity> entity);
 void UICamera(std::shared_ptr<Camera> cam);
 void UIMaterial(std::shared_ptr<Material> material);
 void UILight(Light& light);
+
+void ImageWithHover(ImTextureID user_texture_id, const ImVec2& size);
