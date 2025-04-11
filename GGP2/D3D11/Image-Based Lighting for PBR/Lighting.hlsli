@@ -447,7 +447,7 @@ float3 ImportanceSampleGGX(float2 Xi, float roughness, float3 N)
 
 	float Phi = 2.0 * PI * Xi.x;
 	float CosTheta = sqrt((1.0 - Xi.y) / (1.0 + (a * a - 1.0) * Xi.y));
-	float SinTheta = sqrt(1.0 - CosTheta * CosTheta);
+	float SinTheta = sqrt(max(0.0f, 1.0 - CosTheta * CosTheta)); // ADDED MAX due to new-ish bug with sqrt(0) producing NaN
 
 	float3 H;
 	H.x = SinTheta * cos(Phi);
@@ -457,7 +457,7 @@ float3 ImportanceSampleGGX(float2 Xi, float roughness, float3 N)
 	float3 UpVector = abs(N.z) < 0.999f ? float3(0, 0, 1) : float3(1, 0, 0);
 	float3 TangentX = normalize(cross(UpVector, N));
 	float3 TangentY = cross(N, TangentX);
-
+	
 	// Tangent to world space
 	return TangentX * H.x + TangentY * H.y + N * H.z;
 }
