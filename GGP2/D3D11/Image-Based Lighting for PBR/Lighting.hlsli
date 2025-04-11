@@ -445,9 +445,9 @@ float3 ImportanceSampleGGX(float2 Xi, float roughness, float3 N)
 {
 	float a = roughness * roughness;
 
-	float Phi = 2 * PI * Xi.x;
-	float CosTheta = sqrt((1 - Xi.y) / (1 + (a * a - 1) * Xi.y));
-	float SinTheta = sqrt(1 - CosTheta * CosTheta);
+	float Phi = 2.0 * PI * Xi.x;
+	float CosTheta = sqrt((1.0 - Xi.y) / (1.0 + (a * a - 1.0) * Xi.y));
+	float SinTheta = sqrt(1.0 - CosTheta * CosTheta);
 
 	float3 H;
 	H.x = SinTheta * cos(Phi);

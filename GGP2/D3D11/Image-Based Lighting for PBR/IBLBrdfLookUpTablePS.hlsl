@@ -39,7 +39,7 @@ float2 IntegrateBRDF(float roughnessValue, float nDotV)
 
 	float A = 0;
 	float B = 0;
-
+	
 	// Run the calculation MANY times
 	//  - 4096 would be an ideal number of times 
 	//  - Fewer is faster, but is less accurate
@@ -49,22 +49,23 @@ float2 IntegrateBRDF(float roughnessValue, float nDotV)
 		float2 Xi = Hammersley2d(i, MAX_IBL_SAMPLES);
 		float3 H = ImportanceSampleGGX(Xi, roughnessValue, N);
 		float3 L = 2 * dot(V, H) * H - V;
-
+		
 		float nDotL = saturate(L.z);
 		float nDotH = saturate(H.z);
 		float vDotH = saturate(dot(V, H));
-
+	
 		// Check N dot L result
 		if (nDotL > 0)
 		{
 			float G = G_Smith(roughnessValue, nDotV, nDotL);
 			float G_Vis = G * vDotH / (nDotH * nDotV);
 			float Fc = pow(1 - vDotH, 5.0f);
+			
 			A += (1.0f - Fc) * G_Vis;
 			B += Fc * G_Vis;
 		}
 	}
-
+	
 	// Divide and return result
 	return float2(A, B) / MAX_IBL_SAMPLES;
 }

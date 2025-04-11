@@ -339,7 +339,8 @@ void Game::LoadAssetsAndCreateEntities()
 
 
 	// === Create a gradient of entities based on roughness & metalness ====
-	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> albedoSRV = CreateSolidColorTextureSRV(2, 2, XMFLOAT4(1, 1, 1, 1));
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> albedoWhiteSRV = CreateSolidColorTextureSRV(2, 2, XMFLOAT4(1, 1, 1, 1));
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> albedoBlackSRV = CreateSolidColorTextureSRV(2, 2, XMFLOAT4(0, 0, 0, 1));
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> metal0SRV = CreateSolidColorTextureSRV(2, 2, XMFLOAT4(0, 0, 0, 1));
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> metal1SRV = CreateSolidColorTextureSRV(2, 2, XMFLOAT4(1, 1, 1, 1));
 
@@ -355,29 +356,39 @@ void Game::LoadAssetsAndCreateEntities()
 		// Set up the materials
 		std::shared_ptr<Material> matMetal = std::make_shared<Material>("Metal 0-1", pixelShader, vertexShader, XMFLOAT3(1, 1, 1));
 		matMetal->AddSampler("BasicSampler", sampler);
-		matMetal->AddTextureSRV("Albedo", albedoSRV);
+		matMetal->AddTextureSRV("Albedo", albedoWhiteSRV);
 		matMetal->AddTextureSRV("NormalMap", normalSRV);
 		matMetal->AddTextureSRV("RoughnessMap", roughSRV);
 		matMetal->AddTextureSRV("MetalMap", metal1SRV);
 
-		std::shared_ptr<Material> matNonMetal = std::make_shared<Material>("Non-Metal 0-1", pixelShader, vertexShader, XMFLOAT3(1, 1, 1));
-		matNonMetal->AddSampler("BasicSampler", sampler);
-		matNonMetal->AddTextureSRV("Albedo", albedoSRV);
-		matNonMetal->AddTextureSRV("NormalMap", normalSRV);
-		matNonMetal->AddTextureSRV("RoughnessMap", roughSRV);
-		matNonMetal->AddTextureSRV("MetalMap", metal0SRV);
+		std::shared_ptr<Material> matNonMetal_W = std::make_shared<Material>("Non-Metal White 0-1", pixelShader, vertexShader, XMFLOAT3(1, 1, 1));
+		matNonMetal_W->AddSampler("BasicSampler", sampler);
+		matNonMetal_W->AddTextureSRV("Albedo", albedoWhiteSRV);
+		matNonMetal_W->AddTextureSRV("NormalMap", normalSRV);
+		matNonMetal_W->AddTextureSRV("RoughnessMap", roughSRV);
+		matNonMetal_W->AddTextureSRV("MetalMap", metal0SRV);
 
-		materials.insert(materials.end(), { matMetal, matNonMetal });
+		std::shared_ptr<Material> matNonMetal_B = std::make_shared<Material>("Non-Metal Black 0-1", pixelShader, vertexShader, XMFLOAT3(0, 0, 0));
+		matNonMetal_B->AddSampler("BasicSampler", sampler);
+		matNonMetal_B->AddTextureSRV("Albedo", albedoBlackSRV);
+		matNonMetal_B->AddTextureSRV("NormalMap", normalSRV);
+		matNonMetal_B->AddTextureSRV("RoughnessMap", roughSRV);
+		matNonMetal_B->AddTextureSRV("MetalMap", metal0SRV);
+
+		materials.insert(materials.end(), { matMetal, matNonMetal_W, matNonMetal_B });
 
 		// Create the entities
 		std::shared_ptr<GameEntity> geMetal = std::make_shared<GameEntity>(sphereMesh, matMetal);
-		std::shared_ptr<GameEntity> geNonMetal = std::make_shared<GameEntity>(sphereMesh, matNonMetal);
+		std::shared_ptr<GameEntity> geNonMetal_W = std::make_shared<GameEntity>(sphereMesh, matNonMetal_W);
+		std::shared_ptr<GameEntity> geNonMetal_B = std::make_shared<GameEntity>(sphereMesh, matNonMetal_B);
 		entitiesGradient.push_back(geMetal);
-		entitiesGradient.push_back(geNonMetal);
+		entitiesGradient.push_back(geNonMetal_W);
+		entitiesGradient.push_back(geNonMetal_B);
 
 		// Move and scale them
-		geMetal->GetTransform()->SetPosition(i * 2.0f - 10.0f, 1, 0);
-		geNonMetal->GetTransform()->SetPosition(i * 2.0f - 10.0f, -1, 0);
+		geMetal->GetTransform()->SetPosition(i * 2.0f - 10.0f, 2, 0);
+		geNonMetal_W->GetTransform()->SetPosition(i * 2.0f - 10.0f, 0, 0);
+		geNonMetal_B->GetTransform()->SetPosition(i * 2.0f - 10.0f, -2, 0);
 	}
 
 }
