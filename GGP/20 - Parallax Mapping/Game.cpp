@@ -124,16 +124,16 @@ void Game::LoadAssetsAndCreateEntities()
 	// Quick pre-processor macro for simplifying texture loading calls below
 #define LoadTexture(path, srv) CreateWICTextureFromFile(Graphics::Device.Get(), Graphics::Context.Get(), FixPath(path).c_str(), 0, srv.GetAddressOf());
 	LoadTexture(AssetPath + L"Textures/PBR/wood_albedo.png", shapesA);
-	LoadTexture(AssetPath + L"Textures/PBR/shapes_normals.png", shapesN);
+	LoadTexture(AssetPath + L"Textures/shapes_normals.png", shapesN);
 	LoadTexture(AssetPath + L"Textures/PBR/wood_roughness.png", shapesR);
 	LoadTexture(AssetPath + L"Textures/PBR/wood_metal.png", shapesM);
-	LoadTexture(AssetPath + L"Textures/PBR/shapes_height.png", shapesH);
+	LoadTexture(AssetPath + L"Textures/shapes_height.png", shapesH);
 
-	LoadTexture(AssetPath + L"Textures/stones.png", shapesA);
-	LoadTexture(AssetPath + L"Textures/stones_normals.png", shapesN);
-	LoadTexture(AssetPath + L"Textures/stones_height.png", shapesR);
-	LoadTexture(AssetPath + L"Textures/PBR/wood_metal.png", shapesM); // White
-	LoadTexture(AssetPath + L"Textures/stones_height.png", shapesH);
+	LoadTexture(AssetPath + L"Textures/stones.png", stonesA);
+	LoadTexture(AssetPath + L"Textures/stones_normals.png", stonesN);
+	LoadTexture(AssetPath + L"Textures/stones_height.png", stonesR);
+	LoadTexture(AssetPath + L"Textures/PBR/wood_metal.png", stonesM); // White
+	LoadTexture(AssetPath + L"Textures/stones_height.png", stonesH);
 
 	LoadTexture(AssetPath + L"Textures/PBR/leather_albedo.jpg", leatherA);
 	LoadTexture(AssetPath + L"Textures/PBR/leather_normals.jpg", leatherN);
