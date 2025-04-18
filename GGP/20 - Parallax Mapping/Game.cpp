@@ -137,13 +137,13 @@ void Game::LoadAssetsAndCreateEntities()
 
 	LoadTexture(AssetPath + L"Textures/PBR/leather_albedo.jpg", leatherA);
 	LoadTexture(AssetPath + L"Textures/PBR/leather_normals.jpg", leatherN);
-	LoadTexture(AssetPath + L"Textures/PBR/leather_roughness.jpg", leatherR);
+	LoadTexture(AssetPath + L"Textures/PBR/leather_rough.jpg", leatherR);
 	LoadTexture(AssetPath + L"Textures/PBR/leather_metal.jpg", leatherM);
 	LoadTexture(AssetPath + L"Textures/PBR/leather_height.jpg", leatherH);
 
 	LoadTexture(AssetPath + L"Textures/PBR/bricks_albedo.jpg", bricksA);
 	LoadTexture(AssetPath + L"Textures/PBR/bricks_normals.jpg", bricksN);
-	LoadTexture(AssetPath + L"Textures/PBR/bricks_roughness.jpg", bricksR);
+	LoadTexture(AssetPath + L"Textures/PBR/bricks_rough.jpg", bricksR);
 	LoadTexture(AssetPath + L"Textures/PBR/bricks_metal.jpg", bricksM);
 	LoadTexture(AssetPath + L"Textures/PBR/bricks_height.jpg", bricksH);
 #undef LoadTexture

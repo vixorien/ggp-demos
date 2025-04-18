@@ -273,6 +273,14 @@ void BuildUI(
 			ImGui::Checkbox("Show Skybox", &lightOptions.ShowSkybox);
 			ImGui::TreePop();
 		}
+
+		// === Parallax Mapping ===
+		if (ImGui::TreeNode("Parallax Mapping"))
+		{
+			ImGui::SliderInt("Sample Count", &parallaxOptions.SampleCount, 8, 256);
+			ImGui::SliderFloat("Height Scale", &parallaxOptions.HeightScale, 0.0f, 2.0f);
+			ImGui::TreePop();
+		}
 	}
 
 	ImGui::End();

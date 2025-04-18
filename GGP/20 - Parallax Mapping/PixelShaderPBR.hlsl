@@ -125,7 +125,7 @@ float4 main(VertexToPixel input) : SV_TARGET
 	// Sample texture
 	float4 surfaceColor = Albedo.Sample(BasicSampler, input.uv);
 	surfaceColor.rgb = gammaCorrection ? pow(surfaceColor.rgb, 2.2) : surfaceColor.rgb;
-
+	
 	// Actually using texture?
 	surfaceColor.rgb = useAlbedoTexture ? surfaceColor.rgb : colorTint.rgb;
 
