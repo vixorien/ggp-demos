@@ -1,7 +1,10 @@
 
+#define EPSILON 0.000001f
+
 #define SDF_TYPE_SPHERE		0
 #define SDF_TYPE_BOX		1
 #define SDF_TYPE_PLANE		2
+
 
 // Shape inputs:
 // Sphere - pos, radius
@@ -115,8 +118,78 @@ Hit Scene(float3 samplePos, Shape shapes[MAX_SHAPES], int shapeCount)
 	return finalHit;
 }
 
+float3 NormalSDF_3_Sample(float3 samplePos, float d, Shape shapes[MAX_SHAPES], int shapeCount)
+{
+	float e = 0.001f;
+	
+	return normalize(float3(
+		Scene(samplePos + float3(e, 0, 0), shapes, shapeCount).Dist - d,
+		Scene(samplePos + float3(0, e, 0), shapes, shapeCount).Dist - d,
+		Scene(samplePos + float3(0, 0, e), shapes, shapeCount).Dist - d));
+}
 
-#define EPSILON 0.000001f
+float3 NormalSDF_4_Sample(float3 samplePos, Shape shapes[MAX_SHAPES], int shapeCount)
+{
+	float e = 0.001f;
+	float2 offset = float2(1, -1);
+	
+	return normalize(
+		offset.xyy * Scene(samplePos + offset.xyy * e, shapes, shapeCount).Dist + 
+		offset.yyx * Scene(samplePos + offset.yyx * e, shapes, shapeCount).Dist + 
+		offset.yxy * Scene(samplePos + offset.yxy * e, shapes, shapeCount).Dist + 
+		offset.xxx * Scene(samplePos + offset.xxx * e, shapes, shapeCount).Dist);
+}
+
+float3 RayMarch(Ray ray, Shape shapes[MAX_SHAPES], int shapeCount)
+{
+	float3 color = float3(1,1,1);
+	float3 normal = float3(0,0,0);
+	float3 refl = float3(0,0,0);
+	
+	float3 startPos = cameraPosition;
+	
+	for(int reflIndex = 0; reflIndex < 3; reflIndex++)
+	{
+		
+		float currentDist = 0;
+		float3 currPosition = startPos + ray.Direction * currentDist;
+		
+		// Ray march
+		for (int i = 0; i < 256; i++)
+		{
+			currPosition = startPos + ray.Direction * currentDist;
+		
+			Hit hit = Scene(currPosition, shapes, 3);
+			if (hit.Dist < EPSILON)
+			{
+				// Calculate normal here
+				normal = NormalSDF_3_Sample(currPosition, hit.Dist, shapes, 3);
+				//float3 normal = NormalSDF_4_Sample(currPosition, shapes, 3);
+			
+				// Reflection ray
+				refl = reflect(ray.Direction, normal);
+			
+				// Calculate first reflection
+				//Hit hitRefl = Scene(currPosition
+			
+				color *= hit.Color;
+				break;
+			}
+		
+			currentDist += hit.Dist;
+		
+			if (currentDist >= 100)
+				break;
+				//return float3(0, 0, 0);
+		}
+		
+		ray.Direction = refl;
+		startPos = currPosition + ray.Direction * 0.01f;
+	}
+	
+	return color;
+}
+
 
 float4 main(float4 position	: SV_POSITION) : SV_TARGET
 {
@@ -125,36 +198,22 @@ float4 main(float4 position	: SV_POSITION) : SV_TARGET
 	shapes[0].Type = SDF_TYPE_SPHERE;
 	shapes[0].Position = float3(0,0,0);
 	shapes[0].Radius = 1.0f;
-	shapes[0].Color = float3(1,0,0);
+	shapes[0].Color = float3(1,0.25f,0.25f);
 	
 	shapes[1].Type = SDF_TYPE_SPHERE;
 	shapes[1].Position = float3(3,0,0);
 	shapes[1].Radius = 2.0f;
-	shapes[1].Color = float3(0, 1, 0);
+	shapes[1].Color = float3(0.25f, 1, 0.25f);
 	
 	shapes[2].Type = SDF_TYPE_BOX;
 	shapes[2].Position = float3(-5,0,0);
 	shapes[2].Bounds = float3(2, 5, 2);
-	shapes[2].Color = float3(0, 0, 1);
+	shapes[2].Color = float3(0.25f, 0.25f, 1);
 	
 	Ray ray = CalcRayFromCamera(position.xy);
 	
-	float currentDist = 0;
+	float3 color = RayMarch(ray, shapes, 3);
 	
-	for(int i = 0; i < 256; i++)
-	{
-		Hit hit = Scene(cameraPosition + ray.Direction * currentDist, shapes, 3);
-		if(hit.Dist < EPSILON)
-		{
-			return hit.Color.rgbb;
-		}
-		
-		currentDist += hit.Dist;
-		
-		if(currentDist >= 100)
-			return float4(0,0,0,0);
-	}
-	
-	return float4(0,0,0,0);
+	return float4(color, 1);
 	
 }
