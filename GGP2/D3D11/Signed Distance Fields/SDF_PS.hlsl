@@ -87,8 +87,8 @@ Hit UnionSDF(Hit a, Hit b)
 {
 	if(a.Dist < b.Dist) 
 		return a;
-	
-	return b;
+	else
+		return b;
 }
 
 Hit Scene(float3 samplePos, Shape shapes[MAX_SHAPES], int shapeCount)
@@ -100,12 +100,13 @@ Hit Scene(float3 samplePos, Shape shapes[MAX_SHAPES], int shapeCount)
 	for(int i = 0; i < shapeCount; i++)
 	{
 		Hit hit;
+		hit.Dist = 999;
 		hit.Color = shapes[i].Color;
 		switch (shapes[i].Type)
 		{
 			case SDF_TYPE_SPHERE: hit.Dist = SphereSDF(samplePos, shapes[i].Position, shapes[i].Radius); break;
 			case SDF_TYPE_BOX: hit.Dist = BoxSDF(samplePos, shapes[i].Position, shapes[i].Bounds); break;
-			case SDF_TYPE_PLANE: break;
+			//case SDF_TYPE_PLANE: break;
 		}
 		
 		finalHit = UnionSDF(finalHit, hit);
