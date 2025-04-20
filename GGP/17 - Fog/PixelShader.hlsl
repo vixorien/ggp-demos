@@ -21,6 +21,7 @@ cbuffer ExternalData : register(b0)
 	float fogEndDist;
 	float fogDensity;
 	int heightBasedFog;
+	float fogVerticalDensity;
 	float fogHeight;
 	
 	Light lights[NUM_LIGHTS];
@@ -78,14 +79,15 @@ float4 main(VertexToPixel input) : SV_TARGET
 		case 2: fog = 1.0f - exp(-surfaceDistance * fogDensity); break;
 	}
 	
-	// Suuuper basic height-based fog
+	// Exponential vertical fog
 	if (heightBasedFog)
 	{
-		fog *= smoothstep(fogHeight, 0.0f, input.worldPos.y);
+		float fogV = 1.0f - exp(-(fogHeight - input.worldPos.y) * fogVerticalDensity);
+		fog = max(fog, fogV);
 	}
 	
 	// Apply fog as a lerp between the final color and a fog color
-	totalLight = lerp(totalLight, fogColor, fog);
+	totalLight = lerp(totalLight, fogColor, saturate(fog));
 	
 
 	// Should have the complete light contribution at this point

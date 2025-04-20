@@ -223,6 +223,7 @@ void BuildUI(
 			ImGui::Checkbox("Height-Based Fog", &fogOptions.HeightBasedFog);
 			if (fogOptions.HeightBasedFog)
 			{
+				ImGui::SliderFloat("Vertical Density", &fogOptions.FogVerticalDensity, 0.0f, 1.0f);
 				ImGui::SliderFloat("Fog Height", &fogOptions.FogHeight, 0.0f, 50.0f);
 			}
 

@@ -19,6 +19,7 @@ struct FogOptions
 	float FogDensity;
 	bool HeightBasedFog;
 	float FogHeight;
+	float FogVerticalDensity;
 	bool MatchBackgroundToFog;
 };
 

@@ -58,13 +58,14 @@ void Game::Initialize()
 	// Options for fog
 	fogOptions =
 	{
-		.FogType = 0,
+		.FogType = 1,
 		.FogColor = XMFLOAT3(0.5f, 0.5f, 0.5f),
 		.FogStartDistance = 20.0f,
-		.FogEndDistance = 30.0f,
+		.FogEndDistance = 60.0f,
 		.FogDensity = 0.02f,
 		.HeightBasedFog = false,
 		.FogHeight = 10.0f,
+		.FogVerticalDensity = 0.5f,
 		.MatchBackgroundToFog = false
 	};
 
@@ -142,7 +143,7 @@ void Game::LoadAssetsAndCreateEntities()
 
 			std::shared_ptr<GameEntity> cube = std::make_shared<GameEntity>(cubeMesh, matRand);
 			float height = 10;
-			cube->GetTransform()->SetScale(1, height, 1);
+			cube->GetTransform()->SetScale(1, height + RandomRange(-2.0f, 2.0f), 1);
 			cube->GetTransform()->SetPosition(x * spacing - spacing/2, height / 2, z * spacing);
 
 			entities.push_back(cube);
@@ -257,6 +258,7 @@ void Game::Draw(float deltaTime, float totalTime)
 		ps->SetFloat("fogEndDist", fogOptions.FogEndDistance);
 		ps->SetInt("fogType", fogOptions.FogType);
 		ps->SetInt("heightBasedFog", fogOptions.HeightBasedFog);
+		ps->SetFloat("fogVerticalDensity", fogOptions.FogVerticalDensity);
 		ps->SetFloat("fogHeight", fogOptions.FogHeight);
 
 		// Draw one entity
