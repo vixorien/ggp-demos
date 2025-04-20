@@ -1,5 +1,5 @@
 
-#define EPSILON 0.000001f
+#define EPSILON 0.001f
 
 #define SDF_TYPE_SPHERE		0
 #define SDF_TYPE_BOX		1
@@ -109,7 +109,7 @@ Hit Scene(float3 samplePos, Shape shapes[MAX_SHAPES], int shapeCount)
 		{
 			case SDF_TYPE_SPHERE: hit.Dist = SphereSDF(samplePos, shapes[i].Position, shapes[i].Radius); break;
 			case SDF_TYPE_BOX: hit.Dist = BoxSDF(samplePos, shapes[i].Position, shapes[i].Bounds); break;
-			//case SDF_TYPE_PLANE: break;
+			case SDF_TYPE_PLANE: hit.Dist = PlaneSDF(samplePos, shapes[i].Position, shapes[i].Normal, shapes[i].D); break;
 		}
 		
 		finalHit = UnionSDF(finalHit, hit);
@@ -120,24 +120,34 @@ Hit Scene(float3 samplePos, Shape shapes[MAX_SHAPES], int shapeCount)
 
 float3 NormalSDF_3_Sample(float3 samplePos, float d, Shape shapes[MAX_SHAPES], int shapeCount)
 {
-	float e = 0.001f;
-	
 	return normalize(float3(
-		Scene(samplePos + float3(e, 0, 0), shapes, shapeCount).Dist - d,
-		Scene(samplePos + float3(0, e, 0), shapes, shapeCount).Dist - d,
-		Scene(samplePos + float3(0, 0, e), shapes, shapeCount).Dist - d));
+		Scene(samplePos + float3(EPSILON, 0, 0), shapes, shapeCount).Dist - d,
+		Scene(samplePos + float3(0, EPSILON, 0), shapes, shapeCount).Dist - d,
+		Scene(samplePos + float3(0, 0, EPSILON), shapes, shapeCount).Dist - d));
 }
 
 float3 NormalSDF_4_Sample(float3 samplePos, Shape shapes[MAX_SHAPES], int shapeCount)
 {
-	float e = 0.001f;
 	float2 offset = float2(1, -1);
 	
 	return normalize(
-		offset.xyy * Scene(samplePos + offset.xyy * e, shapes, shapeCount).Dist + 
-		offset.yyx * Scene(samplePos + offset.yyx * e, shapes, shapeCount).Dist + 
-		offset.yxy * Scene(samplePos + offset.yxy * e, shapes, shapeCount).Dist + 
-		offset.xxx * Scene(samplePos + offset.xxx * e, shapes, shapeCount).Dist);
+		offset.xyy * Scene(samplePos + offset.xyy * EPSILON, shapes, shapeCount).Dist + 
+		offset.yyx * Scene(samplePos + offset.yyx * EPSILON, shapes, shapeCount).Dist + 
+		offset.yxy * Scene(samplePos + offset.yxy * EPSILON, shapes, shapeCount).Dist + 
+		offset.xxx * Scene(samplePos + offset.xxx * EPSILON, shapes, shapeCount).Dist);
+}
+
+float3 GetSkyColor(float3 dir)
+{
+	float3 skyUp = float3(0.5f, 0.8f, 1);
+	float3 skyDown = float3(0.1f, 0.2f, 1);
+	
+	return lerp(skyDown, skyUp, saturate(dot(float3(0,1,0), normalize(dir)) * 0.5f + 0.5f));
+}
+
+float FresnelSchlick(float f0, float3 n, float3 v)
+{
+	return f0 + (1-f0) * pow(1 - saturate(dot(n,v)), 5.0f);
 }
 
 float3 RayMarch(Ray ray, Shape shapes[MAX_SHAPES], int shapeCount)
@@ -148,31 +158,43 @@ float3 RayMarch(Ray ray, Shape shapes[MAX_SHAPES], int shapeCount)
 	
 	float3 startPos = cameraPosition;
 	
-	for(int reflIndex = 0; reflIndex < 3; reflIndex++)
+	for(int reflIndex = 0; reflIndex < 2; reflIndex++)
 	{
 		
 		float currentDist = 0;
 		float3 currPosition = startPos + ray.Direction * currentDist;
 		
 		// Ray march
+		bool anyHit = false;
 		for (int i = 0; i < 256; i++)
 		{
 			currPosition = startPos + ray.Direction * currentDist;
 		
-			Hit hit = Scene(currPosition, shapes, 3);
+			Hit hit = Scene(currPosition, shapes, shapeCount);
 			if (hit.Dist < EPSILON)
 			{
+				anyHit = true;
+				
 				// Calculate normal here
-				normal = NormalSDF_3_Sample(currPosition, hit.Dist, shapes, 3);
-				//float3 normal = NormalSDF_4_Sample(currPosition, shapes, 3);
+				normal = NormalSDF_3_Sample(currPosition, hit.Dist, shapes, shapeCount);
+				//float3 normal = NormalSDF_4_Sample(currPosition, shapes, shapeCount);
 			
-				// Reflection ray
+				// Reflection ray (for next bounce after loop)
 				refl = reflect(ray.Direction, normal);
 			
-				// Calculate first reflection
-				//Hit hitRefl = Scene(currPosition
-			
-				color *= hit.Color;
+				// Light details
+				float3 lightDir = normalize(float3(0.75f,-1,0.8));
+				float3 lightRefl = reflect(lightDir, normal);
+				float diffuse = max(dot(normal, -lightDir), 0);
+				
+				float spec = pow(max(0, dot(-ray.Direction, lightRefl)), 32.0f);
+				spec *= diffuse;
+				//spec *= FresnelSchlick(0.04f, normal, -ray.Direction);
+				
+				// Hemispheric ambient
+				float3 ambient = GetSkyColor(normal) * 0.2f;
+				
+				color *= (hit.Color * diffuse + spec + ambient);
 				break;
 			}
 		
@@ -180,7 +202,12 @@ float3 RayMarch(Ray ray, Shape shapes[MAX_SHAPES], int shapeCount)
 		
 			if (currentDist >= 100)
 				break;
-				//return float3(0, 0, 0);
+		}
+		
+		if(!anyHit)
+		{
+			color *= GetSkyColor(ray.Direction);
+			break;
 		}
 		
 		ray.Direction = refl;
@@ -196,24 +223,30 @@ float4 main(float4 position	: SV_POSITION) : SV_TARGET
 	Shape shapes[10];
 	
 	shapes[0].Type = SDF_TYPE_SPHERE;
-	shapes[0].Position = float3(0,0,0);
+	shapes[0].Position = float3(-2,1,0);
 	shapes[0].Radius = 1.0f;
-	shapes[0].Color = float3(1,0.25f,0.25f);
+	shapes[0].Color = float3(1,0.75f,0.25f);
 	
 	shapes[1].Type = SDF_TYPE_SPHERE;
-	shapes[1].Position = float3(3,0,0);
+	shapes[1].Position = float3(3,2,0);
 	shapes[1].Radius = 2.0f;
-	shapes[1].Color = float3(0.25f, 1, 0.25f);
+	shapes[1].Color = float3(0.25f, 1, 0.75f);
 	
 	shapes[2].Type = SDF_TYPE_BOX;
-	shapes[2].Position = float3(-5,0,0);
-	shapes[2].Bounds = float3(2, 5, 2);
-	shapes[2].Color = float3(0.25f, 0.25f, 1);
+	shapes[2].Position = float3(0,6,5);
+	shapes[2].Bounds = float3(5, 5, 2);
+	shapes[2].Color = float3(0.75f, 0.25f, 1);
+	
+	shapes[3].Type = SDF_TYPE_PLANE;
+	shapes[3].Position = float3(0,0,0);
+	shapes[3].Normal = float3(0,1,0);
+	shapes[3].D = 0.0f;
+	shapes[3].Color = float3(0.5f, 0.5f, 0.5f);
 	
 	Ray ray = CalcRayFromCamera(position.xy);
 	
-	float3 color = RayMarch(ray, shapes, 3);
+	float3 color = RayMarch(ray, shapes, 4);
 	
-	return float4(color, 1);
+	return float4(pow(color, 1.0f / 2.2f), 1);
 	
 }
