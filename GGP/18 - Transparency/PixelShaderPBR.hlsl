@@ -19,6 +19,7 @@ cbuffer ExternalData : register(b0)
 	float2 uvScale;
 	float2 uvOffset;
 	int flipNormal;
+	int alphaClip;
 }
 
 // Texture related resources
@@ -42,7 +43,8 @@ float4 main(VertexToPixel input) : SV_TARGET
 
 	// Use normal mapping
 	input.normal = NormalMapping(NormalMap, BasicSampler, input.uv, input.normal, input.tangent);
-
+	input.normal *= flipNormal ? -1 : 1;
+	
 	// Sample the roughness map - this essentially becomes our "specular map" in non-PBR
 	float roughness = RoughnessMap.Sample(BasicSampler, input.uv).r;
 
@@ -52,6 +54,11 @@ float4 main(VertexToPixel input) : SV_TARGET
 	// Sample texture
 	float4 surfaceColor = Albedo.Sample(BasicSampler, input.uv);
 	surfaceColor.rgb = pow(surfaceColor.rgb, 2.2f);
+	
+	if(alphaClip && surfaceColor.a < 0.5f)
+	{
+		discard;
+	}
 
 	// Specular color - Assuming albedo texture is actually holding specular color if metal == 1
 	// Note the use of lerp here - metal is generally 0 or 1, but might be in between

@@ -13,6 +13,7 @@
 struct TransparencyOptions
 {
 	bool TransparencyOn;
+	bool AlphaClippingOn;
 	bool SortTransparentObjects;
 	bool RenderTransparentBackfaces;
 };

@@ -20,7 +20,8 @@ public:
 		DirectX::XMFLOAT3 tint, 
 		DirectX::XMFLOAT2 uvScale = DirectX::XMFLOAT2(1, 1),
 		DirectX::XMFLOAT2 uvOffset = DirectX::XMFLOAT2(0, 0),
-		bool transparent = false);
+		bool transparent = false,
+		bool alphaClip = false);
 
 	std::shared_ptr<SimplePixelShader> GetPixelShader();
 	std::shared_ptr<SimpleVertexShader> GetVertexShader();
@@ -31,6 +32,7 @@ public:
 	Microsoft::WRL::ComPtr<ID3D11SamplerState> GetSampler(std::string name);
 	const char* GetName();
 	bool GetTransparent();
+	bool GetAlphaClip();
 
 	std::unordered_map<std::string, Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>>& GetTextureSRVMap();
 	std::unordered_map<std::string, Microsoft::WRL::ComPtr<ID3D11SamplerState>>& GetSamplerMap();
@@ -41,6 +43,7 @@ public:
 	void SetUVScale(DirectX::XMFLOAT2 scale);
 	void SetUVOffset(DirectX::XMFLOAT2 offset);
 	void SetTransparent(bool transparent);
+	void SetAlphaClip(bool clip);
 
 	void AddTextureSRV(std::string name, Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> srv);
 	void AddSampler(std::string name, Microsoft::WRL::ComPtr<ID3D11SamplerState> sampler);
@@ -62,6 +65,7 @@ private:
 	// Material properties
 	DirectX::XMFLOAT3 colorTint;
 	bool transparent;
+	bool alphaClip;
 
 	// Texture-related
 	DirectX::XMFLOAT2 uvOffset;

@@ -231,6 +231,7 @@ void BuildUI(
 		if (ImGui::TreeNode("Transparency Options"))
 		{
 			ImGui::Checkbox("Transparency On", &transparencyOptions.TransparencyOn);
+			ImGui::Checkbox("Alpha Clip On", &transparencyOptions.AlphaClippingOn);
 			ImGui::Checkbox("Sort Transparent Objects", &transparencyOptions.SortTransparentObjects);
 			ImGui::Checkbox("Backfaces", &transparencyOptions.RenderTransparentBackfaces);
 			ImGui::TreePop();

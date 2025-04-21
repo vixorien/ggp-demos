@@ -38,6 +38,7 @@ private:
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> CreateSolidColorTextureSRV(int width, int height, DirectX::XMFLOAT4 color);
 
 	// General helpers for setup and drawing
+	int randomEntityCount;
 	void RandomizeEntities();
 	void GenerateLights();
 	void DrawLightSources();

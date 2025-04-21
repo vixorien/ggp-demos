@@ -45,12 +45,13 @@ void Game::Initialize()
 	srand((unsigned int)time(0));
 
 	// Set up the scene and create lights
+	randomEntityCount = 32;
 	LoadAssetsAndCreateEntities();
 	GenerateLights();
 
 	// Set up defaults for lighting options
 	lightOptions = {
-		.LightCount = 3,
+		.LightCount = 4,
 		.FreezeLightMovement = false,
 		.DrawLights = true,
 		.ShowSkybox = true
@@ -59,6 +60,7 @@ void Game::Initialize()
 	// Transparency options
 	transparencyOptions = {
 		.TransparencyOn = true,
+		.AlphaClippingOn = true,
 		.SortTransparentObjects = true,
 		.RenderTransparentBackfaces = true
 	};
@@ -119,11 +121,14 @@ void Game::LoadAssetsAndCreateEntities()
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> roughA, roughN, roughR, roughM;
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> woodA, woodN, woodR, woodM;
 
-
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> fenceA, fenceN, fenceR, fenceM;
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> latticeA, latticeN, latticeR, latticeM;
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> glassWindowA, glassWindowN, glassWindowR, glassWindowM;
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> glassPatternA, glassPatternN, glassPatternR, glassPatternM;
+
+
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> leafA, leafN;
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> barkA, barkN;
 
 	// Quick pre-processor macro for simplifying texture loading calls below
 #define LoadTexture(path, srv) CreateWICTextureFromFile(Graphics::Device.Get(), Graphics::Context.Get(), FixPath(path).c_str(), 0, srv.GetAddressOf());
@@ -181,6 +186,12 @@ void Game::LoadAssetsAndCreateEntities()
 	LoadTexture(AssetPath + L"Textures/PBR/Transparent/glass_pattern_normals.png", glassPatternN);
 	LoadTexture(AssetPath + L"Textures/PBR/Transparent/glass_pattern_roughness.png", glassPatternR);
 	LoadTexture(AssetPath + L"Textures/PBR/Transparent/glass_pattern_metal.png", glassPatternM);
+
+	LoadTexture(AssetPath + L"Textures/leaf_albedo.png", leafA);
+	LoadTexture(AssetPath + L"Textures/leaf_normals.png", leafN);
+
+	LoadTexture(AssetPath + L"Textures/bark_albedo.jpg", barkA);
+	LoadTexture(AssetPath + L"Textures/bark_normals.png", barkN);
 #undef LoadTexture
 
 
@@ -200,8 +211,11 @@ void Game::LoadAssetsAndCreateEntities()
 	std::shared_ptr<Mesh> quadMesh = std::make_shared<Mesh>("Quad", FixPath(AssetPath + L"Meshes/quad.obj").c_str());
 	std::shared_ptr<Mesh> quad2sidedMesh = std::make_shared<Mesh>("Double-Sided Quad", FixPath(AssetPath + L"Meshes/quad_double_sided.obj").c_str());
 
+	std::shared_ptr<Mesh> trunkMesh = std::make_shared<Mesh>("Tree Trunk", FixPath(AssetPath + L"Meshes/tree_trunk.obj").c_str());
+	std::shared_ptr<Mesh> leafMesh = std::make_shared<Mesh>("Tree Leaves", FixPath(AssetPath + L"Meshes/tree_leaves.obj").c_str());
+
 	// Add all meshes to vector
-	meshes.insert(meshes.end(), { cubeMesh, cylinderMesh, helixMesh, sphereMesh, torusMesh, quadMesh, quad2sidedMesh });
+	meshes.insert(meshes.end(), { cubeMesh, cylinderMesh, helixMesh, sphereMesh, torusMesh, quadMesh, quad2sidedMesh, trunkMesh, leafMesh });
 	pointLightMesh = sphereMesh;
 
 	// Create the sky
@@ -216,8 +230,6 @@ void Game::LoadAssetsAndCreateEntities()
 		skyVS,
 		skyPS,
 		sampler);
-
-
 
 	// Create basic materials
 	std::shared_ptr<Material> cobbleMat2x = std::make_shared<Material>("Cobblestone (2x Scale)", pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(2, 2));
@@ -305,19 +317,29 @@ void Game::LoadAssetsAndCreateEntities()
 	glassPatternMat->AddTextureSRV("RoughnessMap", glassPatternR);
 	glassPatternMat->AddTextureSRV("MetalMap", glassPatternM);
 
+	// Tree
+	std::shared_ptr<Material> leafMat = std::make_shared<Material>("Leaf", pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(2, 1), XMFLOAT2(0, 0), false, true);
+	leafMat->AddSampler("BasicSampler", sampler);
+	leafMat->AddTextureSRV("Albedo", leafA);
+	leafMat->AddTextureSRV("NormalMap", barkN); // Using a more bland normal map on purpose
+	leafMat->AddTextureSRV("RoughnessMap", paintR); // General "rough" texture
+	leafMat->AddTextureSRV("MetalMap", paintM); // Non-metal (black)
+
+	std::shared_ptr<Material> barkMat = std::make_shared<Material>("Bark", pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(2, 1), XMFLOAT2(0, 0), false);
+	barkMat->AddSampler("BasicSampler", sampler);
+	barkMat->AddTextureSRV("Albedo", barkA);
+	barkMat->AddTextureSRV("NormalMap", barkN);
+	barkMat->AddTextureSRV("RoughnessMap", bronzeM); // 100% rough (white)
+	barkMat->AddTextureSRV("MetalMap", paintM); // Non-metal (black)
 
 	// Add materials to list
 	materials.insert(materials.end(), { 
 		cobbleMat2x, cobbleMat4x,floorMat, paintMat, scratchedMat, bronzeMat, roughMat, woodMat, 
-		fenceMat, latticeMat, glassWindowMat, glassPatternMat });
+		fenceMat, latticeMat, glassWindowMat, glassPatternMat,
+		leafMat, barkMat});
 
 	// === Create the "randomized" entities, with a static floor ===========
-	std::shared_ptr<GameEntity> floor = std::make_shared<GameEntity>(cubeMesh, cobbleMat4x);
-	floor->GetTransform()->SetScale(25, 25, 25);
-	floor->GetTransform()->SetPosition(0, -27, 0);
-	entities.push_back(floor);
-
-	for (int i = 0; i < 32; i++)
+	for (int i = 0; i < randomEntityCount; i++)
 	{
 		std::shared_ptr<Material> whichMat = floorMat;
 		switch (i % 11)
@@ -339,6 +361,21 @@ void Game::LoadAssetsAndCreateEntities()
 		entities.push_back(sphere);
 	}
 	RandomizeEntities();
+
+	std::shared_ptr<GameEntity> floor = std::make_shared<GameEntity>(cubeMesh, cobbleMat4x);
+	floor->GetTransform()->SetScale(25, 25, 25);
+	floor->GetTransform()->SetPosition(0, -27, 0);
+	entities.push_back(floor);
+
+	std::shared_ptr<GameEntity> treeTrunk = std::make_shared<GameEntity>(trunkMesh, barkMat);
+	treeTrunk->GetTransform()->SetScale(0.2f);
+	treeTrunk->GetTransform()->SetPosition(0, -2, 20);
+	entities.push_back(treeTrunk);
+
+	std::shared_ptr<GameEntity> treeLeaves = std::make_shared<GameEntity>(leafMesh, leafMat);
+	treeLeaves->GetTransform()->SetScale(0.2f);
+	treeLeaves->GetTransform()->SetPosition(0, -2, 20);
+	entities.push_back(treeLeaves);
 
 	// Transparency render states
 
@@ -439,10 +476,17 @@ void Game::GenerateLights()
 	dir3.Color = XMFLOAT3(0.2f, 0.2f, 0.2f);
 	dir3.Intensity = 1.0f;
 
+	Light dir4 = {};
+	dir4.Type = LIGHT_TYPE_DIRECTIONAL;
+	dir4.Direction = XMFLOAT3(0, 1, 0);
+	dir4.Color = XMFLOAT3(0.2f, 0.2f, 0.2f);
+	dir4.Intensity = 1.0f;
+
 	// Add light to the list
 	lights.push_back(dir1);
 	lights.push_back(dir2);
 	lights.push_back(dir3);
+	lights.push_back(dir4);
 
 	// Create the rest of the lights
 	while (lights.size() < MAX_LIGHTS)
@@ -469,8 +513,8 @@ void Game::GenerateLights()
 void Game::RandomizeEntities()
 {
 	// Loop through the entities and randomize their positions and sizes
-	// Skipping the first, as that's the floor
-	for (int i = 1; i < entities.size(); i++)
+	// (up to the random entity count)
+	for (int i = 0; i < entities.size() && i < randomEntityCount; i++)
 	{
 		std::shared_ptr<GameEntity> g = entities[i];
 
@@ -569,6 +613,14 @@ void Game::Draw(float deltaTime, float totalTime)
 
 		// Draw this entity
 		DrawOneEntity(e, totalTime);
+
+		// If it's alpha clip, assume we want the back side too
+		if (e->GetMaterial()->GetAlphaClip())
+		{
+			Graphics::Context->RSSetState(backfaceRasterState.Get());
+			DrawOneEntity(e, totalTime, true);
+			Graphics::Context->RSSetState(0);
+		}
 	}
 
 	// Draw the sky after all regular entities
@@ -665,6 +717,7 @@ void Game::DrawOneEntity(std::shared_ptr<GameEntity> entity, float totalTime, bo
 	ps->SetData("lights", &lights[0], sizeof(Light) * (int)lights.size());
 	ps->SetInt("lightCount", lightOptions.LightCount);
 	ps->SetInt("flipNormal", flipNormal);
+	ps->SetInt("alphaClip", entity->GetMaterial()->GetAlphaClip() && transparencyOptions.AlphaClippingOn);
 
 	// Draw one entity
 	entity->Draw(camera);
