@@ -33,15 +33,7 @@ struct Light
 struct DemoLightingOptions
 {
 	int LightCount;
-	bool GammaCorrection;
-	bool UseAlbedoTexture;
-	bool UseMetalMap;
-	bool UseNormalMap;
-	bool UseRoughnessMap;
-	bool UsePBR;
 	bool FreezeLightMovement;
 	bool DrawLights;
 	bool ShowSkybox;
-	bool UseBurleyDiffuse;
-	DirectX::XMFLOAT3 AmbientColor;
 };

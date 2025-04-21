@@ -12,6 +12,7 @@
 #include "SimpleShader.h"
 #include "Lights.h"
 #include "Sky.h"
+#include "UIHelpers.h"
 
 class Game
 {
@@ -40,6 +41,7 @@ private:
 	void RandomizeEntities();
 	void GenerateLights();
 	void DrawLightSources();
+	void DrawOneEntity(std::shared_ptr<GameEntity> entity, float totalTime, bool flipNormal = false);
 
 	// Camera for the 3D scene
 	std::shared_ptr<FPSCamera> camera;
@@ -50,10 +52,7 @@ private:
 	// Scene data
 	std::vector<std::shared_ptr<Mesh>> meshes;
 	std::vector<std::shared_ptr<Material>> materials;
-	std::vector<std::shared_ptr<GameEntity>> entitiesRandom;
-	std::vector<std::shared_ptr<GameEntity>> entitiesLineup;
-	std::vector<std::shared_ptr<GameEntity>> entitiesGradient;
-	std::vector<std::shared_ptr<GameEntity>>* currentScene;
+	std::vector<std::shared_ptr<GameEntity>> entities;
 	std::vector<Light> lights;
 	
 	// Overall lighting options
@@ -62,10 +61,15 @@ private:
 
 	// Shaders (for shader swapping between pbr and non-pbr)
 	std::shared_ptr<SimplePixelShader> pixelShader;
-	std::shared_ptr<SimplePixelShader> pixelShaderPBR;
 
 	// Shaders for solid color spheres
 	std::shared_ptr<SimplePixelShader> solidColorPS;
 	std::shared_ptr<SimpleVertexShader> vertexShader;
+
+	// Transparency
+	TransparencyOptions transparencyOptions;
+	std::vector<std::shared_ptr<GameEntity>> transparentSortList;
+	Microsoft::WRL::ComPtr<ID3D11BlendState> alphaBlendState;
+	Microsoft::WRL::ComPtr<ID3D11RasterizerState> backfaceRasterState;
 };
 

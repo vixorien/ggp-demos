@@ -10,6 +10,13 @@
 #include "Material.h"
 #include "Lights.h"
 
+struct TransparencyOptions
+{
+	bool TransparencyOn;
+	bool SortTransparentObjects;
+	bool RenderTransparentBackfaces;
+};
+
 // Informing IMGUI about the new frame
 void UINewFrame(float deltaTime);
 
@@ -20,7 +27,8 @@ void BuildUI(
 	std::vector<std::shared_ptr<GameEntity>>& entities,
 	std::vector<std::shared_ptr<Material>>& materials,
 	std::vector<Light>& lights,
-	DemoLightingOptions& lightOptions);
+	DemoLightingOptions& lightOptions,
+	TransparencyOptions& transparencyOptions);
 
 // Helpers for individual scene elements
 void UIMesh(std::shared_ptr<Mesh> mesh);

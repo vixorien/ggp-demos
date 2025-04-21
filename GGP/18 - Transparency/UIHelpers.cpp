@@ -44,7 +44,8 @@ void BuildUI(
 	std::vector<std::shared_ptr<GameEntity>>& entities,
 	std::vector<std::shared_ptr<Material>>& materials,
 	std::vector<Light>& lights,
-	DemoLightingOptions& lightOptions)
+	DemoLightingOptions& lightOptions,
+	TransparencyOptions& transparencyOptions)
 {
 	// A static variable to track whether or not the demo window should be shown.  
 	//  - Static in this context means that the variable is created once 
@@ -164,52 +165,6 @@ void BuildUI(
 			ImGui::TreePop();
 		}
 
-		// === Global Material Controls ===
-		if (ImGui::TreeNode("Global Material Controls"))
-		{
-			if (ImGui::Button("Toggle All"))
-			{
-				// Are they all already on?
-				bool allOn =
-					lightOptions.GammaCorrection &&
-					lightOptions.UseAlbedoTexture &&
-					lightOptions.UseMetalMap &&
-					lightOptions.UseNormalMap &&
-					lightOptions.UseRoughnessMap &&
-					lightOptions.UsePBR;
-
-				if (allOn)
-				{
-					lightOptions.GammaCorrection = false;
-					lightOptions.UseAlbedoTexture = false;
-					lightOptions.UseMetalMap = false;
-					lightOptions.UseNormalMap = false;
-					lightOptions.UseRoughnessMap = false;
-					lightOptions.UsePBR = false;
-				}
-				else
-				{
-					lightOptions.GammaCorrection = true;
-					lightOptions.UseAlbedoTexture = true;
-					lightOptions.UseMetalMap = true;
-					lightOptions.UseNormalMap = true;
-					lightOptions.UseRoughnessMap = true;
-					lightOptions.UsePBR = true;
-				}
-			}
-			ImGui::Checkbox("Gamma Correction", &lightOptions.GammaCorrection);
-			ImGui::Checkbox("Use PBR Materials", &lightOptions.UsePBR);
-			ImGui::Checkbox("Albedo Texture", &lightOptions.UseAlbedoTexture);
-			ImGui::Checkbox("Normal Map", &lightOptions.UseNormalMap);
-			ImGui::Checkbox("Roughness Map", &lightOptions.UseRoughnessMap);
-			ImGui::Checkbox("Metalness Map", &lightOptions.UseMetalMap);
-			ImGui::Separator();
-			ImGui::Checkbox("Use Burley Diffuse", &lightOptions.UseBurleyDiffuse);
-
-			ImGui::TreePop();
-			ImGui::Spacing();
-		}
-
 		// === Materials ===
 		if (ImGui::TreeNode("Materials"))
 		{
@@ -234,7 +189,6 @@ void BuildUI(
 		{
 			// Light details
 			ImGui::Spacing();	
-			ImGui::ColorEdit3("Ambient Color", &lightOptions.AmbientColor.x);
 			ImGui::Checkbox("Show Point Lights", &lightOptions.DrawLights);
 			ImGui::Checkbox("Freeze Lights", &lightOptions.FreezeLightMovement);
 			ImGui::SliderInt("Light Count", &lightOptions.LightCount, 1, MAX_LIGHTS);
@@ -270,6 +224,15 @@ void BuildUI(
 		if (ImGui::TreeNode("Sky Box"))
 		{
 			ImGui::Checkbox("Show Skybox", &lightOptions.ShowSkybox);
+			ImGui::TreePop();
+		}
+
+		// === Transparency ===
+		if (ImGui::TreeNode("Transparency Options"))
+		{
+			ImGui::Checkbox("Transparency On", &transparencyOptions.TransparencyOn);
+			ImGui::Checkbox("Sort Transparent Objects", &transparencyOptions.SortTransparentObjects);
+			ImGui::Checkbox("Backfaces", &transparencyOptions.RenderTransparentBackfaces);
 			ImGui::TreePop();
 		}
 	}

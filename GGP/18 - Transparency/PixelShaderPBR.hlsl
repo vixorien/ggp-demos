@@ -3,7 +3,6 @@
 #include "Lighting.hlsli"
 
 
-
 cbuffer ExternalData : register(b0)
 {
 	// Scene related
@@ -19,12 +18,7 @@ cbuffer ExternalData : register(b0)
 	float3 colorTint;
 	float2 uvScale;
 	float2 uvOffset;
-	int gammaCorrection;
-	int useMetalMap;
-	int useNormalMap;
-	int useRoughnessMap;
-	int useAlbedoTexture;
-	int useBurleyDiffuse;
+	int flipNormal;
 }
 
 // Texture related resources
@@ -47,23 +41,17 @@ float4 main(VertexToPixel input) : SV_TARGET
 	input.uv = input.uv * uvScale + uvOffset;
 
 	// Use normal mapping
-	float3 normalMap = NormalMapping(NormalMap, BasicSampler, input.uv, input.normal, input.tangent);
-	input.normal = useNormalMap ? normalMap : input.normal;
+	input.normal = NormalMapping(NormalMap, BasicSampler, input.uv, input.normal, input.tangent);
 
 	// Sample the roughness map - this essentially becomes our "specular map" in non-PBR
 	float roughness = RoughnessMap.Sample(BasicSampler, input.uv).r;
-	roughness = useRoughnessMap ? roughness : 0.2f;
 
 	// Sample the metal map
 	float metal = MetalMap.Sample(BasicSampler, input.uv).r;
-	metal = useMetalMap ? metal : 0.0f;
 
 	// Sample texture
 	float4 surfaceColor = Albedo.Sample(BasicSampler, input.uv);
-	surfaceColor.rgb = gammaCorrection ? pow(surfaceColor.rgb, 2.2) : surfaceColor.rgb;
-
-	// Actually using texture?
-	surfaceColor.rgb = useAlbedoTexture ? surfaceColor.rgb : colorTint.rgb;
+	surfaceColor.rgb = pow(surfaceColor.rgb, 2.2f);
 
 	// Specular color - Assuming albedo texture is actually holding specular color if metal == 1
 	// Note the use of lerp here - metal is generally 0 or 1, but might be in between
@@ -84,21 +72,21 @@ float4 main(VertexToPixel input) : SV_TARGET
 		switch (lights[i].Type)
 		{
 		case LIGHT_TYPE_DIRECTIONAL:
-			totalLight += DirLightPBR(light, input.normal, input.worldPos, cameraPosition, roughness, metal, surfaceColor.rgb, specColor, useBurleyDiffuse);
+			totalLight += DirLightPBR(light, input.normal, input.worldPos, cameraPosition, roughness, metal, surfaceColor.rgb, specColor, false);
 			break;
 
 		case LIGHT_TYPE_POINT:
-			totalLight += PointLightPBR(light, input.normal, input.worldPos, cameraPosition, roughness, metal, surfaceColor.rgb, specColor, useBurleyDiffuse);
+			totalLight += PointLightPBR(light, input.normal, input.worldPos, cameraPosition, roughness, metal, surfaceColor.rgb, specColor, false);
 			break;
 
 		case LIGHT_TYPE_SPOT:
-			totalLight += SpotLightPBR(light, input.normal, input.worldPos, cameraPosition, roughness, metal, surfaceColor.rgb, specColor, useBurleyDiffuse);
+			totalLight += SpotLightPBR(light, input.normal, input.worldPos, cameraPosition, roughness, metal, surfaceColor.rgb, specColor, false);
 			break;
 		}
 	}
 
 	// Should have the complete light contribution at this point. 
 	// Gamma correct if necessary
-	float3 final = gammaCorrection ? pow(totalLight, 1.0f / 2.2f) : totalLight;
-	return float4(final, 1);
+	float3 final = pow(totalLight, 1.0f / 2.2f);
+	return float4(final, surfaceColor.a);
 }

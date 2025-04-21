@@ -14,6 +14,7 @@
 #include "WICTextureLoader.h"
 
 #include <DirectXMath.h>
+#include <algorithm>
 
 // Needed for a helper function to load pre-compiled shader files
 #pragma comment(lib, "d3dcompiler.lib")
@@ -45,23 +46,21 @@ void Game::Initialize()
 
 	// Set up the scene and create lights
 	LoadAssetsAndCreateEntities();
-	currentScene = &entitiesLineup;
 	GenerateLights();
 
 	// Set up defaults for lighting options
 	lightOptions = {
 		.LightCount = 3,
-		.GammaCorrection = false,
-		.UseAlbedoTexture = false,
-		.UseMetalMap = false,
-		.UseNormalMap = false,
-		.UseRoughnessMap = false,
-		.UsePBR = false,
 		.FreezeLightMovement = false,
 		.DrawLights = true,
-		.ShowSkybox = true,
-		.UseBurleyDiffuse = false,
-		.AmbientColor = XMFLOAT3(0,0,0)
+		.ShowSkybox = true
+	};
+
+	// Transparency options
+	transparencyOptions = {
+		.TransparencyOn = true,
+		.SortTransparentObjects = true,
+		.RenderTransparentBackfaces = true
 	};
 
 	// Set initial graphics API state
@@ -120,6 +119,12 @@ void Game::LoadAssetsAndCreateEntities()
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> roughA, roughN, roughR, roughM;
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> woodA, woodN, woodR, woodM;
 
+
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> fenceA, fenceN, fenceR, fenceM;
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> latticeA, latticeN, latticeR, latticeM;
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> glassWindowA, glassWindowN, glassWindowR, glassWindowM;
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> glassPatternA, glassPatternN, glassPatternR, glassPatternM;
+
 	// Quick pre-processor macro for simplifying texture loading calls below
 #define LoadTexture(path, srv) CreateWICTextureFromFile(Graphics::Device.Get(), Graphics::Context.Get(), FixPath(path).c_str(), 0, srv.GetAddressOf());
 	LoadTexture(AssetPath + L"Textures/PBR/cobblestone_albedo.png", cobbleA);
@@ -156,13 +161,32 @@ void Game::LoadAssetsAndCreateEntities()
 	LoadTexture(AssetPath + L"Textures/PBR/wood_normals.png", woodN);
 	LoadTexture(AssetPath + L"Textures/PBR/wood_roughness.png", woodR);
 	LoadTexture(AssetPath + L"Textures/PBR/wood_metal.png", woodM);
+
+	LoadTexture(AssetPath + L"Textures/PBR/Transparent/fence_albedo.png", fenceA);
+	LoadTexture(AssetPath + L"Textures/PBR/Transparent/fence_normals.png", fenceN);
+	LoadTexture(AssetPath + L"Textures/PBR/Transparent/fence_roughness.png", fenceR);
+	LoadTexture(AssetPath + L"Textures/PBR/Transparent/fence_metal.png", fenceM);
+
+	LoadTexture(AssetPath + L"Textures/PBR/Transparent/lattice_albedo.png", latticeA);
+	LoadTexture(AssetPath + L"Textures/PBR/Transparent/lattice_normals.png", latticeN);
+	LoadTexture(AssetPath + L"Textures/PBR/Transparent/lattice_roughness.png", latticeR);
+	LoadTexture(AssetPath + L"Textures/PBR/Transparent/lattice_metal.png", latticeM);
+
+	LoadTexture(AssetPath + L"Textures/PBR/Transparent/glass_window_albedo.png", glassWindowA);
+	LoadTexture(AssetPath + L"Textures/PBR/Transparent/glass_window_normals.png", glassWindowN);
+	LoadTexture(AssetPath + L"Textures/PBR/Transparent/glass_window_roughness.png", glassWindowR);
+	LoadTexture(AssetPath + L"Textures/PBR/Transparent/glass_window_metal.png", glassWindowM);
+
+	LoadTexture(AssetPath + L"Textures/PBR/Transparent/glass_pattern_albedo.png", glassPatternA);
+	LoadTexture(AssetPath + L"Textures/PBR/Transparent/glass_pattern_normals.png", glassPatternN);
+	LoadTexture(AssetPath + L"Textures/PBR/Transparent/glass_pattern_roughness.png", glassPatternR);
+	LoadTexture(AssetPath + L"Textures/PBR/Transparent/glass_pattern_metal.png", glassPatternM);
 #undef LoadTexture
 
 
 	// Load shaders (some are saved for later)
 	vertexShader = std::make_shared<SimpleVertexShader>(Graphics::Device, Graphics::Context, FixPath(L"VertexShader.cso").c_str());
-	pixelShader = std::make_shared<SimplePixelShader>(Graphics::Device, Graphics::Context, FixPath(L"PixelShader.cso").c_str());
-	pixelShaderPBR = std::make_shared<SimplePixelShader>(Graphics::Device, Graphics::Context, FixPath(L"PixelShaderPBR.cso").c_str());
+	pixelShader = std::make_shared<SimplePixelShader>(Graphics::Device, Graphics::Context, FixPath(L"PixelShaderPBR.cso").c_str());
 	solidColorPS = std::make_shared<SimplePixelShader>(Graphics::Device, Graphics::Context, FixPath(L"SolidColorPS.cso").c_str());
 	std::shared_ptr<SimpleVertexShader> skyVS = std::make_shared<SimpleVertexShader>(Graphics::Device, Graphics::Context, FixPath(L"SkyVS.cso").c_str());
 	std::shared_ptr<SimplePixelShader> skyPS = std::make_shared<SimplePixelShader>(Graphics::Device, Graphics::Context, FixPath(L"SkyPS.cso").c_str());
@@ -252,19 +276,51 @@ void Game::LoadAssetsAndCreateEntities()
 	woodMat->AddTextureSRV("RoughnessMap", woodR);
 	woodMat->AddTextureSRV("MetalMap", woodM);
 
+	// Create transparent materials
+	std::shared_ptr<Material> fenceMat = std::make_shared<Material>("Fence", pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(2, 1), XMFLOAT2(0, 0), true);
+	fenceMat->AddSampler("BasicSampler", sampler);
+	fenceMat->AddTextureSRV("Albedo", fenceA);
+	fenceMat->AddTextureSRV("NormalMap", fenceN);
+	fenceMat->AddTextureSRV("RoughnessMap", fenceR);
+	fenceMat->AddTextureSRV("MetalMap", fenceM);
+
+	std::shared_ptr<Material> latticeMat = std::make_shared<Material>("Lattice", pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(1, 0.5f), XMFLOAT2(0, 0), true);
+	latticeMat->AddSampler("BasicSampler", sampler);
+	latticeMat->AddTextureSRV("Albedo", latticeA);
+	latticeMat->AddTextureSRV("NormalMap", latticeN);
+	latticeMat->AddTextureSRV("RoughnessMap", latticeR);
+	latticeMat->AddTextureSRV("MetalMap", latticeM);
+
+	std::shared_ptr<Material> glassWindowMat = std::make_shared<Material>("Glass Window", pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(1, 0.5f), XMFLOAT2(0, 0), true);
+	glassWindowMat->AddSampler("BasicSampler", sampler);
+	glassWindowMat->AddTextureSRV("Albedo", glassWindowA);
+	glassWindowMat->AddTextureSRV("NormalMap", glassWindowN);
+	glassWindowMat->AddTextureSRV("RoughnessMap", glassWindowR);
+	glassWindowMat->AddTextureSRV("MetalMap", glassWindowM);
+
+	std::shared_ptr<Material> glassPatternMat = std::make_shared<Material>("Glass Pattern", pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(2, 1), XMFLOAT2(0, 0), true);
+	glassPatternMat->AddSampler("BasicSampler", sampler);
+	glassPatternMat->AddTextureSRV("Albedo", glassPatternA);
+	glassPatternMat->AddTextureSRV("NormalMap", glassPatternN);
+	glassPatternMat->AddTextureSRV("RoughnessMap", glassPatternR);
+	glassPatternMat->AddTextureSRV("MetalMap", glassPatternM);
+
+
 	// Add materials to list
-	materials.insert(materials.end(), { cobbleMat2x, cobbleMat4x, floorMat, paintMat, scratchedMat, bronzeMat, roughMat, woodMat });
+	materials.insert(materials.end(), { 
+		cobbleMat2x, cobbleMat4x,floorMat, paintMat, scratchedMat, bronzeMat, roughMat, woodMat, 
+		fenceMat, latticeMat, glassWindowMat, glassPatternMat });
 
 	// === Create the "randomized" entities, with a static floor ===========
 	std::shared_ptr<GameEntity> floor = std::make_shared<GameEntity>(cubeMesh, cobbleMat4x);
 	floor->GetTransform()->SetScale(25, 25, 25);
 	floor->GetTransform()->SetPosition(0, -27, 0);
-	entitiesRandom.push_back(floor);
+	entities.push_back(floor);
 
 	for (int i = 0; i < 32; i++)
 	{
 		std::shared_ptr<Material> whichMat = floorMat;
-		switch (i % 7)
+		switch (i % 11)
 		{
 		case 0: whichMat = floorMat; break;
 		case 1: whichMat = paintMat; break;
@@ -273,86 +329,39 @@ void Game::LoadAssetsAndCreateEntities()
 		case 4: whichMat = bronzeMat; break;
 		case 5: whichMat = roughMat; break;
 		case 6: whichMat = woodMat; break;
+		case 7: whichMat = fenceMat; break;
+		case 8: whichMat = latticeMat; break;
+		case 9: whichMat = glassWindowMat; break;
+		case 10: whichMat = glassPatternMat; break;
 		}
 
 		std::shared_ptr<GameEntity> sphere = std::make_shared<GameEntity>(sphereMesh, whichMat);
-		entitiesRandom.push_back(sphere);
+		entities.push_back(sphere);
 	}
 	RandomizeEntities();
 
-	// === Create the line up entities =====================================
-	std::shared_ptr<GameEntity> cobSphere = std::make_shared<GameEntity>(sphereMesh, cobbleMat2x);
-	cobSphere->GetTransform()->SetPosition(-6, 0, 0);
+	// Transparency render states
 
-	std::shared_ptr<GameEntity> floorSphere = std::make_shared<GameEntity>(sphereMesh, floorMat);
-	floorSphere->GetTransform()->SetPosition(-4, 0, 0);
+	// Blend state for standard alpha blending
+	//  Source blend is Source Alpha
+	//  Dest blend is Inverse Source Alpha (1 - srcAlpha)
+	D3D11_BLEND_DESC blendDesc = {};
+	blendDesc.RenderTarget[0].BlendEnable = true;
+	blendDesc.RenderTarget[0].RenderTargetWriteMask = D3D11_COLOR_WRITE_ENABLE_ALL;
+	blendDesc.RenderTarget[0].BlendOp = D3D11_BLEND_OP_ADD;
+	blendDesc.RenderTarget[0].SrcBlend = D3D11_BLEND_SRC_ALPHA;
+	blendDesc.RenderTarget[0].DestBlend = D3D11_BLEND_INV_SRC_ALPHA;
+	blendDesc.RenderTarget[0].BlendOpAlpha = D3D11_BLEND_OP_ADD;
+	blendDesc.RenderTarget[0].SrcBlendAlpha = D3D11_BLEND_SRC_ALPHA;
+	blendDesc.RenderTarget[0].DestBlendAlpha = D3D11_BLEND_INV_SRC_ALPHA;
+	Graphics::Device->CreateBlendState(&blendDesc, alphaBlendState.GetAddressOf());
 
-	std::shared_ptr<GameEntity> paintSphere = std::make_shared<GameEntity>(sphereMesh, paintMat);
-	paintSphere->GetTransform()->SetPosition(-2, 0, 0);
-
-	std::shared_ptr<GameEntity> scratchSphere = std::make_shared<GameEntity>(sphereMesh, scratchedMat);
-	scratchSphere->GetTransform()->SetPosition(0, 0, 0);
-
-	std::shared_ptr<GameEntity> bronzeSphere = std::make_shared<GameEntity>(sphereMesh, bronzeMat);
-	bronzeSphere->GetTransform()->SetPosition(2, 0, 0);
-
-	std::shared_ptr<GameEntity> roughSphere = std::make_shared<GameEntity>(sphereMesh, roughMat);
-	roughSphere->GetTransform()->SetPosition(4, 0, 0);
-
-	std::shared_ptr<GameEntity> woodSphere = std::make_shared<GameEntity>(sphereMesh, woodMat);
-	woodSphere->GetTransform()->SetPosition(6, 0, 0);
-
-	entitiesLineup.push_back(cobSphere);
-	entitiesLineup.push_back(floorSphere);
-	entitiesLineup.push_back(paintSphere);
-	entitiesLineup.push_back(scratchSphere);
-	entitiesLineup.push_back(bronzeSphere);
-	entitiesLineup.push_back(roughSphere);
-	entitiesLineup.push_back(woodSphere);
-
-
-
-	// === Create a gradient of entities based on roughness & metalness ====
-	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> albedoSRV = CreateSolidColorTextureSRV(2, 2, XMFLOAT4(1, 1, 1, 1));
-	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> metal0SRV = CreateSolidColorTextureSRV(2, 2, XMFLOAT4(0, 0, 0, 1));
-	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> metal1SRV = CreateSolidColorTextureSRV(2, 2, XMFLOAT4(1, 1, 1, 1));
-
-	for (int i = 0; i <= 10; i++)
-	{
-		// Roughness value for this entity
-		float r = i / 10.0f;
-
-		// Create textures
-		Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> roughSRV = CreateSolidColorTextureSRV(2, 2, XMFLOAT4(r, r, r, 1));
-		Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> normalSRV = CreateSolidColorTextureSRV(2, 2, XMFLOAT4(0.5f, 0.5f, 1.0f, 1));
-
-		// Set up the materials
-		std::shared_ptr<Material> matMetal = std::make_shared<Material>("Metal 0-1", pixelShader, vertexShader, XMFLOAT3(1, 1, 1));
-		matMetal->AddSampler("BasicSampler", sampler);
-		matMetal->AddTextureSRV("Albedo", albedoSRV);
-		matMetal->AddTextureSRV("NormalMap", normalSRV);
-		matMetal->AddTextureSRV("RoughnessMap", roughSRV);
-		matMetal->AddTextureSRV("MetalMap", metal1SRV);
-
-		std::shared_ptr<Material> matNonMetal = std::make_shared<Material>("Non-Metal 0-1", pixelShader, vertexShader, XMFLOAT3(1, 1, 1));
-		matNonMetal->AddSampler("BasicSampler", sampler);
-		matNonMetal->AddTextureSRV("Albedo", albedoSRV);
-		matNonMetal->AddTextureSRV("NormalMap", normalSRV);
-		matNonMetal->AddTextureSRV("RoughnessMap", roughSRV);
-		matNonMetal->AddTextureSRV("MetalMap", metal0SRV);
-
-		materials.insert(materials.end(), { matMetal, matNonMetal });
-
-		// Create the entities
-		std::shared_ptr<GameEntity> geMetal = std::make_shared<GameEntity>(sphereMesh, matMetal);
-		std::shared_ptr<GameEntity> geNonMetal = std::make_shared<GameEntity>(sphereMesh, matNonMetal);
-		entitiesGradient.push_back(geMetal);
-		entitiesGradient.push_back(geNonMetal);
-
-		// Move and scale them
-		geMetal->GetTransform()->SetPosition(i * 2.0f - 10.0f, 1, 0);
-		geNonMetal->GetTransform()->SetPosition(i * 2.0f - 10.0f, -1, 0);
-	}
+	// Rasterizer state to render back faces
+	D3D11_RASTERIZER_DESC rastDesc = {};
+	rastDesc.DepthClipEnable = true;
+	rastDesc.CullMode = D3D11_CULL_FRONT;
+	rastDesc.FillMode = D3D11_FILL_SOLID;
+	Graphics::Device->CreateRasterizerState(&rastDesc, backfaceRasterState.GetAddressOf());
 }
 
 // --------------------------------------------------------
@@ -461,9 +470,9 @@ void Game::RandomizeEntities()
 {
 	// Loop through the entities and randomize their positions and sizes
 	// Skipping the first, as that's the floor
-	for (int i = 1; i < entitiesRandom.size(); i++)
+	for (int i = 1; i < entities.size(); i++)
 	{
-		std::shared_ptr<GameEntity> g = entitiesRandom[i];
+		std::shared_ptr<GameEntity> g = entities[i];
 
 		float size = RandomRange(0.1f, 3.0f);
 		g->GetTransform()->SetScale(size, size, size);
@@ -494,7 +503,7 @@ void Game::Update(float deltaTime, float totalTime)
 	// this frame's interface.  Note that the building
 	// of the UI could happen at any point during update.
 	UINewFrame(deltaTime);
-	BuildUI(camera, meshes, *currentScene, materials, lights, lightOptions);
+	BuildUI(camera, meshes, entities, materials, lights, lightOptions, transparencyOptions);
 
 	// Example input checking: Quit if the escape key is pressed
 	if (Input::KeyDown(VK_ESCAPE))
@@ -517,62 +526,8 @@ void Game::Update(float deltaTime, float totalTime)
 		}
 	}
 
-	// Check for the all On / all Off switch
-	if (Input::KeyPress('O'))
-	{
-		// Are they all already on?
-		bool allOn =
-			lightOptions.GammaCorrection &&
-			lightOptions.UseAlbedoTexture &&
-			lightOptions.UseMetalMap &&
-			lightOptions.UseNormalMap &&
-			lightOptions.UseRoughnessMap &&
-			lightOptions.UsePBR;
-
-		if (allOn)
-		{
-			lightOptions.GammaCorrection = false;
-			lightOptions.UseAlbedoTexture = false;
-			lightOptions.UseMetalMap = false;
-			lightOptions.UseNormalMap = false;
-			lightOptions.UseRoughnessMap = false;
-			lightOptions.UsePBR = false;
-		}
-		else
-		{
-			lightOptions.GammaCorrection = true;
-			lightOptions.UseAlbedoTexture = true;
-			lightOptions.UseMetalMap = true;
-			lightOptions.UseNormalMap = true;
-			lightOptions.UseRoughnessMap = true;
-			lightOptions.UsePBR = true;
-		}
-	}
-
 	// Check individual input
 	if (Input::KeyPress(VK_TAB)) GenerateLights();
-	if (Input::KeyPress('G')) lightOptions.GammaCorrection = !lightOptions.GammaCorrection;
-	if (Input::KeyPress('T')) lightOptions.UseAlbedoTexture = !lightOptions.UseAlbedoTexture;
-	if (Input::KeyPress('M')) lightOptions.UseMetalMap = !lightOptions.UseMetalMap;
-	if (Input::KeyPress('N')) lightOptions.UseNormalMap = !lightOptions.UseNormalMap;
-	if (Input::KeyPress('R')) lightOptions.UseRoughnessMap = !lightOptions.UseRoughnessMap;
-	if (Input::KeyPress('F')) lightOptions.FreezeLightMovement = !lightOptions.FreezeLightMovement;
-	if (Input::KeyPress('L')) lightOptions.DrawLights = !lightOptions.DrawLights;
-	if (Input::KeyPress('1')) currentScene = &entitiesLineup;
-	if (Input::KeyPress('2')) currentScene = &entitiesGradient;
-	if (Input::KeyPress('3'))
-	{
-		// If we're already on this scene, randomize it
-		if (currentScene == &entitiesRandom) RandomizeEntities();
-
-		// Swap scenes
-		currentScene = &entitiesRandom;
-	}
-
-	if (Input::KeyPress('P'))
-	{
-		lightOptions.UsePBR = !lightOptions.UsePBR;
-	}
 
 	// Handle light count changes, clamped appropriately
 	if (Input::KeyDown(VK_UP)) lightOptions.LightCount++;
@@ -596,33 +551,24 @@ void Game::Draw(float deltaTime, float totalTime)
 		Graphics::Context->ClearDepthStencilView(Graphics::DepthBufferDSV.Get(), D3D11_CLEAR_DEPTH, 1.0f, 0);
 	}
 
+	// Clear the transparent list so we can refill for this frame
+	transparentSortList.clear();
+
 	// DRAW geometry
 	// Loop through the game entities and draw each one
 	// - Note: A constant buffer has already been bound to
 	//   the vertex shader stage of the pipeline (see Init above)
-	for (auto& e : *currentScene)
+	for (auto& e : entities)
 	{
-		// For this demo, the pixel shader may change on any frame, so
-		// we're just going to swap it here.  This isn't optimal but
-		// it's a simply implementation for this demo.
-		std::shared_ptr<SimplePixelShader> ps = lightOptions.UsePBR ? pixelShaderPBR : pixelShader;
-		e->GetMaterial()->SetPixelShader(ps);
+		// Skip transparent entities and instead add to the sort list
+		if (e->GetMaterial()->GetTransparent())
+		{
+			transparentSortList.push_back(e);
+			continue;
+		}
 
-		// Set total time on this entity's material's pixel shader
-		// Note: If the shader doesn't have this variable, nothing happens
-		ps->SetFloat3("ambientColor", lightOptions.AmbientColor);
-		ps->SetFloat("time", totalTime);
-		ps->SetData("lights", &lights[0], sizeof(Light) * (int)lights.size());
-		ps->SetInt("lightCount", lightOptions.LightCount);
-		ps->SetInt("gammaCorrection", (int)lightOptions.GammaCorrection);
-		ps->SetInt("useAlbedoTexture", (int)lightOptions.UseAlbedoTexture);
-		ps->SetInt("useMetalMap", (int)lightOptions.UseMetalMap);
-		ps->SetInt("useNormalMap", (int)lightOptions.UseNormalMap);
-		ps->SetInt("useRoughnessMap", (int)lightOptions.UseRoughnessMap);
-		ps->SetInt("useBurleyDiffuse", (int)lightOptions.UseBurleyDiffuse);
-
-		// Draw one entity
-		e->Draw(camera);
+		// Draw this entity
+		DrawOneEntity(e, totalTime);
 	}
 
 	// Draw the sky after all regular entities
@@ -630,6 +576,53 @@ void Game::Draw(float deltaTime, float totalTime)
 
 	// Draw the light sources
 	if (lightOptions.DrawLights) DrawLightSources();
+
+	// Sort the transparent objects by distance to the camera
+	if (transparencyOptions.SortTransparentObjects)
+	{
+		// Sort using a lambda function
+		std::sort(
+			transparentSortList.begin(),
+			transparentSortList.end(),
+			[&](std::shared_ptr<GameEntity> a, std::shared_ptr<GameEntity> b) -> bool
+			{
+				// Grab vectors
+				XMFLOAT3 aPos = a->GetTransform()->GetPosition();
+				XMFLOAT3 bPos = b->GetTransform()->GetPosition();
+				XMFLOAT3 camPos = camera->GetTransform()->GetPosition();
+
+				// Calc distances and compare
+				float aDist = XMVectorGetX(XMVector3Length(XMLoadFloat3(&aPos) - XMLoadFloat3(&camPos)));
+				float bDist = XMVectorGetX(XMVector3Length(XMLoadFloat3(&bPos) - XMLoadFloat3(&camPos)));
+				return aDist > bDist;
+			});
+	}
+
+
+	// Transparency
+	{
+		// Turn on our alpha blend state if necessary
+		if (transparencyOptions.TransparencyOn)
+			Graphics::Context->OMSetBlendState(alphaBlendState.Get(), 0, 0xFFFFFFFF);
+
+		// Render all transparent objects
+		for (auto& e : transparentSortList)
+		{
+			// Draw insides if necessary, flipping the normal
+			if (transparencyOptions.RenderTransparentBackfaces)
+			{
+				Graphics::Context->RSSetState(backfaceRasterState.Get());
+				DrawOneEntity(e, totalTime, true);
+				Graphics::Context->RSSetState(0);
+			}
+
+			// Draw the front faces of this entity
+			DrawOneEntity(e, totalTime);
+		}
+		// Disable transparency afterwards
+		if (transparencyOptions.TransparencyOn)
+			Graphics::Context->OMSetBlendState(0, 0, 0xFFFFFFFF);
+	}
 
 	// Frame END
 	// - These should happen exactly ONCE PER FRAME
@@ -651,6 +644,30 @@ void Game::Draw(float deltaTime, float totalTime)
 			Graphics::BackBufferRTV.GetAddressOf(),
 			Graphics::DepthBufferDSV.Get());
 	}
+}
+
+
+// --------------------------------------------------------
+// Draws a single entity
+// 
+// entity - The entity to draw
+// flipNormal - Should the normal be flipped (inverted)?  This
+//              is mainly used when rendering the inside of
+//              an object, often with transparency
+// --------------------------------------------------------
+void Game::DrawOneEntity(std::shared_ptr<GameEntity> entity, float totalTime, bool flipNormal)
+{
+	std::shared_ptr<SimplePixelShader> ps = entity->GetMaterial()->GetPixelShader();
+
+	// Set total time on this entity's material's pixel shader
+	// Note: If the shader doesn't have this variable, nothing happens
+	ps->SetFloat("time", totalTime);
+	ps->SetData("lights", &lights[0], sizeof(Light) * (int)lights.size());
+	ps->SetInt("lightCount", lightOptions.LightCount);
+	ps->SetInt("flipNormal", flipNormal);
+
+	// Draw one entity
+	entity->Draw(camera);
 }
 
 
