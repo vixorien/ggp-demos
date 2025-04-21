@@ -68,6 +68,8 @@ private:
 	std::shared_ptr<SimpleVertexShader> vertexShader;
 
 	// Transparency
+	std::shared_ptr<GameEntity> clipEntity;
+	std::shared_ptr<GameEntity> ditherEntity;
 	TransparencyOptions transparencyOptions;
 	std::vector<std::shared_ptr<GameEntity>> transparentSortList;
 	Microsoft::WRL::ComPtr<ID3D11BlendState> alphaBlendState;

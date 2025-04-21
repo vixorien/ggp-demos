@@ -20,6 +20,9 @@ cbuffer ExternalData : register(b0)
 	float2 uvOffset;
 	float alphaClipThreshold;
 	int flipNormal;
+	int useNoiseForAlphaClip;
+	float fadeDistStart;
+	float fadeDistEnd;
 }
 
 // Texture related resources
@@ -27,6 +30,7 @@ Texture2D Albedo				: register(t0);
 Texture2D NormalMap				: register(t1);
 Texture2D RoughnessMap			: register(t2);
 Texture2D MetalMap				: register(t3);
+Texture2D NoiseMap				: register(t4);
 SamplerState BasicSampler		: register(s0);
 
 // --------------------------------------------------------
@@ -55,10 +59,28 @@ float4 main(VertexToPixel input) : SV_TARGET
 	float4 surfaceColor = Albedo.Sample(BasicSampler, input.uv);
 	surfaceColor.rgb = pow(surfaceColor.rgb, 2.2f);
 	
+	// Sample noise and possibly use
+	float alpha = surfaceColor.a;
+	float noise = NoiseMap.Sample(BasicSampler, input.uv).r;
+	alpha = useNoiseForAlphaClip ? noise : alpha;
+	
 	// Handle clipping
-	if(alphaClipThreshold >= 0.0f && surfaceColor.a < alphaClipThreshold)
+	if(alphaClipThreshold >= 0.0f && alpha < alphaClipThreshold)
 	{
 		discard;
+	}
+	
+	// Handle distance dithering
+	if(fadeDistStart >= 0.0f && fadeDistEnd >= 0.0f)
+	{
+		// Calculate fade dist
+		float dist = distance(input.worldPos, cameraPosition);
+		float dither = smoothstep(fadeDistStart, fadeDistEnd, dist);
+		
+		// Simple pseudo-random function from: https://thebookofshaders.com/10/
+		float rand = frac(sin(dot(input.screenPosition.xy * 0.01f, float2(12.9898, 78.233))) * 43758.5453123);
+		if(rand < dither)
+			discard;
 	}
 
 	// Specular color - Assuming albedo texture is actually holding specular color if metal == 1
@@ -96,5 +118,5 @@ float4 main(VertexToPixel input) : SV_TARGET
 	// Should have the complete light contribution at this point. 
 	// Gamma correct if necessary
 	float3 final = pow(totalLight, 1.0f / 2.2f);
-	return float4(final, surfaceColor.a);
+	return float4(final, alpha);
 }

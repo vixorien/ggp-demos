@@ -127,8 +127,10 @@ void Game::LoadAssetsAndCreateEntities()
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> glassPatternA, glassPatternN, glassPatternR, glassPatternM;
 
 
-	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> leafA, leafN;
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> leafA, leafN, leafR;
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> barkA, barkN;
+
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> noiseTexture;
 
 	// Quick pre-processor macro for simplifying texture loading calls below
 #define LoadTexture(path, srv) CreateWICTextureFromFile(Graphics::Device.Get(), Graphics::Context.Get(), FixPath(path).c_str(), 0, srv.GetAddressOf());
@@ -187,11 +189,14 @@ void Game::LoadAssetsAndCreateEntities()
 	LoadTexture(AssetPath + L"Textures/PBR/Transparent/glass_pattern_roughness.png", glassPatternR);
 	LoadTexture(AssetPath + L"Textures/PBR/Transparent/glass_pattern_metal.png", glassPatternM);
 
-	LoadTexture(AssetPath + L"Textures/leaf_albedo.png", leafA);
-	LoadTexture(AssetPath + L"Textures/leaf_normals.png", leafN);
+	LoadTexture(AssetPath + L"Textures/leaves_albedo.png", leafA);
+	LoadTexture(AssetPath + L"Textures/leaves_normals.png", leafN);
+	LoadTexture(AssetPath + L"Textures/leaves_rough.png", leafR);
 
 	LoadTexture(AssetPath + L"Textures/bark_albedo.jpg", barkA);
 	LoadTexture(AssetPath + L"Textures/bark_normals.png", barkN);
+
+	LoadTexture(AssetPath + L"Textures/noise_1.png", noiseTexture);
 #undef LoadTexture
 
 
@@ -317,26 +322,35 @@ void Game::LoadAssetsAndCreateEntities()
 	glassPatternMat->AddTextureSRV("RoughnessMap", glassPatternR);
 	glassPatternMat->AddTextureSRV("MetalMap", glassPatternM);
 
+	// Alpha clip
+	std::shared_ptr<Material> clipMat = std::make_shared<Material>("Alpha Clip", pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(2, 2), XMFLOAT2(0, 0), false, 0.5f);
+	clipMat->AddSampler("BasicSampler", sampler);
+	clipMat->AddTextureSRV("Albedo", paintA);
+	clipMat->AddTextureSRV("NormalMap", bronzeN);
+	clipMat->AddTextureSRV("RoughnessMap", bronzeR);
+	clipMat->AddTextureSRV("MetalMap", bronzeM);
+	clipMat->AddTextureSRV("NoiseMap", noiseTexture);
+
 	// Tree
 	std::shared_ptr<Material> barkMat = std::make_shared<Material>("Bark", pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(2, 1), XMFLOAT2(0, 0), false);
 	barkMat->AddSampler("BasicSampler", sampler);
 	barkMat->AddTextureSRV("Albedo", barkA);
-	barkMat->AddTextureSRV("NormalMap", barkN);
+	barkMat->AddTextureSRV("NormalMap", roughN); // Using general rough normal map
 	barkMat->AddTextureSRV("RoughnessMap", bronzeM); // 100% rough (white)
 	barkMat->AddTextureSRV("MetalMap", paintM); // Non-metal (black)
 
-	std::shared_ptr<Material> leafMat = std::make_shared<Material>("Leaf", pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(2, 1), XMFLOAT2(0, 0), false, 0.75f);
+	std::shared_ptr<Material> leafMat = std::make_shared<Material>("Leaf", pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(2, 1), XMFLOAT2(0, 0), false, 0.4f);
 	leafMat->AddSampler("BasicSampler", sampler);
 	leafMat->AddTextureSRV("Albedo", leafA);
-	leafMat->AddTextureSRV("NormalMap", barkN); // Using a more bland normal map on purpose
-	leafMat->AddTextureSRV("RoughnessMap", paintR); // General "rough" texture
+	leafMat->AddTextureSRV("NormalMap", leafN);
+	leafMat->AddTextureSRV("RoughnessMap", bronzeM); // 100% rough (white)
 	leafMat->AddTextureSRV("MetalMap", paintM); // Non-metal (black)
 
 	// Add materials to list
 	materials.insert(materials.end(), { 
 		cobbleMat2x, cobbleMat4x,floorMat, paintMat, scratchedMat, bronzeMat, roughMat, woodMat, 
 		fenceMat, latticeMat, glassWindowMat, glassPatternMat,
-		leafMat, barkMat});
+		leafMat, barkMat, clipMat });
 
 	// === Create the "randomized" entities, with a static floor ===========
 	for (int i = 0; i < randomEntityCount; i++)
@@ -368,14 +382,26 @@ void Game::LoadAssetsAndCreateEntities()
 	entities.push_back(floor);
 
 	std::shared_ptr<GameEntity> treeTrunk = std::make_shared<GameEntity>(trunkMesh, barkMat);
-	treeTrunk->GetTransform()->SetScale(0.2f);
+	treeTrunk->GetTransform()->SetScale(3.0f);
 	treeTrunk->GetTransform()->SetPosition(0, -2, 20);
 	entities.push_back(treeTrunk);
 
 	std::shared_ptr<GameEntity> treeLeaves = std::make_shared<GameEntity>(leafMesh, leafMat);
-	treeLeaves->GetTransform()->SetScale(0.2f);
-	treeLeaves->GetTransform()->SetPosition(0, -2, 20);
+	treeLeaves->GetTransform()->SetScale(treeTrunk->GetTransform()->GetScale());
+	treeLeaves->GetTransform()->SetPosition(treeTrunk->GetTransform()->GetPosition());
 	entities.push_back(treeLeaves);
+
+	// Clip entity
+	clipEntity = std::make_shared<GameEntity>(sphereMesh, clipMat);
+	clipEntity->GetTransform()->SetScale(5.0f);
+	clipEntity->GetTransform()->SetPosition(10, 5, 20);
+	entities.push_back(clipEntity);
+
+	// Dither entity
+	ditherEntity = std::make_shared<GameEntity>(sphereMesh, clipMat);
+	ditherEntity->GetTransform()->SetScale(5.0f);
+	ditherEntity->GetTransform()->SetPosition(-10, 5, 20);
+	entities.push_back(ditherEntity);
 
 	// Transparency render states
 
@@ -577,6 +603,14 @@ void Game::Update(float deltaTime, float totalTime)
 	if (Input::KeyDown(VK_UP)) lightOptions.LightCount++;
 	if (Input::KeyDown(VK_DOWN)) lightOptions.LightCount--;
 	lightOptions.LightCount = max(1, min(MAX_LIGHTS, lightOptions.LightCount));
+
+	// Update special entities
+	clipEntity->GetMaterial()->SetAlphaClipThreshold(sin(totalTime) * 0.3f + 0.5f); // ~0.2f - 0.8f
+
+	XMFLOAT3 ditherPos = ditherEntity->GetTransform()->GetPosition();
+	ditherPos.z = sin(totalTime * 0.25f) * 50.0f;
+	ditherEntity->GetTransform()->SetPosition(ditherPos);
+
 }
 
 
@@ -721,6 +755,13 @@ void Game::DrawOneEntity(std::shared_ptr<GameEntity> entity, float totalTime, bo
 
 	float clip = entity->GetMaterial()->GetAlphaClipThreshold();
 	ps->SetFloat("alphaClipThreshold", clip >= 0.0f && transparencyOptions.AlphaClippingOn ? clip : -1.0f);
+
+	// Only use noise for one entity
+	ps->SetInt("useNoiseForAlphaClip", entity == clipEntity);
+
+	// Only dither for one entity
+	ps->SetFloat("fadeDistStart", entity == ditherEntity ? 20.0f : -1.0f);
+	ps->SetFloat("fadeDistEnd", entity == ditherEntity ? 50.0f : -1.0f);
 
 	// Draw one entity
 	entity->Draw(camera);
