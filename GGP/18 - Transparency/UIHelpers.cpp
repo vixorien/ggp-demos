@@ -344,6 +344,11 @@ void UIMaterial(std::shared_ptr<Material> material)
 	if (ImGui::ColorEdit3("Color Tint", &tint.x))
 		material->SetColorTint(tint);
 
+	// Alpha clip threshold
+	float clip = material->GetAlphaClipThreshold();
+	if (clip >= 0.0f && ImGui::SliderFloat("Alpha Clip Threshold", &clip, 0.0f, 1.0f))
+		material->SetAlphaClipThreshold(clip);
+
 	// Textures
 	for (auto& it : material->GetTextureSRVMap())
 	{

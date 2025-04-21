@@ -318,19 +318,19 @@ void Game::LoadAssetsAndCreateEntities()
 	glassPatternMat->AddTextureSRV("MetalMap", glassPatternM);
 
 	// Tree
-	std::shared_ptr<Material> leafMat = std::make_shared<Material>("Leaf", pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(2, 1), XMFLOAT2(0, 0), false, true);
-	leafMat->AddSampler("BasicSampler", sampler);
-	leafMat->AddTextureSRV("Albedo", leafA);
-	leafMat->AddTextureSRV("NormalMap", barkN); // Using a more bland normal map on purpose
-	leafMat->AddTextureSRV("RoughnessMap", paintR); // General "rough" texture
-	leafMat->AddTextureSRV("MetalMap", paintM); // Non-metal (black)
-
 	std::shared_ptr<Material> barkMat = std::make_shared<Material>("Bark", pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(2, 1), XMFLOAT2(0, 0), false);
 	barkMat->AddSampler("BasicSampler", sampler);
 	barkMat->AddTextureSRV("Albedo", barkA);
 	barkMat->AddTextureSRV("NormalMap", barkN);
 	barkMat->AddTextureSRV("RoughnessMap", bronzeM); // 100% rough (white)
 	barkMat->AddTextureSRV("MetalMap", paintM); // Non-metal (black)
+
+	std::shared_ptr<Material> leafMat = std::make_shared<Material>("Leaf", pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(2, 1), XMFLOAT2(0, 0), false, 0.75f);
+	leafMat->AddSampler("BasicSampler", sampler);
+	leafMat->AddTextureSRV("Albedo", leafA);
+	leafMat->AddTextureSRV("NormalMap", barkN); // Using a more bland normal map on purpose
+	leafMat->AddTextureSRV("RoughnessMap", paintR); // General "rough" texture
+	leafMat->AddTextureSRV("MetalMap", paintM); // Non-metal (black)
 
 	// Add materials to list
 	materials.insert(materials.end(), { 
@@ -615,7 +615,8 @@ void Game::Draw(float deltaTime, float totalTime)
 		DrawOneEntity(e, totalTime);
 
 		// If it's alpha clip, assume we want the back side too
-		if (e->GetMaterial()->GetAlphaClip())
+		float clip = e->GetMaterial()->GetAlphaClipThreshold();
+		if (clip >= 0.0f)
 		{
 			Graphics::Context->RSSetState(backfaceRasterState.Get());
 			DrawOneEntity(e, totalTime, true);
@@ -717,7 +718,9 @@ void Game::DrawOneEntity(std::shared_ptr<GameEntity> entity, float totalTime, bo
 	ps->SetData("lights", &lights[0], sizeof(Light) * (int)lights.size());
 	ps->SetInt("lightCount", lightOptions.LightCount);
 	ps->SetInt("flipNormal", flipNormal);
-	ps->SetInt("alphaClip", entity->GetMaterial()->GetAlphaClip() && transparencyOptions.AlphaClippingOn);
+
+	float clip = entity->GetMaterial()->GetAlphaClipThreshold();
+	ps->SetFloat("alphaClipThreshold", clip >= 0.0f && transparencyOptions.AlphaClippingOn ? clip : -1.0f);
 
 	// Draw one entity
 	entity->Draw(camera);

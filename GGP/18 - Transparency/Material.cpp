@@ -8,7 +8,7 @@ Material::Material(
 	DirectX::XMFLOAT2 uvScale,
 	DirectX::XMFLOAT2 uvOffset,
 	bool transparent,
-	bool alphaClip)
+	float alphaClipThreshold)
 	:
 	name(name),
 	ps(ps),
@@ -17,7 +17,7 @@ Material::Material(
 	uvScale(uvScale),
 	uvOffset(uvOffset),
 	transparent(transparent),
-	alphaClip(alphaClip)
+	alphaClipThreshold(alphaClipThreshold)
 {
 
 }
@@ -29,7 +29,7 @@ DirectX::XMFLOAT2 Material::GetUVScale() { return uvScale; }
 DirectX::XMFLOAT2 Material::GetUVOffset() { return uvOffset; }
 const char* Material::GetName() { return name; }
 bool Material::GetTransparent() { return transparent; }
-bool Material::GetAlphaClip() { return alphaClip; }
+float Material::GetAlphaClipThreshold() { return alphaClipThreshold; }
 
 Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Material::GetTextureSRV(std::string name)
 {
@@ -73,7 +73,7 @@ void Material::SetColorTint(DirectX::XMFLOAT3 tint) { this->colorTint = tint; }
 void Material::SetUVScale(DirectX::XMFLOAT2 scale) { uvScale = scale; }
 void Material::SetUVOffset(DirectX::XMFLOAT2 offset) { uvOffset = offset; }
 void Material::SetTransparent(bool transparent) { this->transparent = transparent; }
-void Material::SetAlphaClip(bool clip) { this->alphaClip = clip; }
+void Material::SetAlphaClipThreshold(float clipThreshold) { this->alphaClipThreshold = clipThreshold; }
 
 void Material::AddTextureSRV(std::string name, Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> srv)
 {

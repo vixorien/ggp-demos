@@ -18,8 +18,8 @@ cbuffer ExternalData : register(b0)
 	float3 colorTint;
 	float2 uvScale;
 	float2 uvOffset;
+	float alphaClipThreshold;
 	int flipNormal;
-	int alphaClip;
 }
 
 // Texture related resources
@@ -55,7 +55,8 @@ float4 main(VertexToPixel input) : SV_TARGET
 	float4 surfaceColor = Albedo.Sample(BasicSampler, input.uv);
 	surfaceColor.rgb = pow(surfaceColor.rgb, 2.2f);
 	
-	if(alphaClip && surfaceColor.a < 0.5f)
+	// Handle clipping
+	if(alphaClipThreshold >= 0.0f && surfaceColor.a < alphaClipThreshold)
 	{
 		discard;
 	}
