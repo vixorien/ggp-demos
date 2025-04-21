@@ -24,11 +24,9 @@ float ApplyToonShadingDiffuseConditionals(float originalNdotL)
 	//       more of them or fewer of them, depending on the number
 	//       of lighting "bands" you want the result to have
 	if (originalNdotL < 0.1f) return 0.0f;
-	if (originalNdotL < 0.45f) return 0.45f;
-	if (originalNdotL < 0.8f) return 0.8f;
-
-	// Anything else
-	return 1.0f;
+	else if (originalNdotL < 0.45f) return 0.45f;
+	else if (originalNdotL < 0.8f) return 0.8f;
+	else return 1.0f;
 }
 
 float ApplyToonShadingSpecularConditionals(float originalNdotL)
@@ -37,10 +35,10 @@ float ApplyToonShadingSpecularConditionals(float originalNdotL)
 	// Note: These were arbitrarily chosen values - you could have
 	//       more of them or fewer of them, depending on the number
 	//       of lighting "bands" you want the result to have
-	if (originalNdotL < 0.8f) return 0.0f;
-
-	// Anything else
-	return 1.0f;
+	if (originalNdotL < 0.8f) 
+		return 0.0f;
+	else
+		return 1.0f;
 }
 
 
