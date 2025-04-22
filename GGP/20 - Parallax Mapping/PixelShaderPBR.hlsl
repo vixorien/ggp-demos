@@ -46,7 +46,7 @@ float2 GetParallaxUV(float2 uv, float3 view, float3x3 TBN, int samples, float sc
 	// Note: Multiplying in opposite order is effectively
 	//       transposing the matrix, which acts like an 
 	//       invert on a pure 3x3 rotation matrix!
-	float3 view_TS = mul(TBN, view); // World to Tangent space
+	float3 view_TS = mul(TBN, view); // World to Tangent space - NOTE: B must be negated first!
 
 	// Calculate the ray direction, including proper length based on scale
 	float viewLength = length(view_TS);
