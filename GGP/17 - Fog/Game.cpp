@@ -77,7 +77,7 @@ void Game::Initialize()
 		XM_PIDIV4,				// Field of view
 		Window::AspectRatio(),  // Aspect ratio
 		0.01f,					// Near clip
-		200.0f,					// Far clip
+		300.0f,					// Far clip
 		CameraProjectionType::Perspective);
 }
 
@@ -125,11 +125,11 @@ void Game::LoadAssetsAndCreateEntities()
 	materials.insert(materials.end(), { matSmooth });
 
 	std::shared_ptr<GameEntity> floor = std::make_shared<GameEntity>(cubeMesh, matSmooth);
-	floor->GetTransform()->SetScale(100, 25, 100);
+	floor->GetTransform()->SetScale(300, 25, 300);
 	floor->GetTransform()->SetPosition(0, -25, 0);
 	entities.push_back(floor);
 
-	float spacing = 10.0f;
+	float spacing = 25.0f;
 	for (int x = -5; x <= 5; x += 1)
 		for (int z = -5; z <= 5; z += 1)
 		{
@@ -143,8 +143,9 @@ void Game::LoadAssetsAndCreateEntities()
 
 			std::shared_ptr<GameEntity> cube = std::make_shared<GameEntity>(cubeMesh, matRand);
 			float height = 10;
-			cube->GetTransform()->SetScale(1, height + RandomRange(-2.0f, 2.0f), 1);
-			cube->GetTransform()->SetPosition(x * spacing - spacing/2, height / 2, z * spacing);
+			float scale = RandomRange(1.0f, 3.0f);
+			cube->GetTransform()->SetScale(scale, height + RandomRange(-2.0f, 2.0f), scale);
+			cube->GetTransform()->SetPosition(x * spacing - spacing /2, height / 2, z * spacing);
 
 			entities.push_back(cube);
 		}

@@ -44,8 +44,8 @@ void BuildUI(
 	std::vector<std::shared_ptr<GameEntity>>& entities,
 	std::vector<std::shared_ptr<Material>>& materials,
 	std::vector<Light>& lights,
-	DirectX::XMFLOAT3& ambientColor,
-	FogOptions& fogOptions)
+	DemoLightingOptions& lightOptions,
+	DemoOptions& demoOptions)
 {
 	// A static variable to track whether or not the demo window should be shown.  
 	//  - Static in this context means that the variable is created once 
@@ -90,7 +90,24 @@ void BuildUI(
 			ImGui::Text("(Left Click & Drag)"); ImGui::SameLine(175); ImGui::Text("Rotate camera");
 			ImGui::Text("(Left Shift)");        ImGui::SameLine(175); ImGui::Text("Hold to speed up camera");
 			ImGui::Text("(Left Ctrl)");         ImGui::SameLine(175); ImGui::Text("Hold to slow down camera");
+
 			ImGui::Spacing();
+			ImGui::Text("(Arrow Up/Down)");		ImGui::SameLine(175); ImGui::Text("Adjust light count");
+			ImGui::Text("(Tab)");				ImGui::SameLine(175); ImGui::Text("Randomize lights");
+			ImGui::Text("(F)");					ImGui::SameLine(175); ImGui::Text("Freeze/unfreeze lights");
+			ImGui::Text("(L)");					ImGui::SameLine(175); ImGui::Text("Show/hide point lights");
+
+			ImGui::Spacing();
+			ImGui::Text("(G)");				ImGui::SameLine(175); ImGui::Text("Gamma correction");
+			ImGui::Text("(P)");				ImGui::SameLine(175); ImGui::Text("PBR");
+			ImGui::Text("(T)");				ImGui::SameLine(175); ImGui::Text("Albedo texture");
+			ImGui::Text("(N)");				ImGui::SameLine(175); ImGui::Text("Normal map");
+			ImGui::Text("(R)");				ImGui::SameLine(175); ImGui::Text("Roughness map");
+			ImGui::Text("(M)");				ImGui::SameLine(175); ImGui::Text("Metalness map");
+			ImGui::Text("(O)");				ImGui::SameLine(175); ImGui::Text("All material options on/off");
+
+			ImGui::Spacing();
+			ImGui::Text("(1, 2, 3)");			ImGui::SameLine(175); ImGui::Text("Change scene");
 
 			// Finalize the tree node
 			ImGui::TreePop();
@@ -148,6 +165,52 @@ void BuildUI(
 			ImGui::TreePop();
 		}
 
+		// === Global Material Controls ===
+		if (ImGui::TreeNode("Global Material Controls"))
+		{
+			if (ImGui::Button("Toggle All"))
+			{
+				// Are they all already on?
+				bool allOn =
+					lightOptions.GammaCorrection &&
+					lightOptions.UseAlbedoTexture &&
+					lightOptions.UseMetalMap &&
+					lightOptions.UseNormalMap &&
+					lightOptions.UseRoughnessMap &&
+					lightOptions.UsePBR;
+
+				if (allOn)
+				{
+					lightOptions.GammaCorrection = false;
+					lightOptions.UseAlbedoTexture = false;
+					lightOptions.UseMetalMap = false;
+					lightOptions.UseNormalMap = false;
+					lightOptions.UseRoughnessMap = false;
+					lightOptions.UsePBR = false;
+				}
+				else
+				{
+					lightOptions.GammaCorrection = true;
+					lightOptions.UseAlbedoTexture = true;
+					lightOptions.UseMetalMap = true;
+					lightOptions.UseNormalMap = true;
+					lightOptions.UseRoughnessMap = true;
+					lightOptions.UsePBR = true;
+				}
+			}
+			ImGui::Checkbox("Gamma Correction", &lightOptions.GammaCorrection);
+			ImGui::Checkbox("Use PBR Materials", &lightOptions.UsePBR);
+			ImGui::Checkbox("Albedo Texture", &lightOptions.UseAlbedoTexture);
+			ImGui::Checkbox("Normal Map", &lightOptions.UseNormalMap);
+			ImGui::Checkbox("Roughness Map", &lightOptions.UseRoughnessMap);
+			ImGui::Checkbox("Metalness Map", &lightOptions.UseMetalMap);
+			ImGui::Separator();
+			ImGui::Checkbox("Use Burley Diffuse", &lightOptions.UseBurleyDiffuse);
+
+			ImGui::TreePop();
+			ImGui::Spacing();
+		}
+
 		// === Materials ===
 		if (ImGui::TreeNode("Materials"))
 		{
@@ -171,8 +234,11 @@ void BuildUI(
 		if (ImGui::TreeNode("Lights"))
 		{
 			// Light details
-			ImGui::Spacing();
-			ImGui::ColorEdit3("Ambient Color", &ambientColor.x);
+			ImGui::Spacing();	
+			ImGui::ColorEdit3("Ambient Color", &lightOptions.AmbientColor.x);
+			ImGui::Checkbox("Show Point Lights", &lightOptions.DrawLights);
+			ImGui::Checkbox("Freeze Lights", &lightOptions.FreezeLightMovement);
+			ImGui::SliderInt("Light Count", &lightOptions.LightCount, 1, MAX_LIGHTS);
 
 			// Loop and show the details for each entity
 			for (int i = 0; i < lights.size(); i++)
@@ -201,37 +267,32 @@ void BuildUI(
 			ImGui::TreePop();
 		}
 
-		// === Fog ===
-		if (ImGui::TreeNode("Fog"))
+		// === Sky box ===
+		if (ImGui::TreeNode("Sky Box"))
 		{
-			ImGui::Checkbox("Sky == Fog Color", &fogOptions.MatchBackgroundToFog);
-			ImGui::Combo("Fog Type", &fogOptions.FogType, "Linear to Far Plane\0Specific Distances\0Exponential");
-			ImGui::ColorEdit3("Fog Color", &fogOptions.FogColor.x);
+			ImGui::Checkbox("Show Skybox", &lightOptions.ShowSkybox);
+			ImGui::TreePop();
+		}
 
-			// Type-dependent options
-			if (fogOptions.FogType == 1)
-			{
-				ImGui::SliderFloat("Fog Start Dist", &fogOptions.FogStartDistance, 0.0f, 300.0f);
-				ImGui::SliderFloat("Fog End Dist", &fogOptions.FogEndDistance, 0.0f, 300.0f);
-			}
-			else if (fogOptions.FogType == 2)
-			{
-				ImGui::SliderFloat("Fog Density", &fogOptions.FogDensity, 0.0f, 0.1f);
-			}
+		// === Refraction ===
+		if (ImGui::TreeNode("Refraction"))
+		{
+			ImGui::SliderFloat("Refraction Scale", &demoOptions.RefractionScale, -1.0f, 1.0f);
+			ImGui::Checkbox("Use Silhouette", &demoOptions.UseSilhouette);
 
-			// Height
-			ImGui::Checkbox("Height-Based Fog", &fogOptions.HeightBasedFog);
-			if (fogOptions.HeightBasedFog)
-			{
-				ImGui::SliderFloat("Vertical Density", &fogOptions.FogVerticalDensity, 0.0f, 1.0f);
-				ImGui::SliderFloat("Fog Height", &fogOptions.FogHeight, 0.0f, 50.0f);
-			}
+			ImVec2 size;
+			size.x = ImGui::GetWindowWidth() - 50;
+			size.y = size.x / Window::AspectRatio();
+
+			ImGui::Image(demoOptions.ColorSRV.Get(), size);
+			ImGui::Image(demoOptions.SilhouetteSRV.Get(), size);
 
 			ImGui::TreePop();
 		}
 	}
 
 	ImGui::End();
+
 }
 
 
@@ -337,10 +398,18 @@ void UIMaterial(std::shared_ptr<Material> material)
 	if (ImGui::ColorEdit3("Color Tint", &tint.x))
 		material->SetColorTint(tint);
 
-	// Roughness
-	float rough = material->GetRoughness();
-	if (ImGui::SliderFloat("Roughness", &rough, 0.0f, 1.0f))
-		material->SetRoughness(rough);
+	// Textures
+	for (auto& it : material->GetTextureSRVMap())
+	{
+		// If the texture is not a standard 2D texture, we can't actually display it here
+		D3D11_SHADER_RESOURCE_VIEW_DESC desc = {};
+		it.second->GetDesc(&desc);
+		if (desc.ViewDimension != D3D11_SRV_DIMENSION_TEXTURE2D)
+			continue;  // Skip things like cube maps
+
+		ImGui::Text(it.first.c_str());
+		ImGui::Image(it.second.Get(), ImVec2(256, 256));
+	}
 
 	ImGui::Spacing();
 }
@@ -389,17 +458,7 @@ void UILight(Light& light)
 	// Spot falloff
 	if (light.Type == LIGHT_TYPE_SPOT)
 	{
-		if (ImGui::SliderFloat("Spot Inner Angle", &light.SpotInnerAngle, 0.0f, XM_PI))
-		{
-			// Dragging inner angle, ensure outer is never smaller
-			light.SpotOuterAngle = max(light.SpotInnerAngle + 0.001f, light.SpotOuterAngle);
-		}
-
-		if (ImGui::SliderFloat("Spot Outer Angle", &light.SpotOuterAngle, 0.0f, XM_PI))
-		{
-			// Dragging outer angle, ensure inner is never larger
-			light.SpotInnerAngle = min(light.SpotInnerAngle, light.SpotOuterAngle - 0.001f);
-		}
+		ImGui::SliderFloat("Spot Falloff", &light.SpotFalloff, 0.1f, 128.0f);
 	}
 
 	// Color details
