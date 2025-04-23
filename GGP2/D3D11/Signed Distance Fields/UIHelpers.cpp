@@ -274,22 +274,15 @@ void BuildUI(
 			ImGui::TreePop();
 		}
 
-		// === Bloom ===
-		if (ImGui::TreeNode("Post Process"))
+		// === SDFs ===
+		if (ImGui::TreeNode("Signed Distance Fields"))
 		{
-			/*ImGui::Checkbox("Post Processing On", &demoOptions.PostProcessOn);
+			ImGui::SliderInt("Reflection Count", &demoOptions.ReflectionCount, 0, 16);
+			ImGui::SliderFloat("Ambient Amount", &demoOptions.AmbientAmount, 0.0f, 1.0f);
+			ImGui::Checkbox("Shadows", &demoOptions.Shadows);
 
-			if (demoOptions.PostProcessOn)
-			{
-				ImVec2 size;
-				size.x = ImGui::GetWindowWidth() - 50;
-				size.y = size.x / Window::AspectRatio();
-
-				ImGui::Image(demoOptions.ColorSRV.Get(), size);
-				ImGui::Image(demoOptions.NormalsSRV.Get(), size);
-				ImGui::Image(demoOptions.DepthSRV.Get(), size);
-				ImGui::Image(demoOptions.MetalRoughSRV.Get(), size);
-			}*/
+			if(demoOptions.Shadows)
+				ImGui::SliderFloat("Shadow Spread", &demoOptions.ShadowSpread, 0.01f, 3.0f);
 
 			ImGui::TreePop();
 		}

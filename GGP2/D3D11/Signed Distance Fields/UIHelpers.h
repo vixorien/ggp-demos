@@ -13,7 +13,10 @@
 
 struct DemoOptions
 {
-	
+	int ReflectionCount;
+	float AmbientAmount;
+	bool Shadows;
+	float ShadowSpread;
 };
 
 // Informing IMGUI about the new frame

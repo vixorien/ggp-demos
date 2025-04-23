@@ -659,72 +659,6 @@ void Game::Draw(float deltaTime, float totalTime)
 		Graphics::Context->ClearRenderTargetView(depthRTV.Get(), color);
 	}
 
-	//// DRAW geometry
-	//// Loop through the game entities and draw each one
-	//// - Note: A constant buffer has already been bound to
-	////   the vertex shader stage of the pipeline (see Init above)
-	//for (auto& e : *currentScene)
-	//{
-	//	// For this demo, the pixel shader may change on any frame, so
-	//	// we're just going to swap it here.  This isn't optimal but
-	//	// it's a simply implementation for this demo.
-	//	std::shared_ptr<SimplePixelShader> ps = lightOptions.UsePBR ? pixelShaderPBR : pixelShader;
-	//	e->GetMaterial()->SetPixelShader(ps);
-
-	//	// Set total time on this entity's material's pixel shader
-	//	// Note: If the shader doesn't have this variable, nothing happens
-	//	ps->SetFloat3("ambientColor", lightOptions.AmbientColor);
-	//	ps->SetFloat("time", totalTime);
-	//	ps->SetData("lights", &lights[0], sizeof(Light) * (int)lights.size());
-	//	ps->SetInt("lightCount", lightOptions.LightCount);
-	//	ps->SetInt("gammaCorrection", (int)lightOptions.GammaCorrection);
-	//	ps->SetInt("useAlbedoTexture", (int)lightOptions.UseAlbedoTexture);
-	//	ps->SetInt("useMetalMap", (int)lightOptions.UseMetalMap);
-	//	ps->SetInt("useNormalMap", (int)lightOptions.UseNormalMap);
-	//	ps->SetInt("useRoughnessMap", (int)lightOptions.UseRoughnessMap);
-	//	ps->SetInt("useBurleyDiffuse", (int)lightOptions.UseBurleyDiffuse);
-
-	//	// Draw one entity
-	//	e->Draw(camera);
-	//}
-
-	// Draw the sky after all regular entities
-	//if (lightOptions.ShowSkybox) sky->Draw(camera);
-
-	// Draw the light sources
-	//if (lightOptions.DrawLights) DrawLightSources();
-
-	// --- Post processing - Post-Draw -----------------------
-	//if (demoOptions.PostProcessOn)
-	//{
-	//	// Back to the screen (no depth buffer necessary at this point)
-	//	Graphics::Context->OMSetRenderTargets(1, Graphics::BackBufferRTV.GetAddressOf(), 0);
-
-	//	// Turn OFF vertex and index buffers since we'll be using the
-	//	// full-screen triangle trick
-	//	UINT stride = sizeof(Vertex);
-	//	UINT offset = 0;
-	//	ID3D11Buffer* nothing = 0;
-	//	Graphics::Context->IASetIndexBuffer(0, DXGI_FORMAT_R32_UINT, 0);
-	//	Graphics::Context->IASetVertexBuffers(0, 1, &nothing, &stride, &offset);
-
-	//	// Set up our post process shaders
-	//	fullscreenVS->SetShader();
-	//	texturePS->SetShader();
-
-	//	// Bind resources
-	//	texturePS->SetShaderResourceView("PixelColors", colorSRV);
-
-	//	// Perform the draw - Just a single triangle!
-	//	Graphics::Context->Draw(3, 0);
-
-	//	// Unbind shader resource views at the end of the frame,
-	//	// since we'll be rendering into one of those textures
-	//	// at the start of the next
-	//	ID3D11ShaderResourceView* nullSRVs[16] = {};
-	//	Graphics::Context->PSSetShaderResources(0, 16, nullSRVs);
-	//}
-
 	// Draw full screen quad for SDFs
 	// Set up our post process shaders
 	fullscreenVS->SetShader();
@@ -741,6 +675,11 @@ void Game::Draw(float deltaTime, float totalTime)
 	sdfPS->SetFloat3("cameraPosition", camera->GetTransform()->GetPosition());
 	sdfPS->SetInt("screenWidth", Window::Width());
 	sdfPS->SetInt("screenHeight", Window::Height());
+	sdfPS->SetFloat("totalTime", totalTime);
+	sdfPS->SetInt("reflectionCount", demoOptions.ReflectionCount);
+	sdfPS->SetFloat("ambientAmount", demoOptions.AmbientAmount);
+	sdfPS->SetInt("shadows", demoOptions.Shadows);
+	sdfPS->SetFloat("shadowSpread", demoOptions.ShadowSpread);
 	sdfPS->CopyAllBufferData();
 
 	Graphics::Context->Draw(3, 0);
