@@ -45,7 +45,10 @@ void Game::Initialize()
 
 	// Set up options
 	demoOptions = {
-		
+		.ReflectionCount = 0,
+		.AmbientAmount = 0.2f,
+		.Shadows = false,
+		.ShadowSpread = 0.2f
 	};
 
 	// Set up the scene and create lights

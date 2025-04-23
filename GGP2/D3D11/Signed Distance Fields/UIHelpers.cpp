@@ -277,7 +277,7 @@ void BuildUI(
 		// === SDFs ===
 		if (ImGui::TreeNode("Signed Distance Fields"))
 		{
-			ImGui::SliderInt("Reflection Count", &demoOptions.ReflectionCount, 0, 16);
+			ImGui::SliderInt("Reflection Count", &demoOptions.ReflectionCount, 0, 8);
 			ImGui::SliderFloat("Ambient Amount", &demoOptions.AmbientAmount, 0.0f, 1.0f);
 			ImGui::Checkbox("Shadows", &demoOptions.Shadows);
 
