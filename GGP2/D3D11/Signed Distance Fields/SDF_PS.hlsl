@@ -54,7 +54,7 @@ Ray CalcRayFromCamera(float2 rayIndices)
 	return ray;
 }
 
-// === Ambient/sky color ===
+// === Misc light functions ===
 
 float3 GetSkyColor(float3 dir)
 {
@@ -64,7 +64,17 @@ float3 GetSkyColor(float3 dir)
 	return lerp(skyDown, skyUp, saturate(dot(float3(0,1,0), normalize(dir)) * 0.5f + 0.5f));
 }
 
+float3 GetCheckerColor(float2 pos, float scale, float3 colorA, float3 colorB)
+{
+	float fx = frac(pos.x / scale);
+	float fy = frac(pos.y / scale);
+	return lerp(colorA, colorB, fy < 0.5f ? fx < 0.5f : fx >= 0.5f);
+}
 
+float FresnelSchlick(float f0, float3 n, float3 v)
+{
+	return f0 + (1-f0) * pow(1 - saturate(dot(n,v)), 5.0f);
+}
 
 // === SDF functions ===
 
@@ -128,7 +138,7 @@ HitResult EvaluateScene(float3 samplePos)
 	
 	// Initial floor plane
 	bestHit.Dist = PlaneSDF(samplePos, float3(0,0,0), float3(0,1,0), 0.0f);
-	bestHit.Color = float3(0.5f, 0.5f, 0.5f);
+	bestHit.Color = GetCheckerColor(samplePos.xz, 5.0f, 0.75f, 0.45f);
 	
 	// First sphere
 	hit.Dist = SphereSDF(samplePos, float3(sin(totalTime) * 3.0f, 2, 0), 1.0f);
@@ -210,7 +220,6 @@ float RayMarchShadow(Ray ray, float w, float tMax)
 float3 RayMarch(Ray ray)
 {
 	float3 color = float3(1,1,1);
-	float3 normal = float3(0,0,0);
 	float3 refl = float3(0,0,0);
 	
 	float3 startPos = cameraPosition;
@@ -235,7 +244,7 @@ float3 RayMarch(Ray ray)
 				anyHit = true;
 				
 				// Calculate normal here (more ray marching of the scene)
-				normal = NormalSDF_3_Sample(currPosition, hit.Dist);
+				float3 normal = NormalSDF_3_Sample(currPosition, hit.Dist);
 			
 				// Reflection ray (for next bounce after loop)
 				refl = reflect(ray.Direction, normal);
@@ -257,14 +266,16 @@ float3 RayMarch(Ray ray)
 				}
 				
 				// Specular (Phong)
-				float spec = pow(max(0, dot(-ray.Direction, lightRefl)), 32.0f);
-				spec *= diffuse;
+				float specular = pow(max(0, dot(-ray.Direction, lightRefl)), 32.0f);
+				specular *= FresnelSchlick(0.04f, normal, normalize(cameraPosition - currPosition));
+				specular *= 3.0f; // Arbitrary specular constant (k)
+				specular *= diffuse; // Limit based on lambert & shadows, too
 				
 				// Ambient (hemispheric ambient)
-				float3 ambient = GetSkyColor(normal) * ambientAmount;
+				float3 ambient = GetSkyColor(normal) * ambientAmount * hit.Color;
 			
 				// Combine
-				color *= (hit.Color * diffuse + spec + ambient);
+				color *= (hit.Color * diffuse + specular + ambient);
 				
 				break;
 			}
