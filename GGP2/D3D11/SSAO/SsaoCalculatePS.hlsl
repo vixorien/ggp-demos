@@ -57,13 +57,13 @@ float4 main(VertexToPixel input) : SV_TARGET
 	float pixelDepth = Depths.Sample(ClampSampler, input.uv).r;
 	if(pixelDepth == 1.0f)
 		return float4(1,1,1,1);
-
+	
 	// Get the view space position of this pixel
 	float3 pixelPositionViewSpace = ViewSpaceFromDepth(pixelDepth, input.uv);
-
+	
 	// Assuming random texture is 4x4 and holds float values (already normalized)
 	float3 randomDir = Random.Sample(BasicSampler, input.uv * randomTextureScreenScale).xyz;
-
+	
 	// Sample normal and convert to view space
 	float3 normal = Normals.Sample(BasicSampler, input.uv).xyz * 2 - 1;
 	normal = normalize(mul((float3x3)viewMatrix, normal));
@@ -72,21 +72,22 @@ float4 main(VertexToPixel input) : SV_TARGET
 	float3 tangent = normalize(randomDir - normal * dot(randomDir, normal));
 	float3 bitangent = cross(tangent, normal);
 	float3x3 TBN = float3x3(tangent, bitangent, normal);
-
+	
 	// Loop and total all samples
 	float ao = 0.0f;
+	[loop]
 	for (int i = 0; i < ssaoSamples; i++)
 	{
 		// Rotate the offset, scale and apply to position
 		float3 samplePosView = pixelPositionViewSpace + mul(offsets[i].xyz, TBN) * ssaoRadius;
-
+	
 		// Get the UV coord of this position
 		float2 samplePosScreen = UVFromViewSpacePosition(samplePosView);
-
+		
 		// Sample the this nearby depth
 		float sampleDepth = Depths.SampleLevel(ClampSampler, samplePosScreen.xy, 0).r;
 		float sampleZ = ViewSpaceFromDepth(sampleDepth, samplePosScreen.xy).z;
-
+		
 		// Compare the depths and fade result based on range (so far away objects aren’t occluded)
 		float rangeCheck = smoothstep(0.0f, 1.0f, ssaoRadius / abs(pixelPositionViewSpace.z - sampleZ));
 		ao += (sampleZ < samplePosView.z ? rangeCheck : 0.0f);

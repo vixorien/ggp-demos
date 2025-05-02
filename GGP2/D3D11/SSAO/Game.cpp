@@ -804,17 +804,18 @@ void Game::Draw(float deltaTime, float totalTime)
 	// - At the beginning of Game::Draw() before drawing *anything*
 	{
 		// Clear the back buffer (erase what's on screen) and depth buffer
-		const float color[4] = { 0, 0, 0, 1 };
-		Graphics::Context->ClearRenderTargetView(Graphics::BackBufferRTV.Get(),	color);
+		const float black[4] = { 0, 0, 0, 1 };
+		const float white[4] = { 1, 1, 1, 1 };
+		Graphics::Context->ClearRenderTargetView(Graphics::BackBufferRTV.Get(),	black);
 		Graphics::Context->ClearDepthStencilView(Graphics::DepthBufferDSV.Get(), D3D11_CLEAR_DEPTH, 1.0f, 0);
 		
 		// Clear all targets
-		Graphics::Context->ClearRenderTargetView(colorDirectRTV.Get(), color);
-		Graphics::Context->ClearRenderTargetView(colorAmbientRTV.Get(), color);
-		Graphics::Context->ClearRenderTargetView(normalsRTV.Get(), color);
-		Graphics::Context->ClearRenderTargetView(depthRTV.Get(), color);
-		Graphics::Context->ClearRenderTargetView(ssaoResultsRTV.Get(), color);
-		Graphics::Context->ClearRenderTargetView(ssaoBlurRTV.Get(), color);
+		Graphics::Context->ClearRenderTargetView(colorDirectRTV.Get(), black);
+		Graphics::Context->ClearRenderTargetView(colorAmbientRTV.Get(), black);
+		Graphics::Context->ClearRenderTargetView(normalsRTV.Get(), black);
+		Graphics::Context->ClearRenderTargetView(depthRTV.Get(), white);
+		Graphics::Context->ClearRenderTargetView(ssaoResultsRTV.Get(), black);
+		Graphics::Context->ClearRenderTargetView(ssaoBlurRTV.Get(), black);
 	}
 
 	// --- Pre-Draw - Swap render targets ---------------------
@@ -877,10 +878,10 @@ void Game::Draw(float deltaTime, float totalTime)
 	if (lightOptions.DrawLights) DrawLightSources();
 
 
-	// --- Post-Draw - SSAO -----------------------
+	// --- Post-Draw - Initial SSAO Results -----------------------
 	{
-		// Back to the screen (no depth buffer necessary at this point)
-		Graphics::Context->OMSetRenderTargets(1, Graphics::BackBufferRTV.GetAddressOf(), 0);
+		// Set SSAO target
+		Graphics::Context->OMSetRenderTargets(1, ssaoResultsRTV.GetAddressOf(), 0);
 
 		// Turn OFF vertex and index buffers since we'll be using the
 		// full-screen triangle trick
@@ -892,20 +893,34 @@ void Game::Draw(float deltaTime, float totalTime)
 
 		// Set up our post process shaders
 		fullscreenVS->SetShader();
-		texturePS->SetShader();
+		ssaoCalculatePS->SetShader();
+
+		// Set up cbuffer data
+		XMFLOAT4X4 invProj, view = camera->GetView(), proj = camera->GetProjection();
+		XMStoreFloat4x4(&invProj, XMMatrixInverse(0, XMLoadFloat4x4(&proj)));
+		ssaoCalculatePS->SetMatrix4x4("invProjMatrix", invProj);
+		ssaoCalculatePS->SetMatrix4x4("viewMatrix", view);
+		ssaoCalculatePS->SetMatrix4x4("projectionMatrix", proj);
+		ssaoCalculatePS->SetData("offsets", ssaoOffsets, sizeof(XMFLOAT4) * ARRAYSIZE(ssaoOffsets));
+		ssaoCalculatePS->SetFloat("ssaoRadius", ssaoOptions.SampleRadius);
+		ssaoCalculatePS->SetInt("ssaoSamples", ssaoOptions.SampleCount);
+		ssaoCalculatePS->SetFloat2("randomTextureScreenScale", XMFLOAT2(Window::Width() / 4.0f, Window::Height() / 4.0f));
+		ssaoCalculatePS->CopyAllBufferData();
 
 		// Bind resources
-		texturePS->SetShaderResourceView("PixelColors", colorDirectSRV);
+		ssaoCalculatePS->SetShaderResourceView("Normals", normalsSRV);
+		ssaoCalculatePS->SetShaderResourceView("Depths", depthSRV);
+		ssaoCalculatePS->SetShaderResourceView("Random", ssaoRandomSRV);
 
 		// Perform the draw - Just a single triangle!
 		Graphics::Context->Draw(3, 0);
-
-		// Unbind shader resource views at the end of the frame,
-		// since we'll be rendering into one of those textures
-		// at the start of the next
-		ID3D11ShaderResourceView* nullSRVs[16] = {};
-		Graphics::Context->PSSetShaderResources(0, 16, nullSRVs);
 	}
+
+
+	// Final reset (including unbind of SRVs)
+	ID3D11ShaderResourceView* nullSRVs[16] = {};
+	Graphics::Context->PSSetShaderResources(0, 16, nullSRVs);
+	Graphics::Context->OMSetRenderTargets(1, Graphics::BackBufferRTV.GetAddressOf(), 0);
 
 
 	// Frame END
