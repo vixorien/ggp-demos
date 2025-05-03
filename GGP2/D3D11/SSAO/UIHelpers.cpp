@@ -287,12 +287,23 @@ void BuildUI(
 			size.x = ImGui::GetWindowWidth() - 50;
 			size.y = size.x / Window::AspectRatio();
 
-			ImGui::Image(ssaoOptions.ColorDirectSRV.Get(), size);
-			ImGui::Image(ssaoOptions.ColorAmbientSRV.Get(), size);
-			ImGui::Image(ssaoOptions.NormalsSRV.Get(), size);
-			ImGui::Image(ssaoOptions.DepthSRV.Get(), size);
-			ImGui::Image(ssaoOptions.SSAOResultsSRV.Get(), size);
-			ImGui::Image(ssaoOptions.SSAOBlurSRV.Get(), size);
+			ImageWithHover(ssaoOptions.ColorDirectSRV.Get(), size);
+			ImageWithHover(ssaoOptions.ColorAmbientSRV.Get(), size);
+			ImageWithHover(ssaoOptions.NormalsSRV.Get(), size);
+			ImageWithHover(ssaoOptions.DepthSRV.Get(), size);
+			ImageWithHover(ssaoOptions.SSAOResultsSRV.Get(), size);
+			ImageWithHover(ssaoOptions.SSAOBlurSRV.Get(), size);
+
+			ImGui::TreePop();
+		}
+
+		// === SSAO Options ===
+		if (ImGui::TreeNode("SSAO"))
+		{
+			ImGui::Checkbox("SSAO Enabled", &ssaoOptions.SSAOEnabled);
+			ImGui::Checkbox("SSAO Output Only", &ssaoOptions.SSAOOutputOnly);
+			ImGui::SliderInt("SSAO Sample Count", &ssaoOptions.SampleCount, 1, 64);
+			ImGui::SliderFloat("SSAO Sample Radius", &ssaoOptions.SampleRadius, 0.0f, 5.0f);
 
 			ImGui::TreePop();
 		}

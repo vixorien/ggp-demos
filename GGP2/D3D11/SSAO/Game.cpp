@@ -50,7 +50,7 @@ void Game::Initialize()
 
 	// Set up defaults for lighting options
 	lightOptions = {
-		.LightCount = 3,
+		.LightCount = 0,
 		.GammaCorrection = true,
 		.UseAlbedoTexture = true,
 		.UseMetalMap = true,
@@ -80,6 +80,11 @@ void Game::Initialize()
 
 	// Set up SSAO data
 	{
+		ssaoOptions.SSAOEnabled = true;
+		ssaoOptions.SSAOOutputOnly = true;
+		ssaoOptions.SampleCount = 64;
+		ssaoOptions.SampleRadius = 1.0f;
+
 		// SSAO offset vectors
 		for (int i = 0; i < ARRAYSIZE(ssaoOffsets); i++)
 		{
@@ -377,6 +382,27 @@ void Game::LoadAssetsAndCreateEntities()
 	entitiesLineup.push_back(bronzeSphere);
 	entitiesLineup.push_back(roughSphere);
 	entitiesLineup.push_back(woodSphere);
+
+	// Create a pyramid of entities
+	float spacing = 2.0f;
+	float startY = -3.0f;
+	for (int layer = 0; layer < 4; layer++)
+	{
+		for (int x = 0; x < layer + 1; x++)
+		{
+			for (int z = 0; z < layer + 1; z++)
+			{
+				std::shared_ptr<GameEntity> e = std::make_shared<GameEntity>(sphereMesh, woodMat);
+				e->GetTransform()->SetScale(spacing * 0.5f);
+				e->GetTransform()->SetPosition(
+					x * spacing - (layer * 0.5f * spacing),
+					startY - layer * spacing * 0.7f,
+					z * spacing - (layer * 0.5f * spacing));
+
+				entitiesLineup.push_back(e);
+			}
+		}
+	}
 
 
 
@@ -878,19 +904,22 @@ void Game::Draw(float deltaTime, float totalTime)
 	if (lightOptions.DrawLights) DrawLightSources();
 
 
-	// --- Post-Draw - Initial SSAO Results -----------------------
+	// --- Post-Draw ---------------------------------
+
+	// Turn OFF vertex and index buffers since we'll be using the
+	// full-screen triangle trick
+	UINT stride = sizeof(Vertex);
+	UINT offset = 0;
+	ID3D11Buffer* nothing = 0;
+	Graphics::Context->IASetIndexBuffer(0, DXGI_FORMAT_R32_UINT, 0);
+	Graphics::Context->IASetVertexBuffers(0, 1, &nothing, &stride, &offset);
+
+
+	// Initial SSAO Results -----------------------
 	{
 		// Set SSAO target
 		Graphics::Context->OMSetRenderTargets(1, ssaoResultsRTV.GetAddressOf(), 0);
-
-		// Turn OFF vertex and index buffers since we'll be using the
-		// full-screen triangle trick
-		UINT stride = sizeof(Vertex);
-		UINT offset = 0;
-		ID3D11Buffer* nothing = 0;
-		Graphics::Context->IASetIndexBuffer(0, DXGI_FORMAT_R32_UINT, 0);
-		Graphics::Context->IASetVertexBuffers(0, 1, &nothing, &stride, &offset);
-
+		
 		// Set up our post process shaders
 		fullscreenVS->SetShader();
 		ssaoCalculatePS->SetShader();
@@ -911,6 +940,50 @@ void Game::Draw(float deltaTime, float totalTime)
 		ssaoCalculatePS->SetShaderResourceView("Normals", normalsSRV);
 		ssaoCalculatePS->SetShaderResourceView("Depths", depthSRV);
 		ssaoCalculatePS->SetShaderResourceView("Random", ssaoRandomSRV);
+
+		// Perform the draw - Just a single triangle!
+		Graphics::Context->Draw(3, 0);
+	}
+
+	// SSAO Blur -----------------------
+	{
+		// Set blur target
+		Graphics::Context->OMSetRenderTargets(1, ssaoBlurRTV.GetAddressOf(), 0);
+
+		// Set up our post process shaders
+		fullscreenVS->SetShader();
+		ssaoBlurPS->SetShader();
+
+		// Set up cbuffer data
+		ssaoBlurPS->SetFloat2("pixelSize", XMFLOAT2(1.0f / Window::Width(), 1.0f / Window::Height()));
+		ssaoBlurPS->CopyAllBufferData();
+
+		// Bind resources
+		ssaoBlurPS->SetShaderResourceView("SSAO", ssaoResultsSRV);
+
+		// Perform the draw - Just a single triangle!
+		Graphics::Context->Draw(3, 0);
+	}
+
+	// Final Combine ----------------------
+	{
+		// Back buffer
+		Graphics::Context->OMSetRenderTargets(1, Graphics::BackBufferRTV.GetAddressOf(), 0);
+
+		// Set up our post process shaders
+		fullscreenVS->SetShader();
+		ssaoCombinePS->SetShader();
+
+		// Set up cbuffer data
+		ssaoCombinePS->SetInt("ssaoEnabled", ssaoOptions.SSAOEnabled);
+		ssaoCombinePS->SetInt("ssaoOutputOnly", ssaoOptions.SSAOOutputOnly);
+		ssaoCombinePS->SetFloat2("pixelSize", XMFLOAT2(1.0f / Window::Width(), 1.0f / Window::Height()));
+		ssaoCombinePS->CopyAllBufferData();
+
+		// Bind resources
+		ssaoCombinePS->SetShaderResourceView("SceneColorsDirect", colorDirectSRV);
+		ssaoCombinePS->SetShaderResourceView("SceneColorsIndirect", colorAmbientSRV);
+		ssaoCombinePS->SetShaderResourceView("SSAOBlur", ssaoBlurSRV);
 
 		// Perform the draw - Just a single triangle!
 		Graphics::Context->Draw(3, 0);

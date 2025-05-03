@@ -75,7 +75,6 @@ float4 main(VertexToPixel input) : SV_TARGET
 	
 	// Loop and total all samples
 	float ao = 0.0f;
-	[loop]
 	for (int i = 0; i < ssaoSamples; i++)
 	{
 		// Rotate the offset, scale and apply to position
