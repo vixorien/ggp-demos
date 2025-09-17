@@ -22,6 +22,11 @@ namespace Graphics
 		D3D_FEATURE_LEVEL featureLevel;
 
 		Microsoft::WRL::ComPtr<ID3D11InfoQueue> InfoQueue;
+
+		// Constant buffer management
+		unsigned int cbHeapSizeInBytes = 0;
+		unsigned int cbHeapOffsetInBytes = 0;
+		Microsoft::WRL::ComPtr<ID3D11DeviceContext1> context1;
 	}
 }
 
@@ -240,6 +245,117 @@ void Graphics::ResizeBuffers(unsigned int width, unsigned int height)
 
 	// Are we in a fullscreen state?
 	SwapChain->GetFullscreenState(&isFullscreen, 0);
+
+	// Grab the Direct3D 11.1 version of the context for later
+	Context->QueryInterface< ID3D11DeviceContext1>(context1.GetAddressOf());
+}
+
+
+// --------------------------------------------------------
+// Creates (or recreates) the large constant buffer we
+// can use as a heap of smaller constant buffers.
+// 
+// sizeInBytes - The size of the buffer in bytes.  Note that
+//               the size will be aligned to the next highest
+//               multiple of 256 to match binding requirements
+// --------------------------------------------------------
+void Graphics::ResizeConstantBufferHeap(unsigned int sizeInBytes)
+{
+	// Ensure graphics API is initialized
+	if (!apiInitialized)
+		return;
+
+	// Resets the ComPtr, releasing any existing references
+	ConstantBufferHeap.Reset();
+
+	// Set up basic size tracking details
+	cbHeapOffsetInBytes = 0;
+	cbHeapSizeInBytes = (sizeInBytes + 255) / 256 * 256;
+
+	// Create the actual buffer
+	D3D11_BUFFER_DESC cbDesc{};
+	cbDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+	cbDesc.ByteWidth = cbHeapSizeInBytes;
+	cbDesc.Usage = D3D11_USAGE_DYNAMIC;
+	cbDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	cbDesc.MiscFlags = 0;
+	cbDesc.StructureByteStride = 0;
+	Device->CreateBuffer(&cbDesc, 0, ConstantBufferHeap.GetAddressOf());
+}
+
+
+// --------------------------------------------------------
+// Copies the given data into the next "unused" spot in
+// the constant buffer and then binds it to the specied
+// location in the pipeline.
+// 
+// data - The data to copy to the GPU
+// dataSizeInBytes - The byte size of the data to copy
+// shaderType - The shader stage for binding
+// registerSlot - The slot for binding
+// --------------------------------------------------------
+void Graphics::FillAndSetNextConstantBuffer(
+	void* data,
+	unsigned int dataSizeInBytes,
+	D3D11_SHADER_TYPE shaderType,
+	unsigned int registerSlot)
+{
+	// How much space will we actually need?  Each chunk must be
+	// a multiple of 256 bytes.  Performating a basic alignment here.
+	unsigned int reservationSize = (dataSizeInBytes + 255) / 256 * 256;
+
+	// Does this fit in the remaining space?  If not, loop back to
+	// the beginning of the ring buffer
+	if (cbHeapOffsetInBytes + reservationSize >= cbHeapSizeInBytes)
+		cbHeapOffsetInBytes = 0;
+
+	// Map the buffer, promising not to overwrite any data currently
+	// in use by a call in flight.  This is accomplished with the
+	// MAP_WRITE_NO_OVERWRITE flag below.  This allows us to quickly
+	// update portions of the resource that aren't in use.
+	D3D11_MAPPED_SUBRESOURCE map{};
+	Context->Map(
+		ConstantBufferHeap.Get(),
+		0,
+		D3D11_MAP_WRITE_NO_OVERWRITE, // Must ensure we're not touching memory currently in use!!!
+		0,
+		&map);
+
+	// Write into the proper portion of the buffer
+	void* uploadAddress = reinterpret_cast<void*>((UINT64)map.pData + cbHeapOffsetInBytes);
+	memcpy(uploadAddress, data, dataSizeInBytes);
+
+	// Unmap to release this portion of the buffer
+	Context->Unmap(ConstantBufferHeap.Get(), 0);
+
+	// Calculate the offset and size as measured in 16-byte constants
+	unsigned int firstConstant = cbHeapOffsetInBytes / 16;
+	unsigned int numConstants = reservationSize / 16;
+
+	// Bind the buffer to the proper pipeline stage
+	switch (shaderType)
+	{
+	case D3D11_VERTEX_SHADER:
+		context1->VSSetConstantBuffers1(
+			registerSlot,
+			1,
+			ConstantBufferHeap.GetAddressOf(),
+			&firstConstant,
+			&numConstants);
+		break;
+
+	case D3D11_PIXEL_SHADER:
+		context1->PSSetConstantBuffers1(
+			registerSlot,
+			1,
+			ConstantBufferHeap.GetAddressOf(),
+			&firstConstant,
+			&numConstants);
+		break;
+	}
+
+	// Offset for the next call
+	cbHeapOffsetInBytes += reservationSize;
 }
 
 
