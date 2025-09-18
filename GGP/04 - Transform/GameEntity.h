@@ -16,8 +16,7 @@ public:
 	
 	void SetMesh(std::shared_ptr<Mesh> mesh);
 
-
-	void Draw(Microsoft::WRL::ComPtr<ID3D11Buffer> vsConstantBuffer);
+	void Draw();
 
 private:
 
