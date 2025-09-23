@@ -144,6 +144,9 @@ HRESULT Graphics::Initialize(unsigned int windowWidth, unsigned int windowHeight
 	debug->QueryInterface(IID_PPV_ARGS(InfoQueue.GetAddressOf()));
 #endif
 
+	// Grab the Direct3D 11.1 version of the context for later
+	Context->QueryInterface<ID3D11DeviceContext1>(context1.GetAddressOf());
+
 	return S_OK;
 }
 
@@ -245,9 +248,6 @@ void Graphics::ResizeBuffers(unsigned int width, unsigned int height)
 
 	// Are we in a fullscreen state?
 	SwapChain->GetFullscreenState(&isFullscreen, 0);
-
-	// Grab the Direct3D 11.1 version of the context for later
-	Context->QueryInterface< ID3D11DeviceContext1>(context1.GetAddressOf());
 }
 
 
