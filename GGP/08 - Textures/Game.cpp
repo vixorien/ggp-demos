@@ -6,6 +6,7 @@
 #include "Window.h"
 #include "UIHelpers.h"
 #include "AssetPath.h"
+#include "BufferStructs.h"
 
 #include "ImGui/imgui.h"
 #include "ImGui/imgui_impl_dx11.h"
@@ -43,10 +44,48 @@ void Game::Initialize()
 	//  - Some of these, like the primitive topology & input layout, probably won't change
 	//  - Others, like setting shaders, will need to be moved elsewhere later
 	{
+		// Set up a constant buffer heap of an appropriate size
+		Graphics::ResizeConstantBufferHeap(256 * 100); // 100 chunks of 256 bytes
+
 		// Tell the input assembler (IA) stage of the pipeline what kind of
 		// geometric primitives (points, lines or triangles) we want to draw.  
 		// Essentially: "What kind of shape should the GPU draw with our vertices?"
 		Graphics::Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+		// Create an input layout 
+		//  - This describes the layout of data sent to a vertex shader
+		//  - In other words, it describes how to interpret data (numbers) in a vertex buffer
+		//  - Doing this NOW because it requires a vertex shader's byte code to verify against!
+		D3D11_INPUT_ELEMENT_DESC inputElements[3] = {};
+
+		// Set up the first element - a position, which is 3 float values
+		inputElements[0].Format = DXGI_FORMAT_R32G32B32_FLOAT;				// Most formats are described as color channels; really it just means "Three 32-bit floats"
+		inputElements[0].SemanticName = "POSITION";							// This is "POSITION" - needs to match the semantics in our vertex shader input!
+		inputElements[0].AlignedByteOffset = D3D11_APPEND_ALIGNED_ELEMENT;	// How far into the vertex is this?  Assume it's after the previous element
+
+		// Set up the second element - a color, which is 4 more float values
+		inputElements[1].Format = DXGI_FORMAT_R32G32_FLOAT;					// 2x 32-bit floats
+		inputElements[1].SemanticName = "TEXCOORD";							// Match our vertex shader input!
+		inputElements[1].AlignedByteOffset = D3D11_APPEND_ALIGNED_ELEMENT;	// After the previous element
+
+		// Set up the second element - a color, which is 4 more float values
+		inputElements[2].Format = DXGI_FORMAT_R32G32B32_FLOAT;				// 3x 32-bit floats
+		inputElements[2].SemanticName = "NORMAL";							// Match our vertex shader input!
+		inputElements[2].AlignedByteOffset = D3D11_APPEND_ALIGNED_ELEMENT;	// After the previous element
+
+
+		// Create the input layout, verifying our description against actual shader code
+		ID3DBlob* vertexShaderBlob;
+		D3DReadFileToBlob(FixPath(L"VertexShader.cso").c_str(), &vertexShaderBlob);
+		Graphics::Device->CreateInputLayout(
+			inputElements,							// An array of descriptions
+			ARRAYSIZE(inputElements),				// How many elements in that array?
+			vertexShaderBlob->GetBufferPointer(),	// Pointer to the code of a shader that uses this layout
+			vertexShaderBlob->GetBufferSize(),		// Size of the shader code that uses this layout
+			inputLayout.GetAddressOf());			// Address of the resulting ID3D11InputLayout pointer
+
+		// Set the input layout now that it exists
+		Graphics::Context->IASetInputLayout(inputLayout.Get());
 	}
 
 	// Create the camera
@@ -79,6 +118,46 @@ Game::~Game()
 
 
 // --------------------------------------------------------
+// Loads a pixel shader from a compiled shader object (.cso) file
+// --------------------------------------------------------
+Microsoft::WRL::ComPtr<ID3D11PixelShader> Game::LoadPixelShader(const wchar_t* compiledShaderPath)
+{
+	// Read the contents of the compiled shader object to a blob
+	ID3DBlob* shaderBlob;
+	D3DReadFileToBlob(compiledShaderPath, &shaderBlob);
+
+	// Create the pixel shader and return it
+	Microsoft::WRL::ComPtr<ID3D11PixelShader> shader;
+	Graphics::Device->CreatePixelShader(
+		shaderBlob->GetBufferPointer(),	// Pointer to blob's contents
+		shaderBlob->GetBufferSize(),	// How big is that data?
+		0,								// No classes in this shader
+		shader.GetAddressOf());			// Address of the ID3D11PixelShader pointer
+	return shader;
+}
+
+
+// --------------------------------------------------------
+// Loads a vertex shader from a compiled shader object (.cso) file
+// --------------------------------------------------------
+Microsoft::WRL::ComPtr<ID3D11VertexShader> Game::LoadVertexShader(const wchar_t* compiledShaderPath)
+{
+	// Read the contents of the compiled shader object to a blob
+	ID3DBlob* shaderBlob;
+	D3DReadFileToBlob(compiledShaderPath, &shaderBlob);
+
+	// Create the pixel shader and return it
+	Microsoft::WRL::ComPtr<ID3D11VertexShader> shader;
+	Graphics::Device->CreateVertexShader(
+		shaderBlob->GetBufferPointer(),	// Pointer to blob's contents
+		shaderBlob->GetBufferSize(),	// How big is that data?
+		0,								// No classes in this shader
+		shader.GetAddressOf());			// Address of the ID3D11PixelShader pointer
+	return shader;
+}
+
+
+// --------------------------------------------------------
 // Loads assets and creates the geometry we're going to draw
 // --------------------------------------------------------
 void Game::LoadAssetsAndCreateEntities()
@@ -105,8 +184,8 @@ void Game::LoadAssetsAndCreateEntities()
 
 
 	// Load shaders
-	std::shared_ptr<SimpleVertexShader> basicVertexShader = std::make_shared<SimpleVertexShader>(Graphics::Device, Graphics::Context, FixPath(L"VertexShader.cso").c_str());
-	std::shared_ptr<SimplePixelShader> basicPixelShader = std::make_shared<SimplePixelShader>(Graphics::Device, Graphics::Context, FixPath(L"PixelShader.cso").c_str());
+	Microsoft::WRL::ComPtr<ID3D11VertexShader> basicVertexShader = LoadVertexShader(FixPath(L"VertexShader.cso").c_str());
+	Microsoft::WRL::ComPtr<ID3D11PixelShader> basicPixelShader = LoadPixelShader(FixPath(L"PixelShader.cso").c_str());
 
 	// Load 3D models	
 	std::shared_ptr<Mesh> cubeMesh = std::make_shared<Mesh>("Cube", FixPath(AssetPath + L"Meshes/cube.obj").c_str());
@@ -122,24 +201,24 @@ void Game::LoadAssetsAndCreateEntities()
 
 	// Create several different materials
 	std::shared_ptr<Material> matRock = std::make_shared<Material>("Rock", basicPixelShader, basicVertexShader, XMFLOAT3(1, 1, 1),XMFLOAT2(2, 2));
-	matRock->AddSampler("BasicSampler", sampler);
-	matRock->AddTextureSRV("SurfaceTexture", rockSRV);
+	matRock->AddSampler(0, sampler);
+	matRock->AddTextureSRV(0, rockSRV);
 
 	std::shared_ptr<Material> matRockBlue = std::make_shared<Material>("Rock Blue", basicPixelShader, basicVertexShader, XMFLOAT3(0.1f, 0.6f, 1.0f), XMFLOAT2(2, 2));
-	matRockBlue->AddSampler("BasicSampler", sampler);
-	matRockBlue->AddTextureSRV("SurfaceTexture", rockSRV);
+	matRockBlue->AddSampler(0, sampler);
+	matRockBlue->AddTextureSRV(0, rockSRV);
 
 	std::shared_ptr<Material> matTiles = std::make_shared<Material>("Tiles", basicPixelShader, basicVertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(1, 1));
-	matTiles->AddSampler("BasicSampler", sampler);
-	matTiles->AddTextureSRV("SurfaceTexture", tilesSRV);
+	matTiles->AddSampler(0, sampler);
+	matTiles->AddTextureSRV(0, tilesSRV);
 	
 	std::shared_ptr<Material> matTileRed = std::make_shared<Material>("Tile Red", basicPixelShader, basicVertexShader, XMFLOAT3(1, 0.3f, 0.3f), XMFLOAT2(2, 2));
-	matTileRed->AddSampler("BasicSampler", sampler);
-	matTileRed->AddTextureSRV("SurfaceTexture", tilesSRV);
+	matTileRed->AddSampler(0, sampler);
+	matTileRed->AddTextureSRV(0, tilesSRV);
 
 	std::shared_ptr<Material> matCrate = std::make_shared<Material>("Crate", basicPixelShader, basicVertexShader, XMFLOAT3(1, 1, 1));
-	matCrate->AddSampler("BasicSampler", sampler);
-	matCrate->AddTextureSRV("SurfaceTexture", crateSRV);
+	matCrate->AddSampler(0, sampler);
+	matCrate->AddTextureSRV(0, crateSRV);
 
 	// Add all materials to vector
 	materials.insert(materials.end(), { matRock, matRockBlue, matTiles, matTileRed, matCrate });
@@ -222,10 +301,27 @@ void Game::Draw(float deltaTime, float totalTime)
 	//   the vertex shader stage of the pipeline (see Init above)
 	for (auto& e : entities)
 	{
-		// Set total time on this entity's material's pixel shader
-		// Note: If the shader doesn't have this variable, nothing happens
-		std::shared_ptr<SimplePixelShader> ps = e->GetMaterial()->GetPixelShader();
-		ps->SetFloat("time", totalTime);
+		// Grab the material and it have bind its resources (textures and samplers)
+		std::shared_ptr<Material> mat = e->GetMaterial();
+		mat->BindTexturesAndSamplers();
+
+		// Set up the pipeline for this draw
+		Graphics::Context->VSSetShader(mat->GetVertexShader().Get(), 0, 0);
+		Graphics::Context->PSSetShader(mat->GetPixelShader().Get(), 0, 0);
+
+		// Set vertex shader data
+		VertexShaderExternalData vsData{};
+		vsData.worldMatrix = e->GetTransform()->GetWorldMatrix();
+		vsData.viewMatrix = camera->GetView();
+		vsData.projectionMatrix = camera->GetProjection();
+		Graphics::FillAndSetNextConstantBuffer(&vsData, sizeof(VertexShaderExternalData), D3D11_VERTEX_SHADER, 0);
+
+		// Set pixel shader data (mostly coming from the material)
+		PixelShaderExternalData psData{};
+		psData.colorTint = mat->GetColorTint();
+		psData.uvOffset = mat->GetUVOffset();
+		psData.uvScale = mat->GetUVScale();
+		Graphics::FillAndSetNextConstantBuffer(&psData, sizeof(PixelShaderExternalData), D3D11_PIXEL_SHADER, 0);
 
 		// Draw one entity
 		e->Draw(camera);

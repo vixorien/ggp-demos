@@ -40,9 +40,7 @@ private:
 	std::vector<std::shared_ptr<Material>> materials;
 	std::vector<std::shared_ptr<GameEntity>> entities;
 
-	// Shaders and shader-related constructs
-	Microsoft::WRL::ComPtr<ID3D11PixelShader> pixelShader;
-	Microsoft::WRL::ComPtr<ID3D11VertexShader> vertexShader;
+	// D3D API objects
 	Microsoft::WRL::ComPtr<ID3D11InputLayout> inputLayout;
 };
 

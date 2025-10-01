@@ -34,9 +34,6 @@ void Game::Initialize()
 	ImGui_ImplDX11_Init(Graphics::Device.Get(), Graphics::Context.Get());
 	ImGui::StyleColorsDark();
 
-	// Set up a constant buffer heap of an appropriate size
-	Graphics::ResizeConstantBufferHeap(256 * 100); // 100 chunks of 256 bytes
-
 	// Set up entities
 	LoadAssetsAndCreateEntities();
 
@@ -45,6 +42,9 @@ void Game::Initialize()
 	//  - Some of these, like the primitive topology & input layout, probably won't change
 	//  - Others, like setting shaders, will need to be moved elsewhere later
 	{
+		// Set up a constant buffer heap of an appropriate size
+		Graphics::ResizeConstantBufferHeap(256 * 100); // 100 chunks of 256 bytes
+
 		// Tell the input assembler (IA) stage of the pipeline what kind of
 		// geometric primitives (points, lines or triangles) we want to draw.  
 		// Essentially: "What kind of shape should the GPU draw with our vertices?"
@@ -114,6 +114,9 @@ Game::~Game()
 }
 
 
+// --------------------------------------------------------
+// Loads a pixel shader from a compiled shader object (.cso) file
+// --------------------------------------------------------
 Microsoft::WRL::ComPtr<ID3D11PixelShader> Game::LoadPixelShader(const wchar_t* compiledShaderPath)
 {
 	// Read the contents of the compiled shader object to a blob
@@ -130,6 +133,10 @@ Microsoft::WRL::ComPtr<ID3D11PixelShader> Game::LoadPixelShader(const wchar_t* c
 	return shader;
 }
 
+
+// --------------------------------------------------------
+// Loads a vertex shader from a compiled shader object (.cso) file
+// --------------------------------------------------------
 Microsoft::WRL::ComPtr<ID3D11VertexShader> Game::LoadVertexShader(const wchar_t* compiledShaderPath)
 {
 	// Read the contents of the compiled shader object to a blob
@@ -283,9 +290,12 @@ void Game::Draw(float deltaTime, float totalTime)
 	//   the vertex shader stage of the pipeline (see Init above)
 	for (auto& e : entities)
 	{
+		// Grab the material
+		std::shared_ptr<Material> mat = e->GetMaterial();
+
 		// Set up the pipeline for this draw
-		Graphics::Context->VSSetShader(e->GetMaterial()->GetVertexShader().Get(), 0 ,0);
-		Graphics::Context->PSSetShader(e->GetMaterial()->GetPixelShader().Get(), 0, 0);
+		Graphics::Context->VSSetShader(mat->GetVertexShader().Get(), 0 ,0);
+		Graphics::Context->PSSetShader(mat->GetPixelShader().Get(), 0, 0);
 
 		// Set vertex shader data
 		VertexShaderExternalData vsData{};
@@ -296,7 +306,7 @@ void Game::Draw(float deltaTime, float totalTime)
 
 		// Set pixel shader data
 		PixelShaderExternalData psData{};
-		psData.colorTint = e->GetMaterial()->GetColorTint();
+		psData.colorTint = mat->GetColorTint();
 		psData.time = totalTime;
 		Graphics::FillAndSetNextConstantBuffer(&psData, sizeof(PixelShaderExternalData), D3D11_PIXEL_SHADER, 0);
 

@@ -281,7 +281,7 @@ void UIMaterial(std::shared_ptr<Material> material)
 	// Textures
 	for (auto& it : material->GetTextureSRVMap())
 	{
-		ImGui::Text(it.first.c_str());
+		ImGui::Text("Texture %d", it.first);
 		ImGui::Image(it.second.Get(), ImVec2(256, 256));
 	}
 

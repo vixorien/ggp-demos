@@ -27,8 +27,11 @@ private:
 	// Name (mostly for UI purposes)
 	const char* name;
 
+	// Shaders
 	Microsoft::WRL::ComPtr<ID3D11PixelShader> ps;
 	Microsoft::WRL::ComPtr<ID3D11VertexShader> vs;
+
+	// Material properties
 	DirectX::XMFLOAT3 colorTint;
 };
 

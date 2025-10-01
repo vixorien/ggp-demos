@@ -20,9 +20,6 @@ void GameEntity::SetMaterial(std::shared_ptr<Material> material) { this->materia
 
 void GameEntity::Draw(std::shared_ptr<Camera> camera)
 {
-	// Set up the material (shaders and their data)
-	material->PrepareMaterial(transform, camera);
-
 	// Draw the mesh
 	mesh->SetBuffersAndDraw();
 }
