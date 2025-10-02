@@ -18,7 +18,7 @@ public:
 	void SetMesh(std::shared_ptr<Mesh> mesh);
 
 
-	void Draw(Microsoft::WRL::ComPtr<ID3D11Buffer> vsConstantBuffer, std::shared_ptr<Camera> camera);
+	void Draw();
 
 private:
 
