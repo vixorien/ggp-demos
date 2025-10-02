@@ -302,13 +302,13 @@ void Game::Draw(float deltaTime, float totalTime)
 		vsData.worldMatrix = e->GetTransform()->GetWorldMatrix();
 		vsData.viewMatrix = camera->GetView();
 		vsData.projectionMatrix = camera->GetProjection();
-		Graphics::FillAndSetNextConstantBuffer(&vsData, sizeof(VertexShaderExternalData), D3D11_VERTEX_SHADER, 0);
+		Graphics::FillAndBindNextConstantBuffer(&vsData, sizeof(VertexShaderExternalData), D3D11_VERTEX_SHADER, 0);
 
 		// Set pixel shader data
 		PixelShaderExternalData psData{};
 		psData.colorTint = mat->GetColorTint();
 		psData.time = totalTime;
-		Graphics::FillAndSetNextConstantBuffer(&psData, sizeof(PixelShaderExternalData), D3D11_PIXEL_SHADER, 0);
+		Graphics::FillAndBindNextConstantBuffer(&psData, sizeof(PixelShaderExternalData), D3D11_PIXEL_SHADER, 0);
 
 		// Draw one entity
 		e->Draw();

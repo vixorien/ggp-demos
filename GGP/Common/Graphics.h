@@ -38,7 +38,7 @@ namespace Graphics
 
 	// Constant buffer management
 	void ResizeConstantBufferHeap(unsigned int sizeInBytes);
-	void FillAndSetNextConstantBuffer(
+	void FillAndBindNextConstantBuffer(
 		void* data,
 		unsigned int dataSizeInBytes,
 		D3D11_SHADER_TYPE shaderType,

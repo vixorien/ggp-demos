@@ -294,7 +294,7 @@ void Graphics::ResizeConstantBufferHeap(unsigned int sizeInBytes)
 // shaderType - The shader stage for binding
 // registerSlot - The slot for binding
 // --------------------------------------------------------
-void Graphics::FillAndSetNextConstantBuffer(
+void Graphics::FillAndBindNextConstantBuffer(
 	void* data,
 	unsigned int dataSizeInBytes,
 	D3D11_SHADER_TYPE shaderType,
