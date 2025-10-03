@@ -43,7 +43,7 @@ void Game::Initialize()
 	//  - Others, like setting shaders, will need to be moved elsewhere later
 	{
 		// Set up a constant buffer heap of an appropriate size
-		Graphics::ResizeConstantBufferHeap(256 * 100); // 100 chunks of 256 bytes
+		Graphics::ResizeConstantBufferHeap(256 * 1000); // 1000 chunks of 256 bytes
 
 		// Tell the input assembler (IA) stage of the pipeline what kind of
 		// geometric primitives (points, lines or triangles) we want to draw.  
