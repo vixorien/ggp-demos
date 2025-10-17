@@ -90,6 +90,6 @@ void Material::RemoveSampler(unsigned int index)
 
 void Material::BindTexturesAndSamplers()
 {
-	for (auto& t : textureSRVs) { Graphics::Context->PSSetShaderResources(0, 1, t.second.GetAddressOf()); }
-	for (auto& s : samplers) { Graphics::Context->PSSetSamplers(0, 1, s.second.GetAddressOf()); }
+	for (auto& t : textureSRVs) { Graphics::Context->PSSetShaderResources(t.first, 1, t.second.GetAddressOf()); }
+	for (auto& s : samplers) { Graphics::Context->PSSetSamplers(s.first, 1, s.second.GetAddressOf()); }
 }

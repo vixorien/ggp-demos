@@ -324,7 +324,7 @@ void Game::Draw(float deltaTime, float totalTime)
 		Graphics::FillAndBindNextConstantBuffer(&psData, sizeof(PixelShaderExternalData), D3D11_PIXEL_SHADER, 0);
 
 		// Draw one entity
-		e->Draw(camera);
+		e->Draw();
 	}
 
 	// Frame END

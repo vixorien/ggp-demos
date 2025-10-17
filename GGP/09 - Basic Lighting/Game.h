@@ -9,7 +9,6 @@
 #include "GameEntity.h"
 #include "Camera.h"
 #include "Material.h"
-#include "SimpleShader.h"
 #include "Lights.h"
 
 class Game
@@ -30,6 +29,8 @@ public:
 private:
 
 	// Initialization helper methods - feel free to customize, combine, remove, etc.
+	Microsoft::WRL::ComPtr<ID3D11PixelShader> LoadPixelShader(const wchar_t* compiledShaderPath);
+	Microsoft::WRL::ComPtr<ID3D11VertexShader> LoadVertexShader(const wchar_t* compiledShaderPath);
 	void LoadAssetsAndCreateEntities();
 
 	// Camera for the 3D scene
@@ -41,5 +42,8 @@ private:
 	std::vector<std::shared_ptr<GameEntity>> entities;
 	std::vector<Light> lights;
 	DirectX::XMFLOAT3 ambientColor;
+
+	// D3D API objects
+	Microsoft::WRL::ComPtr<ID3D11InputLayout> inputLayout;
 };
 

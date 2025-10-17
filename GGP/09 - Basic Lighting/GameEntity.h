@@ -20,7 +20,7 @@ public:
 	void SetMesh(std::shared_ptr<Mesh> mesh);
 	void SetMaterial(std::shared_ptr<Material> material);
 
-	void Draw(std::shared_ptr<Camera> camera);
+	void Draw();
 
 private:
 
