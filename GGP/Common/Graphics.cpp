@@ -1,6 +1,10 @@
 #include "Graphics.h"
 #include <dxgi1_6.h>
 
+// Needed for a helper function to load pre-compiled shader files
+#pragma comment(lib, "d3dcompiler.lib")
+#include <d3dcompiler.h>
+
 // Tell the drivers to use high-performance GPU in multi-GPU systems (like laptops)
 extern "C"
 {
@@ -249,6 +253,47 @@ void Graphics::ResizeBuffers(unsigned int width, unsigned int height)
 	// Are we in a fullscreen state?
 	SwapChain->GetFullscreenState(&isFullscreen, 0);
 }
+
+
+// --------------------------------------------------------
+// Loads a pixel shader from a compiled shader object (.cso) file
+// --------------------------------------------------------
+Microsoft::WRL::ComPtr<ID3D11PixelShader> Graphics::LoadPixelShader(const wchar_t* compiledShaderPath)
+{
+	// Read the contents of the compiled shader object to a blob
+	ID3DBlob* shaderBlob;
+	D3DReadFileToBlob(compiledShaderPath, &shaderBlob);
+
+	// Create the pixel shader and return it
+	Microsoft::WRL::ComPtr<ID3D11PixelShader> shader;
+	Graphics::Device->CreatePixelShader(
+		shaderBlob->GetBufferPointer(),	// Pointer to blob's contents
+		shaderBlob->GetBufferSize(),	// How big is that data?
+		0,								// No classes in this shader
+		shader.GetAddressOf());			// Address of the ID3D11PixelShader pointer
+	return shader;
+}
+
+
+// --------------------------------------------------------
+// Loads a vertex shader from a compiled shader object (.cso) file
+// --------------------------------------------------------
+Microsoft::WRL::ComPtr<ID3D11VertexShader> Graphics::LoadVertexShader(const wchar_t* compiledShaderPath)
+{
+	// Read the contents of the compiled shader object to a blob
+	ID3DBlob* shaderBlob;
+	D3DReadFileToBlob(compiledShaderPath, &shaderBlob);
+
+	// Create the pixel shader and return it
+	Microsoft::WRL::ComPtr<ID3D11VertexShader> shader;
+	Graphics::Device->CreateVertexShader(
+		shaderBlob->GetBufferPointer(),	// Pointer to blob's contents
+		shaderBlob->GetBufferSize(),	// How big is that data?
+		0,								// No classes in this shader
+		shader.GetAddressOf());			// Address of the ID3D11PixelShader pointer
+	return shader;
+}
+
 
 
 // --------------------------------------------------------

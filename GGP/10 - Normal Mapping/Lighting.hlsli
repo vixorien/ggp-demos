@@ -3,6 +3,8 @@
 
 // Basic lighting functions, constants and other useful structures
 
+#define MAX_LIGHTS 32 // Make sure this matches C++!
+
 #define MAX_SPECULAR_EXPONENT 256.0f
 
 #define LIGHT_TYPE_DIRECTIONAL	0

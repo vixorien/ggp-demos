@@ -115,44 +115,7 @@ Game::~Game()
 	ImGui::DestroyContext();
 }
 
-// --------------------------------------------------------
-// Loads a pixel shader from a compiled shader object (.cso) file
-// --------------------------------------------------------
-Microsoft::WRL::ComPtr<ID3D11PixelShader> Game::LoadPixelShader(const wchar_t* compiledShaderPath)
-{
-	// Read the contents of the compiled shader object to a blob
-	ID3DBlob* shaderBlob;
-	D3DReadFileToBlob(compiledShaderPath, &shaderBlob);
 
-	// Create the pixel shader and return it
-	Microsoft::WRL::ComPtr<ID3D11PixelShader> shader;
-	Graphics::Device->CreatePixelShader(
-		shaderBlob->GetBufferPointer(),	// Pointer to blob's contents
-		shaderBlob->GetBufferSize(),	// How big is that data?
-		0,								// No classes in this shader
-		shader.GetAddressOf());			// Address of the ID3D11PixelShader pointer
-	return shader;
-}
-
-
-// --------------------------------------------------------
-// Loads a vertex shader from a compiled shader object (.cso) file
-// --------------------------------------------------------
-Microsoft::WRL::ComPtr<ID3D11VertexShader> Game::LoadVertexShader(const wchar_t* compiledShaderPath)
-{
-	// Read the contents of the compiled shader object to a blob
-	ID3DBlob* shaderBlob;
-	D3DReadFileToBlob(compiledShaderPath, &shaderBlob);
-
-	// Create the pixel shader and return it
-	Microsoft::WRL::ComPtr<ID3D11VertexShader> shader;
-	Graphics::Device->CreateVertexShader(
-		shaderBlob->GetBufferPointer(),	// Pointer to blob's contents
-		shaderBlob->GetBufferSize(),	// How big is that data?
-		0,								// No classes in this shader
-		shader.GetAddressOf());			// Address of the ID3D11PixelShader pointer
-	return shader;
-}
 
 // --------------------------------------------------------
 // Loads assets and creates the geometry we're going to draw
@@ -187,8 +150,8 @@ void Game::LoadAssetsAndCreateEntities()
 
 
 	// Load shaders
-	Microsoft::WRL::ComPtr<ID3D11VertexShader> basicVertexShader = LoadVertexShader(FixPath(L"VertexShader.cso").c_str());
-	Microsoft::WRL::ComPtr<ID3D11PixelShader> basicPixelShader = LoadPixelShader(FixPath(L"PixelShader.cso").c_str());
+	Microsoft::WRL::ComPtr<ID3D11VertexShader> basicVertexShader = Graphics::LoadVertexShader(FixPath(L"VertexShader.cso").c_str());
+	Microsoft::WRL::ComPtr<ID3D11PixelShader> basicPixelShader = Graphics::LoadPixelShader(FixPath(L"PixelShader.cso").c_str());
 
 	// Load 3D models	
 	std::shared_ptr<Mesh> cubeMesh = std::make_shared<Mesh>("Cube", FixPath(AssetPath + L"Meshes/cube.obj").c_str());
@@ -380,7 +343,7 @@ void Game::Draw(float deltaTime, float totalTime)
 		// Set pixel shader data (mostly coming from the material)
 		PixelShaderExternalData psData{};
 		memcpy(&psData.lights, &lights[0], sizeof(Light) * lights.size());
-		psData.lightCount = lights.size();
+		psData.lightCount = (int)lights.size();
 		psData.ambientColor = ambientColor;
 		psData.cameraPosition = camera->GetTransform()->GetPosition();
 		psData.colorTint = mat->GetColorTint();

@@ -2,16 +2,17 @@
 #include "ShaderStructs.hlsli"
 #include "Lighting.hlsli"
 
-#define NUM_LIGHTS 5
-
 cbuffer ExternalData : register(b0)
 {
 	// Scene related
-	Light lights[NUM_LIGHTS];
+	Light lights[MAX_LIGHTS];
+	
+    int lightCount;
 	float3 ambientColor;
 
 	// Camera related
-	float3 cameraPosition;
+    float3 cameraPosition;
+    float pad; // For alignment
 
 	// Material related
 	float3 colorTint;
@@ -19,7 +20,6 @@ cbuffer ExternalData : register(b0)
 	float2 uvScale;
 	float2 uvOffset;
 	int useSpecularMap;
-	
 }
 
 // Texture related resources
@@ -55,7 +55,7 @@ float4 main(VertexToPixel input) : SV_TARGET
 	float3 totalLight = ambientColor * surfaceColor;
 	
 	// Loop and handle all lights
-	for (int i = 0; i < NUM_LIGHTS; i++)
+    for (int i = 0; i < lightCount; i++)
 	{
 		// Grab this light and normalize the direction (just in case)
 		Light light = lights[i];

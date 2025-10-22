@@ -5,8 +5,8 @@
 #include <DirectXMath.h>
 #include <memory>
 #include <unordered_map>
+#include <string>
 
-#include "SimpleShader.h"
 #include "Camera.h"
 #include "Transform.h"
 
