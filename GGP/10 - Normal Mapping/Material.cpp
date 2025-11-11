@@ -101,30 +101,3 @@ void Material::BindTexturesAndSamplers()
 	for (auto& t : textureSRVs) { Graphics::Context->PSSetShaderResources(t.first, 1, t.second.GetAddressOf()); }
 	for (auto& s : samplers) { Graphics::Context->PSSetSamplers(s.first, 1, s.second.GetAddressOf()); }
 }
-
-//void Material::PrepareMaterial(std::shared_ptr<Transform> transform, std::shared_ptr<Camera> camera)
-//{
-//	// Turn on these shaders
-//	vs->SetShader();
-//	ps->SetShader();
-//
-//	// Send data to the vertex shader
-//	vs->SetMatrix4x4("world", transform->GetWorldMatrix());
-//	vs->SetMatrix4x4("worldInvTrans", transform->GetWorldInverseTransposeMatrix());
-//	vs->SetMatrix4x4("view", camera->GetView());
-//	vs->SetMatrix4x4("projection", camera->GetProjection());
-//	vs->CopyAllBufferData();
-//
-//	// Send data to the pixel shader
-//	ps->SetFloat3("colorTint", colorTint);
-//	ps->SetFloat("roughness", roughness);
-//	ps->SetInt("useSpecularMap", (int)useSpecularMap);
-//	ps->SetFloat2("uvScale", uvScale);
-//	ps->SetFloat2("uvOffset", uvOffset);
-//	ps->SetFloat3("cameraPosition", camera->GetTransform()->GetPosition());
-//	ps->CopyAllBufferData();
-//
-//	// Loop and set any other resources
-//	for (auto& t : textureSRVs) { ps->SetShaderResourceView(t.first.c_str(), t.second.Get()); }
-//	for (auto& s : samplers) { ps->SetSamplerState(s.first.c_str(), s.second.Get()); }
-//}

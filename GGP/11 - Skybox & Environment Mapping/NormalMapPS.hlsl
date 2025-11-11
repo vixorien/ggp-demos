@@ -7,7 +7,7 @@
 cbuffer ExternalData : register(b0)
 {
 	// Scene related
-	Light lights[NUM_LIGHTS];
+	Light lights[MAX_LIGHTS];
 	float3 ambientColor;
 
 	// Camera related

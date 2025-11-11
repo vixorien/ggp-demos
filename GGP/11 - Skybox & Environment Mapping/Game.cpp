@@ -6,6 +6,7 @@
 #include "Window.h"
 #include "UIHelpers.h"
 #include "AssetPath.h"
+#include "BufferStructs.h"
 
 #include "ImGui/imgui.h"
 #include "ImGui/imgui_impl_dx11.h"
@@ -43,10 +44,53 @@ void Game::Initialize()
 	//  - Some of these, like the primitive topology & input layout, probably won't change
 	//  - Others, like setting shaders, will need to be moved elsewhere later
 	{
+		// Set up a constant buffer heap of an appropriate size
+		Graphics::ResizeConstantBufferHeap(256 * 1000); // 1000 chunks of 256 bytes
+
 		// Tell the input assembler (IA) stage of the pipeline what kind of
 		// geometric primitives (points, lines or triangles) we want to draw.  
 		// Essentially: "What kind of shape should the GPU draw with our vertices?"
 		Graphics::Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+		// Create an input layout 
+		//  - This describes the layout of data sent to a vertex shader
+		//  - In other words, it describes how to interpret data (numbers) in a vertex buffer
+		//  - Doing this NOW because it requires a vertex shader's byte code to verify against!
+		D3D11_INPUT_ELEMENT_DESC inputElements[4] = {};
+
+		// Set up the first element - a position, which is 3 float values
+		inputElements[0].Format = DXGI_FORMAT_R32G32B32_FLOAT;				// Most formats are described as color channels; really it just means "Three 32-bit floats"
+		inputElements[0].SemanticName = "POSITION";							// This is "POSITION" - needs to match the semantics in our vertex shader input!
+		inputElements[0].AlignedByteOffset = D3D11_APPEND_ALIGNED_ELEMENT;	// How far into the vertex is this?  Assume it's after the previous element
+
+		// Set up the second element - a uv, which is 2 more float values
+		inputElements[1].Format = DXGI_FORMAT_R32G32_FLOAT;					// 2x 32-bit floats
+		inputElements[1].SemanticName = "TEXCOORD";							// Match our vertex shader input!
+		inputElements[1].AlignedByteOffset = D3D11_APPEND_ALIGNED_ELEMENT;	// After the previous element
+
+		// Set up the third element - a normal, which is 3 more float values
+		inputElements[2].Format = DXGI_FORMAT_R32G32B32_FLOAT;				// 3x 32-bit floats
+		inputElements[2].SemanticName = "NORMAL";							// Match our vertex shader input!
+		inputElements[2].AlignedByteOffset = D3D11_APPEND_ALIGNED_ELEMENT;	// After the previous element
+
+		// Set up the fourth element - a tangent, which is 3 more float values
+		inputElements[3].Format = DXGI_FORMAT_R32G32B32_FLOAT;				// 3x 32-bit floats
+		inputElements[3].SemanticName = "TANGENT";							// Match our vertex shader input!
+		inputElements[3].AlignedByteOffset = D3D11_APPEND_ALIGNED_ELEMENT;	// After the previous element
+
+
+		// Create the input layout, verifying our description against actual shader code
+		ID3DBlob* vertexShaderBlob;
+		D3DReadFileToBlob(FixPath(L"VertexShader.cso").c_str(), &vertexShaderBlob);
+		Graphics::Device->CreateInputLayout(
+			inputElements,							// An array of descriptions
+			ARRAYSIZE(inputElements),				// How many elements in that array?
+			vertexShaderBlob->GetBufferPointer(),	// Pointer to the code of a shader that uses this layout
+			vertexShaderBlob->GetBufferSize(),		// Size of the shader code that uses this layout
+			inputLayout.GetAddressOf());			// Address of the resulting ID3D11InputLayout pointer
+
+		// Set the input layout now that it exists
+		Graphics::Context->IASetInputLayout(inputLayout.Get());
 	}
 
 	// Create the camera
@@ -114,15 +158,14 @@ void Game::LoadAssetsAndCreateEntities()
 	LoadTexture(AssetPath + L"Textures/cobblestone_specular.png", cobblestoneSpecularSRV);
 #undef LoadTexture
 
-
 	// Load shaders
-	std::shared_ptr<SimpleVertexShader> basicVertexShader = std::make_shared<SimpleVertexShader>(Graphics::Device, Graphics::Context, FixPath(L"VertexShader.cso").c_str());
-	std::shared_ptr<SimplePixelShader> basicPixelShader = std::make_shared<SimplePixelShader>(Graphics::Device, Graphics::Context, FixPath(L"PixelShader.cso").c_str());
-	std::shared_ptr<SimplePixelShader> normalMapPS = std::make_shared<SimplePixelShader>(Graphics::Device, Graphics::Context, FixPath(L"NormalMapPS.cso").c_str());
-	std::shared_ptr<SimplePixelShader> lightAndEnvMapPS = std::make_shared<SimplePixelShader>(Graphics::Device, Graphics::Context, FixPath(L"LightingAndEnvMapPS.cso").c_str());
-	std::shared_ptr<SimplePixelShader> envMapOnlyPS = std::make_shared<SimplePixelShader>(Graphics::Device, Graphics::Context, FixPath(L"EnvMapOnlyPS.cso").c_str());
-	std::shared_ptr<SimpleVertexShader> skyVS = std::make_shared<SimpleVertexShader>(Graphics::Device, Graphics::Context, FixPath(L"SkyVS.cso").c_str());
-	std::shared_ptr<SimplePixelShader> skyPS = std::make_shared<SimplePixelShader>(Graphics::Device, Graphics::Context, FixPath(L"SkyPS.cso").c_str());
+	Microsoft::WRL::ComPtr<ID3D11VertexShader> basicVertexShader = Graphics::LoadVertexShader(FixPath(L"VertexShader.cso").c_str());
+	Microsoft::WRL::ComPtr<ID3D11PixelShader> basicPixelShader = Graphics::LoadPixelShader(FixPath(L"PixelShader.cso").c_str());
+	Microsoft::WRL::ComPtr<ID3D11PixelShader> normalMapPS = Graphics::LoadPixelShader(FixPath(L"NormalMapPS.cso").c_str());
+	Microsoft::WRL::ComPtr<ID3D11PixelShader> lightAndEnvMapPS = Graphics::LoadPixelShader(FixPath(L"LightingAndEnvMapPS.cso").c_str());
+	Microsoft::WRL::ComPtr<ID3D11PixelShader> envMapOnlyPS = Graphics::LoadPixelShader(FixPath(L"EnvMapOnlyPS.cso").c_str());
+	Microsoft::WRL::ComPtr<ID3D11VertexShader> skyVS = Graphics::LoadVertexShader(FixPath(L"SkyVS.cso").c_str());
+	Microsoft::WRL::ComPtr<ID3D11PixelShader> skyPS = Graphics::LoadPixelShader(FixPath(L"SkyPS.cso").c_str());
 
 	// Load 3D models	
 	std::shared_ptr<Mesh> cubeMesh = std::make_shared<Mesh>("Cube", FixPath(AssetPath + L"Meshes/cube.obj").c_str());
@@ -154,72 +197,72 @@ void Game::LoadAssetsAndCreateEntities()
 
 	// Create basic materials (no normal maps)
 	std::shared_ptr<Material> matRock = std::make_shared<Material>("Rock", basicPixelShader, basicVertexShader, XMFLOAT3(1, 1, 1), 0.0f, false);
-	matRock->AddSampler("BasicSampler", sampler);
-	matRock->AddTextureSRV("SurfaceTexture", rockSRV);
+	matRock->AddSampler(0, sampler);
+	matRock->AddTextureSRV(0, rockSRV);
 
 	std::shared_ptr<Material> matCushion = std::make_shared<Material>("Cushion", basicPixelShader, basicVertexShader, XMFLOAT3(1, 1, 1), 0.0f, false, XMFLOAT2(2, 2));
-	matCushion->AddSampler("BasicSampler", sampler);
-	matCushion->AddTextureSRV("SurfaceTexture", cushionSRV);
+	matCushion->AddSampler(0, sampler);
+	matCushion->AddTextureSRV(0, cushionSRV);
 
 	std::shared_ptr<Material> matCobblestone = std::make_shared<Material>("Cobblestone", basicPixelShader, basicVertexShader, XMFLOAT3(1, 1, 1), 0.0f, true);
-	matCobblestone->AddSampler("BasicSampler", sampler);
-	matCobblestone->AddTextureSRV("SurfaceTexture", cobblestoneSRV);
-	matCobblestone->AddTextureSRV("SpecularMap", cobblestoneSpecularSRV);
+	matCobblestone->AddSampler(0, sampler);
+	matCobblestone->AddTextureSRV(0, cobblestoneSRV);
+	matCobblestone->AddTextureSRV(1, cobblestoneSpecularSRV);
 
 
 	// Create normal mapped materials
 	std::shared_ptr<Material> matRockNormalMap = std::make_shared<Material>("Rock with Normal Map", normalMapPS, basicVertexShader, XMFLOAT3(1, 1, 1), 0.0f, false);
-	matRockNormalMap->AddSampler("BasicSampler", sampler);
-	matRockNormalMap->AddTextureSRV("SurfaceTexture", rockSRV);
-	matRockNormalMap->AddTextureSRV("NormalMap", rockNormalsSRV);
+	matRockNormalMap->AddSampler(0, sampler);
+	matRockNormalMap->AddTextureSRV(0, rockSRV);
+	matRockNormalMap->AddTextureSRV(2, rockNormalsSRV);
 
 	std::shared_ptr<Material> matCushionNormalMap = std::make_shared<Material>("Cushion with Normal Map", normalMapPS, basicVertexShader, XMFLOAT3(1, 1, 1), 0.0f, false, XMFLOAT2(2, 2));
-	matCushionNormalMap->AddSampler("BasicSampler", sampler);
-	matCushionNormalMap->AddTextureSRV("SurfaceTexture", cushionSRV);
-	matCushionNormalMap->AddTextureSRV("NormalMap", cushionNormalsSRV);
+	matCushionNormalMap->AddSampler(0, sampler);
+	matCushionNormalMap->AddTextureSRV(0, cushionSRV);
+	matCushionNormalMap->AddTextureSRV(2, cushionNormalsSRV);
 
 	std::shared_ptr<Material> matCobblestoneNormalMap = std::make_shared<Material>("Cobblestone with Normal Map", normalMapPS, basicVertexShader, XMFLOAT3(1, 1, 1), 0.0f, true);
-	matCobblestoneNormalMap->AddSampler("BasicSampler", sampler);
-	matCobblestoneNormalMap->AddTextureSRV("SurfaceTexture", cobblestoneSRV);
-	matCobblestoneNormalMap->AddTextureSRV("NormalMap", cobblestoneNormalsSRV);
-	matCobblestoneNormalMap->AddTextureSRV("SpecularMap", cobblestoneSpecularSRV);
+	matCobblestoneNormalMap->AddSampler(0, sampler);
+	matCobblestoneNormalMap->AddTextureSRV(0, cobblestoneSRV);
+	matCobblestoneNormalMap->AddTextureSRV(1, cobblestoneSpecularSRV);
+	matCobblestoneNormalMap->AddTextureSRV(2, cobblestoneNormalsSRV);
 
 
 	// Create normal mapped & environment mapped materials ---------------------
 	std::shared_ptr<Material> matRockLitEnvMap = std::make_shared<Material>("Rock with Env Mapping", lightAndEnvMapPS, basicVertexShader, XMFLOAT3(1, 1, 1), 0.0f, false);
-	matRockLitEnvMap->AddSampler("BasicSampler", sampler);
-	matRockLitEnvMap->AddTextureSRV("SurfaceTexture", rockSRV);
-	matRockLitEnvMap->AddTextureSRV("NormalMap", rockNormalsSRV);
-	matRockLitEnvMap->AddTextureSRV("EnvironmentMap", sky->GetSkyTexture());
+	matRockLitEnvMap->AddSampler(0, sampler);
+	matRockLitEnvMap->AddTextureSRV(0, rockSRV);
+	matRockLitEnvMap->AddTextureSRV(2, rockNormalsSRV);
+	matRockLitEnvMap->AddTextureSRV(3, sky->GetSkyTexture());
 
 	std::shared_ptr<Material> matCushionLitEnvMap = std::make_shared<Material>("Cushion with Env Mapping", lightAndEnvMapPS, basicVertexShader, XMFLOAT3(1, 1, 1), 0.0f, false, XMFLOAT2(2, 2));
-	matCushionLitEnvMap->AddSampler("BasicSampler", sampler);
-	matCushionLitEnvMap->AddTextureSRV("SurfaceTexture", cushionSRV);
-	matCushionLitEnvMap->AddTextureSRV("NormalMap", cushionNormalsSRV);
-	matCushionLitEnvMap->AddTextureSRV("EnvironmentMap", sky->GetSkyTexture());
+	matCushionLitEnvMap->AddSampler(0, sampler);
+	matCushionLitEnvMap->AddTextureSRV(0, cushionSRV);
+	matCushionLitEnvMap->AddTextureSRV(2, cushionNormalsSRV);
+	matCushionLitEnvMap->AddTextureSRV(3, sky->GetSkyTexture());
 
 	std::shared_ptr<Material> matCobblestoneLitEnvMap = std::make_shared<Material>("Cobblestone with Env Mapping", lightAndEnvMapPS, basicVertexShader, XMFLOAT3(1, 1, 1), 0.0f, true);
-	matCobblestoneLitEnvMap->AddSampler("BasicSampler", sampler);
-	matCobblestoneLitEnvMap->AddTextureSRV("SurfaceTexture", cobblestoneSRV);
-	matCobblestoneLitEnvMap->AddTextureSRV("NormalMap", cobblestoneNormalsSRV);
-	matCobblestoneLitEnvMap->AddTextureSRV("SpecularMap", cobblestoneSpecularSRV);
-	matCobblestoneLitEnvMap->AddTextureSRV("EnvironmentMap", sky->GetSkyTexture());
+	matCobblestoneLitEnvMap->AddSampler(0, sampler);
+	matCobblestoneLitEnvMap->AddTextureSRV(0, cobblestoneSRV);
+	matCobblestoneLitEnvMap->AddTextureSRV(1, cobblestoneSpecularSRV);
+	matCobblestoneLitEnvMap->AddTextureSRV(2, cobblestoneNormalsSRV);
+	matCobblestoneLitEnvMap->AddTextureSRV(3, sky->GetSkyTexture());
 
 	// Create environment mapped only materials ---------------------
 	std::shared_ptr<Material> matRockEnvMap = std::make_shared<Material>("Rock Env Map Only", envMapOnlyPS, basicVertexShader, XMFLOAT3(1, 1, 1), 0.0f, false);
-	matRockEnvMap->AddSampler("BasicSampler", sampler);
-	matRockEnvMap->AddTextureSRV("NormalMap", rockNormalsSRV);
-	matRockEnvMap->AddTextureSRV("EnvironmentMap", sky->GetSkyTexture());
+	matRockEnvMap->AddSampler(0, sampler);
+	matRockEnvMap->AddTextureSRV(2, rockNormalsSRV);
+	matRockEnvMap->AddTextureSRV(3, sky->GetSkyTexture());
 
 	std::shared_ptr<Material> matCushionEnvMap = std::make_shared<Material>("Cushion Env Map Only", envMapOnlyPS, basicVertexShader, XMFLOAT3(1, 1, 1), 0.0f, false, XMFLOAT2(2, 2));
-	matCushionEnvMap->AddSampler("BasicSampler", sampler);
-	matCushionEnvMap->AddTextureSRV("NormalMap", cushionNormalsSRV);
-	matCushionEnvMap->AddTextureSRV("EnvironmentMap", sky->GetSkyTexture());
+	matCushionEnvMap->AddSampler(0, sampler);
+	matCushionEnvMap->AddTextureSRV(2, cushionNormalsSRV);
+	matCushionEnvMap->AddTextureSRV(3, sky->GetSkyTexture());
 
 	std::shared_ptr<Material> matCobblestoneEnvMap = std::make_shared<Material>("Cobblestone Env Map Only", envMapOnlyPS, basicVertexShader, XMFLOAT3(1, 1, 1), 0.0f, true);
-	matCobblestoneEnvMap->AddSampler("BasicSampler", sampler);
-	matCobblestoneEnvMap->AddTextureSRV("NormalMap", cobblestoneNormalsSRV);
-	matCobblestoneEnvMap->AddTextureSRV("EnvironmentMap", sky->GetSkyTexture());
+	matCobblestoneEnvMap->AddSampler(0, sampler);
+	matCobblestoneEnvMap->AddTextureSRV(2, cobblestoneNormalsSRV);
+	matCobblestoneEnvMap->AddTextureSRV(3, sky->GetSkyTexture());
 
 	// Add all materials to vector
 	materials.insert(materials.end(), { 
@@ -385,15 +428,37 @@ void Game::Draw(float deltaTime, float totalTime)
 	//   the vertex shader stage of the pipeline (see Init above)
 	for (auto& e : entities)
 	{
-		// Set total time on this entity's material's pixel shader
-		// Note: If the shader doesn't have this variable, nothing happens
-		std::shared_ptr<SimplePixelShader> ps = e->GetMaterial()->GetPixelShader();
-		ps->SetFloat3("ambientColor", ambientColor);
-		ps->SetFloat("time", totalTime);
-		ps->SetData("lights", &lights[0], sizeof(Light) * (int)lights.size());
+		// Grab the material and it have bind its resources (textures and samplers)
+		std::shared_ptr<Material> mat = e->GetMaterial();
+		mat->BindTexturesAndSamplers();
+
+		// Set up the pipeline for this draw
+		Graphics::Context->VSSetShader(mat->GetVertexShader().Get(), 0, 0);
+		Graphics::Context->PSSetShader(mat->GetPixelShader().Get(), 0, 0);
+
+		// Set vertex shader data
+		VertexShaderExternalData vsData{};
+		vsData.worldMatrix = e->GetTransform()->GetWorldMatrix();
+		vsData.worldInvTransMatrix = e->GetTransform()->GetWorldInverseTransposeMatrix();
+		vsData.viewMatrix = camera->GetView();
+		vsData.projectionMatrix = camera->GetProjection();
+		Graphics::FillAndBindNextConstantBuffer(&vsData, sizeof(VertexShaderExternalData), D3D11_VERTEX_SHADER, 0);
+
+		// Set pixel shader data (mostly coming from the material)
+		PixelShaderExternalData psData{};
+		memcpy(&psData.lights, &lights[0], sizeof(Light) * lights.size());
+		psData.lightCount = (int)lights.size();
+		psData.ambientColor = ambientColor;
+		psData.cameraPosition = camera->GetTransform()->GetPosition();
+		psData.colorTint = mat->GetColorTint();
+		psData.roughness = mat->GetRoughness();
+		psData.uvOffset = mat->GetUVOffset();
+		psData.uvScale = mat->GetUVScale();
+		psData.useSpecularMap = (int)mat->GetUseSpecularMap();
+		Graphics::FillAndBindNextConstantBuffer(&psData, sizeof(PixelShaderExternalData), D3D11_PIXEL_SHADER, 0);
 
 		// Draw one entity
-		e->Draw(camera);
+		e->Draw();
 	}
 
 	// Draw the sky after all regular entities
