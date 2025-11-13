@@ -6,12 +6,19 @@
 
 cbuffer ExternalData : register(b0)
 {
+	// Scene related
+	Light lights[MAX_LIGHTS];
+	float3 ambientColor;
+
 	// Camera related
 	float3 cameraPosition;
 
 	// Material related
+	float3 colorTint;
+	float roughness;
 	float2 uvScale;
 	float2 uvOffset;
+	int useSpecularMap;
 }
 
 // Texture related resources

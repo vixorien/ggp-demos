@@ -6,6 +6,8 @@
 #define LIGHT_TYPE_POINT		1
 #define LIGHT_TYPE_SPOT			2
 
+#define MAX_LIGHTS				32
+
 // Defines a single light that can be sent to the GPU
 // Note: This must match light struct in shaders
 //       and must also be a multiple of 16 bytes!

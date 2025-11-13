@@ -15,8 +15,8 @@ public:
 	Sky(
 		Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> cubeMap,
 		std::shared_ptr<Mesh> mesh,
-		std::shared_ptr<SimpleVertexShader> skyVS,
-		std::shared_ptr<SimplePixelShader> skyPS,
+		Microsoft::WRL::ComPtr<ID3D11VertexShader> skyVS,
+		Microsoft::WRL::ComPtr<ID3D11PixelShader> skyPS,
 		Microsoft::WRL::ComPtr<ID3D11SamplerState> samplerOptions
 	);
 
@@ -24,8 +24,8 @@ public:
 	Sky(
 		const wchar_t* cubemapDDSFile, 
 		std::shared_ptr<Mesh> mesh,
-		std::shared_ptr<SimpleVertexShader> skyVS,
-		std::shared_ptr<SimplePixelShader> skyPS,
+		Microsoft::WRL::ComPtr<ID3D11VertexShader> skyVS,
+		Microsoft::WRL::ComPtr<ID3D11PixelShader> skyPS,
 		Microsoft::WRL::ComPtr<ID3D11SamplerState> samplerOptions
 	);
 
@@ -38,8 +38,8 @@ public:
 		const wchar_t* front,
 		const wchar_t* back,
 		std::shared_ptr<Mesh> mesh,
-		std::shared_ptr<SimpleVertexShader> skyVS,
-		std::shared_ptr<SimplePixelShader> skyPS,
+		Microsoft::WRL::ComPtr<ID3D11VertexShader> skyVS,
+		Microsoft::WRL::ComPtr<ID3D11PixelShader> skyPS,
 		Microsoft::WRL::ComPtr<ID3D11SamplerState> samplerOptions
 	);
 
@@ -63,8 +63,8 @@ private:
 		const wchar_t* back);
 
 	// Skybox related resources
-	std::shared_ptr<SimpleVertexShader> skyVS;
-	std::shared_ptr<SimplePixelShader> skyPS;
+	Microsoft::WRL::ComPtr<ID3D11VertexShader> skyVS;
+	Microsoft::WRL::ComPtr<ID3D11PixelShader> skyPS;
 	
 	std::shared_ptr<Mesh> skyMesh;
 

@@ -46,5 +46,8 @@ private:
 	std::vector<Light> lights;
 	DirectX::XMFLOAT3 ambientColor;
 	bool gammaCorrection;
+
+	// D3D API objects
+	Microsoft::WRL::ComPtr<ID3D11InputLayout> inputLayout;
 };
 
