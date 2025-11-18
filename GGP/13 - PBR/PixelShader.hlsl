@@ -8,17 +8,21 @@ cbuffer ExternalData : register(b0)
 {
 	// Scene related
 	Light lights[MAX_LIGHTS];
+	
 	int lightCount;
-
 	float3 ambientColor;
 
 	// Camera related
 	float3 cameraPosition;
+	float pad; // Alignment
 
 	// Material related
 	float3 colorTint;
+	float pad2; // Alignment
+	
 	float2 uvScale;
 	float2 uvOffset;
+	
 	int gammaCorrection;
 	int useMetalMap;
 	int useNormalMap;
