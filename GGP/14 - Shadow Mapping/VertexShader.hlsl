@@ -9,8 +9,8 @@ cbuffer ExternalData : register(b0)
 	matrix view;
 	matrix projection;
 
-	matrix shadowView;
-	matrix shadowProjection;
+	matrix lightView;
+	matrix lightProjection;
 }
 
 
@@ -33,7 +33,7 @@ VertexToPixel main(VertexShaderInput input)
 	output.worldPos = mul(world, float4(input.localPosition, 1.0f)).xyz;
 
 	// Calculate where this vertex is from the light's point of view
-	matrix shadowWVP = mul(shadowProjection, mul(shadowView, world));
+	matrix shadowWVP = mul(lightProjection, mul(lightView, world));
 	output.posForShadow = mul(shadowWVP, float4(input.localPosition, 1.0f));
 
 	return output;

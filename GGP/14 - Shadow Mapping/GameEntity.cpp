@@ -18,11 +18,8 @@ std::shared_ptr<Transform> GameEntity::GetTransform() { return transform; }
 void GameEntity::SetMesh(std::shared_ptr<Mesh> mesh) { this->mesh = mesh; }
 void GameEntity::SetMaterial(std::shared_ptr<Material> material) { this->material = material; }
 
-void GameEntity::Draw(std::shared_ptr<Camera> camera)
+void GameEntity::Draw()
 {
-	// Set up the material (shaders and their data)
-	material->PrepareMaterial(transform, camera);
-
 	// Draw the mesh
 	mesh->SetBuffersAndDraw();
 }

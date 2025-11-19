@@ -8,15 +8,18 @@ cbuffer ExternalData : register(b0)
 {
 	// Scene related
 	Light lights[MAX_LIGHTS];
+	
 	int lightCount;
-
 	float3 ambientColor;
 
 	// Camera related
 	float3 cameraPosition;
-
+	float pad;
+	
 	// Material related
 	float3 colorTint;
+	float pad2;
+	
 	float2 uvScale;
 	float2 uvOffset;
 }
@@ -86,7 +89,7 @@ float4 main(VertexToPixel input) : SV_TARGET
 		switch (lights[i].Type)
 		{
 		case LIGHT_TYPE_DIRECTIONAL:
-				float3 dirLightResult = DirLightPBR(light, input.normal, input.worldPos, cameraPosition, roughness, metal, surfaceColor.rgb, specColor);
+				float3 dirLightResult = DirLightPBR(light, input.normal, input.worldPos, cameraPosition, roughness, metal, surfaceColor.rgb, specColor, false);
 
 				// Apply the directional light result, scaled by the shadow mapping
 				//   Note: This demo really only has one shadow map, so this
@@ -95,11 +98,11 @@ float4 main(VertexToPixel input) : SV_TARGET
 			break;
 
 		case LIGHT_TYPE_POINT:
-			totalLight += PointLightPBR(light, input.normal, input.worldPos, cameraPosition, roughness, metal, surfaceColor.rgb, specColor);
+			totalLight += PointLightPBR(light, input.normal, input.worldPos, cameraPosition, roughness, metal, surfaceColor.rgb, specColor, false);
 			break;
 
 		case LIGHT_TYPE_SPOT:
-			totalLight += SpotLightPBR(light, input.normal, input.worldPos, cameraPosition, roughness, metal, surfaceColor.rgb, specColor);
+			totalLight += SpotLightPBR(light, input.normal, input.worldPos, cameraPosition, roughness, metal, surfaceColor.rgb, specColor, false);
 			break;
 		}
 	}

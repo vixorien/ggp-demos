@@ -9,7 +9,6 @@
 #include "GameEntity.h"
 #include "Camera.h"
 #include "Material.h"
-#include "SimpleShader.h"
 #include "Lights.h"
 #include "Sky.h"
 
@@ -54,15 +53,18 @@ private:
 	
 	// Lighting
 	DemoLightingOptions lightOptions;
-	std::shared_ptr<SimpleVertexShader> vertexShader;
-	std::shared_ptr<SimplePixelShader> solidColorPS;
+	Microsoft::WRL::ComPtr<ID3D11PixelShader> solidColorPS;
+	Microsoft::WRL::ComPtr<ID3D11VertexShader> vertexShader;
 	std::shared_ptr<Mesh> pointLightMesh;
-	
+
+	// D3D API objects
+	Microsoft::WRL::ComPtr<ID3D11InputLayout> inputLayout;
+
 	// Shadow resources and data
 	DemoShadowOptions shadowOptions;
 	Microsoft::WRL::ComPtr<ID3D11SamplerState> shadowSampler;
 	Microsoft::WRL::ComPtr<ID3D11RasterizerState> shadowRasterizer;
-	std::shared_ptr<SimpleVertexShader> shadowVertexShader;
+	Microsoft::WRL::ComPtr<ID3D11VertexShader> shadowVertexShader;
 
 };
 

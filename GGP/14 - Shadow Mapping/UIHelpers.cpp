@@ -235,7 +235,7 @@ void BuildUI(
 					shadowOptions.ShadowProjectionSize,
 					0.1f, 
 					100.0f);
-				XMStoreFloat4x4(&shadowOptions.ShadowProjectionMatrix, shProj);
+				XMStoreFloat4x4(&shadowOptions.LightProjectionMatrix, shProj);
 			}
 
 			ImGui::Spacing();
@@ -375,7 +375,7 @@ void UIMaterial(std::shared_ptr<Material> material)
 		if (desc.ViewDimension != D3D11_SRV_DIMENSION_TEXTURE2D)
 			continue;  // Skip things like cube maps
 
-		ImGui::Text(it.first.c_str());
+		ImGui::Text("%d", it.first);
 		ImGui::Image(it.second.Get(), ImVec2(256, 256));
 	}
 

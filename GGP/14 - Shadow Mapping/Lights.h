@@ -50,6 +50,6 @@ struct DemoShadowOptions
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> ShadowSRV;
 	
 	float ShadowProjectionSize;
-	DirectX::XMFLOAT4X4 ShadowViewMatrix;
-	DirectX::XMFLOAT4X4 ShadowProjectionMatrix;
+	DirectX::XMFLOAT4X4 LightViewMatrix;
+	DirectX::XMFLOAT4X4 LightProjectionMatrix;
 };
