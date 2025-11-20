@@ -745,7 +745,7 @@ void Game::RenderShadowMap()
 	{
 		// Update the world matrix and send to GPU
 		vsData.world = e->GetTransform()->GetWorldMatrix();
-		Graphics::FillAndBindNextConstantBuffer(&vsData, sizeof(VertexShaderExternalData), D3D11_VERTEX_SHADER, 0);
+		Graphics::FillAndBindNextConstantBuffer(&vsData, sizeof(ShadowVSData), D3D11_VERTEX_SHADER, 0);
 
 		// Draw the mesh
 		e->Draw();
