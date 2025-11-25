@@ -52,4 +52,7 @@ struct DemoShadowOptions
 	float ShadowProjectionSize;
 	DirectX::XMFLOAT4X4 LightViewMatrix;
 	DirectX::XMFLOAT4X4 LightProjectionMatrix;
+
+	D3D11_RASTERIZER_DESC ShadowRasterizerDesc;
+	Microsoft::WRL::ComPtr<ID3D11RasterizerState> ShadowRasterizerState;
 };

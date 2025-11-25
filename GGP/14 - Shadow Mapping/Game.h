@@ -63,7 +63,7 @@ private:
 	// Shadow resources and data
 	DemoShadowOptions shadowOptions;
 	Microsoft::WRL::ComPtr<ID3D11SamplerState> shadowSampler;
-	Microsoft::WRL::ComPtr<ID3D11RasterizerState> shadowRasterizer;
+	//Microsoft::WRL::ComPtr<ID3D11RasterizerState> shadowRasterizer;  // Stored in UI helper struct now!
 	Microsoft::WRL::ComPtr<ID3D11VertexShader> shadowVertexShader;
 
 };

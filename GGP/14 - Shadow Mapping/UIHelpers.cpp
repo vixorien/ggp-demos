@@ -4,6 +4,7 @@
 #include "UIHelpers.h"
 #include "Window.h"
 #include "Input.h"
+#include "Graphics.h"
 
 #include "ImGui/imgui.h"
 #include "ImGui/imgui_impl_dx11.h"
@@ -226,6 +227,26 @@ void BuildUI(
 		{
 			ImGui::Spacing();
 			ImGui::Checkbox("Freeze Entities", &lightOptions.FreezeEntityMovement);
+
+			if (ImGui::TreeNode("Shadow Rasterizer Options"))
+			{
+				bool anyChange = false;
+
+				// Track if anything changed
+				anyChange |= ImGui::Checkbox("Depth Clip Enable", reinterpret_cast<bool*>(&shadowOptions.ShadowRasterizerDesc.DepthClipEnable));
+				anyChange |= ImGui::SliderInt("Depth Bias Value", &shadowOptions.ShadowRasterizerDesc.DepthBias, 0, 5000);
+				anyChange |= ImGui::SliderFloat("Slope Scaled Depth Bias", &shadowOptions.ShadowRasterizerDesc.SlopeScaledDepthBias, 0, 10);
+				anyChange |= ImGui::SliderFloat("Depth Bias Clamp", &shadowOptions.ShadowRasterizerDesc.DepthBiasClamp, -0.1, 0.1);
+
+				if (anyChange)
+				{
+					// Remake the rasterizer state
+					shadowOptions.ShadowRasterizerState.Reset();
+					Graphics::Device->CreateRasterizerState(&shadowOptions.ShadowRasterizerDesc, shadowOptions.ShadowRasterizerState.GetAddressOf());
+				}
+
+				ImGui::TreePop();
+			}
 
 			ImGui::Spacing();
 			if (ImGui::SliderFloat("Shadow Projection Size", &shadowOptions.ShadowProjectionSize, 0.25f, 200.0f))

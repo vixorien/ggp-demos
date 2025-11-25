@@ -75,8 +75,8 @@ float4 main(VertexToPixel input) : SV_TARGET
 	float shadowAmount = ShadowMap.SampleCmpLevelZero(ShadowSampler, shadowUV, depthFromLight);
 	
 	
-	// Start off with ambient
-	float3 totalLight = ambientColor * surfaceColor.rgb;
+	// Start off with ambient (on non-metals only, since metals have no diffuse)
+	float3 totalLight = ambientColor * surfaceColor.rgb * (1-metal);
 
 	// Loop and handle all lights
 	for (int i = 0; i < lightCount; i++)

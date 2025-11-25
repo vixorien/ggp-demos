@@ -329,6 +329,15 @@ void Game::LoadAssetsAndCreateEntities()
 	hoverSphere->GetTransform()->SetScale(2.5f, 2.5f, 2.5f);
 	hoverSphere->GetTransform()->SetPosition(0, 5, -5);
 	entities.push_back(hoverSphere);
+
+	// Several floating entities WAY up in the sky
+	for (int i = 0; i < 25; i++)
+	{
+		std::shared_ptr<GameEntity> s = std::make_shared<GameEntity>(sphereMesh, woodMat);
+		s->GetTransform()->SetScale(0.5f);
+		s->GetTransform()->SetPosition(RandomRange(-50, 50), RandomRange(30, 50), RandomRange(-50, 50));
+		entities.push_back(s);
+	}
 }
 
 void Game::CreateShadowMapResources()
@@ -336,8 +345,8 @@ void Game::CreateShadowMapResources()
 	// Reset existing API objects
 	shadowOptions.ShadowDSV.Reset();
 	shadowOptions.ShadowSRV.Reset();
+	shadowOptions.ShadowRasterizerState.Reset();
 	shadowSampler.Reset();
-	shadowRasterizer.Reset();
 
 	// Create the actual texture that will be the shadow map
 	D3D11_TEXTURE2D_DESC shadowDesc = {};
@@ -381,23 +390,24 @@ void Game::CreateShadowMapResources()
 	shadowSampDesc.BorderColor[1] = 1.0f;
 	shadowSampDesc.BorderColor[2] = 1.0f;
 	shadowSampDesc.BorderColor[3] = 1.0f;
-	Graphics::Device->CreateSamplerState(&shadowSampDesc, &shadowSampler);
+	Graphics::Device->CreateSamplerState(&shadowSampDesc, shadowSampler.GetAddressOf());
 
-	// Create a rasterizer state
-	D3D11_RASTERIZER_DESC shadowRastDesc = {};
-	shadowRastDesc.FillMode = D3D11_FILL_SOLID;
-	shadowRastDesc.CullMode = D3D11_CULL_BACK;
-	shadowRastDesc.DepthClipEnable = true;
-	shadowRastDesc.DepthBias = 1000; // Multiplied by (smallest possible positive value storable in the depth buffer)
-	shadowRastDesc.DepthBiasClamp = 0.0f;
-	shadowRastDesc.SlopeScaledDepthBias = 1.0f;
-	Graphics::Device->CreateRasterizerState(&shadowRastDesc, &shadowRasterizer);
+	// Create a rasterizer state - Note: Storing the description in the shadow UI options 
+	// so it can be regenerated via UI changes.
+	shadowOptions.ShadowRasterizerDesc = {};
+	shadowOptions.ShadowRasterizerDesc.FillMode = D3D11_FILL_SOLID;
+	shadowOptions.ShadowRasterizerDesc.CullMode = D3D11_CULL_BACK;
+	shadowOptions.ShadowRasterizerDesc.DepthClipEnable = false;
+	shadowOptions.ShadowRasterizerDesc.DepthBias = 1000; // Multiplied by (smallest possible positive value storable in the depth buffer)
+	shadowOptions.ShadowRasterizerDesc.DepthBiasClamp = 0.0f;
+	shadowOptions.ShadowRasterizerDesc.SlopeScaledDepthBias = 5.0f;
+	Graphics::Device->CreateRasterizerState(&shadowOptions.ShadowRasterizerDesc, shadowOptions.ShadowRasterizerState.GetAddressOf());
 
 	// Create the "camera" matrices for the shadow map rendering
 
-	// View
+	// Ensure the light view matrix matches the first directional light
 	XMMATRIX shView = XMMatrixLookAtLH(
-		XMVectorSet(0, 30, -30, 0),
+		XMLoadFloat3(&lights[0].Direction) * XMVectorReplicate(-30.0f), // Back up ~30 units
 		XMVectorSet(0, 0, 0, 0),
 		XMVectorSet(0, 1, 0, 0));
 	XMStoreFloat4x4(&shadowOptions.LightViewMatrix, shView);
@@ -538,6 +548,13 @@ void Game::Update(float deltaTime, float totalTime)
 
 	// Fourth moves side to side
 	entities[4]->GetTransform()->SetPosition(sin(lightOptions.EntityMoveTime * 2) * 8.0f, 5, -5);
+
+	// Ensure the light view matrix matches the first directional light
+	XMMATRIX shView = XMMatrixLookAtLH(
+		XMLoadFloat3(&lights[0].Direction) * XMVectorReplicate(-30.0f), // Back up ~30 units
+		XMVectorSet(0, 0, 0, 0),
+		XMVectorSet(0, 1, 0, 0));
+	XMStoreFloat4x4(&shadowOptions.LightViewMatrix, shView);
 }
 
 
@@ -711,7 +728,7 @@ void Game::RenderShadowMap()
 	// Initial pipeline setup - No RTV necessary - Clear shadow map
 	Graphics::Context->OMSetRenderTargets(0, 0, shadowOptions.ShadowDSV.Get());
 	Graphics::Context->ClearDepthStencilView(shadowOptions.ShadowDSV.Get(), D3D11_CLEAR_DEPTH, 1.0f, 0);
-	Graphics::Context->RSSetState(shadowRasterizer.Get());
+	Graphics::Context->RSSetState(shadowOptions.ShadowRasterizerState.Get());
 
 	// Need to create a viewport that matches the shadow map resolution
 	D3D11_VIEWPORT viewport = {};
