@@ -9,8 +9,8 @@ using namespace DirectX;
 Sky::Sky(
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> cubeMap,
 	std::shared_ptr<Mesh> mesh,
-	std::shared_ptr<SimpleVertexShader> skyVS,
-	std::shared_ptr<SimplePixelShader> skyPS,
+	Microsoft::WRL::ComPtr<ID3D11VertexShader> skyVS,
+	Microsoft::WRL::ComPtr<ID3D11PixelShader> skyPS,
 	Microsoft::WRL::ComPtr<ID3D11SamplerState> samplerOptions)
 	:
 	skySRV(cubeMap),
@@ -25,10 +25,10 @@ Sky::Sky(
 
 // Constructor that loads a DDS cube map file
 Sky::Sky(
-	const wchar_t* cubemapDDSFile, 
+	const wchar_t* cubemapDDSFile,
 	std::shared_ptr<Mesh> mesh,
-	std::shared_ptr<SimpleVertexShader> skyVS,
-	std::shared_ptr<SimplePixelShader> skyPS,
+	Microsoft::WRL::ComPtr<ID3D11VertexShader> skyVS,
+	Microsoft::WRL::ComPtr<ID3D11PixelShader> skyPS,
 	Microsoft::WRL::ComPtr<ID3D11SamplerState> samplerOptions)
 	:
 	skyMesh(mesh),
@@ -45,15 +45,15 @@ Sky::Sky(
 
 // Constructor that loads 6 textures and makes a cube map
 Sky::Sky(
-	const wchar_t* right, 
-	const wchar_t* left, 
-	const wchar_t* up, 
-	const wchar_t* down, 
-	const wchar_t* front, 
-	const wchar_t* back, 
+	const wchar_t* right,
+	const wchar_t* left,
+	const wchar_t* up,
+	const wchar_t* down,
+	const wchar_t* front,
+	const wchar_t* back,
 	std::shared_ptr<Mesh> mesh,
-	std::shared_ptr<SimpleVertexShader> skyVS,
-	std::shared_ptr<SimplePixelShader> skyPS,
+	Microsoft::WRL::ComPtr<ID3D11VertexShader> skyVS,
+	Microsoft::WRL::ComPtr<ID3D11PixelShader> skyPS,
 	Microsoft::WRL::ComPtr<ID3D11SamplerState> samplerOptions)
 	:
 	skyMesh(mesh),
@@ -78,18 +78,23 @@ void Sky::Draw(std::shared_ptr<Camera> camera)
 	Graphics::Context->RSSetState(skyRasterState.Get());
 	Graphics::Context->OMSetDepthStencilState(skyDepthState.Get(), 0);
 
-	// Set the sky shaders
-	skyVS->SetShader();
-	skyPS->SetShader();
+	Graphics::Context->VSSetShader(skyVS.Get(), 0, 0);
+	Graphics::Context->PSSetShader(skyPS.Get(), 0, 0);
 
-	// Give them proper data
-	skyVS->SetMatrix4x4("view", camera->GetView());
-	skyVS->SetMatrix4x4("projection", camera->GetProjection());
-	skyVS->CopyAllBufferData();
+	// Set vertex data
+	struct SkyVSData {
+		XMFLOAT4X4 view;
+		XMFLOAT4X4 proj;
+	};
 
-	// Send the proper resources to the pixel shader
-	skyPS->SetShaderResourceView("SkyTexture", skySRV);
-	skyPS->SetSamplerState("BasicSampler", samplerOptions);
+	SkyVSData data{};
+	data.view = camera->GetView();
+	data.proj = camera->GetProjection();
+	Graphics::FillAndBindNextConstantBuffer(&data, sizeof(SkyVSData), D3D11_VERTEX_SHADER, 0);
+
+	// Set pixel shader resources
+	Graphics::Context->PSSetShaderResources(0, 1, skySRV.GetAddressOf());
+	Graphics::Context->PSSetSamplers(0, 1, samplerOptions.GetAddressOf());
 
 	// Set mesh buffers and draw
 	skyMesh->SetBuffersAndDraw();
