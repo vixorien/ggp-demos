@@ -768,8 +768,6 @@ void Game::DrawLightSources()
 		vsData.projectionMatrix = camera->GetProjection();
 		Graphics::FillAndBindNextConstantBuffer(&vsData, sizeof(VertexShaderExternalData), D3D11_VERTEX_SHADER, 0);
 
-
-
 		// Set up the pixel shader data
 		XMFLOAT3 finalColor = light.Color;
 		finalColor.x *= light.Intensity;

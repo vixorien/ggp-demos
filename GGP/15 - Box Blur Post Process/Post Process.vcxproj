@@ -176,7 +176,6 @@
     <ClCompile Include="..\Common\Input.cpp" />
     <ClCompile Include="..\Common\Main.cpp" />
     <ClCompile Include="..\Common\PathHelpers.cpp" />
-    <ClCompile Include="..\Common\SimpleShader.cpp" />
     <ClCompile Include="..\Common\Transform.cpp" />
     <ClCompile Include="..\Common\Window.cpp" />
     <ClCompile Include="Game.cpp" />
@@ -200,9 +199,9 @@
     <ClInclude Include="..\Common\ImGui\imstb_truetype.h" />
     <ClInclude Include="..\Common\Input.h" />
     <ClInclude Include="..\Common\PathHelpers.h" />
-    <ClInclude Include="..\Common\SimpleShader.h" />
     <ClInclude Include="..\Common\Transform.h" />
     <ClInclude Include="..\Common\Window.h" />
+    <ClInclude Include="BufferStructs.h" />
     <ClInclude Include="Game.h" />
     <ClInclude Include="GameEntity.h" />
     <ClInclude Include="Lights.h" />

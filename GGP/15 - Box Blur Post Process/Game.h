@@ -9,7 +9,6 @@
 #include "GameEntity.h"
 #include "Camera.h"
 #include "Material.h"
-#include "SimpleShader.h"
 #include "Lights.h"
 #include "Sky.h"
 #include "UIHelpers.h"
@@ -62,18 +61,21 @@ private:
 	std::shared_ptr<Mesh> pointLightMesh;
 
 	// Shaders (for shader swapping between pbr and non-pbr)
-	std::shared_ptr<SimplePixelShader> pixelShader;
-	std::shared_ptr<SimplePixelShader> pixelShaderPBR;
+	Microsoft::WRL::ComPtr<ID3D11PixelShader> pixelShader;
+	Microsoft::WRL::ComPtr<ID3D11PixelShader> pixelShaderPBR;
 
 	// Shaders for solid color spheres
-	std::shared_ptr<SimplePixelShader> solidColorPS;
-	std::shared_ptr<SimpleVertexShader> vertexShader;
+	Microsoft::WRL::ComPtr<ID3D11PixelShader> solidColorPS;
+	Microsoft::WRL::ComPtr<ID3D11VertexShader> vertexShader;
+
+	// D3D API objects
+	Microsoft::WRL::ComPtr<ID3D11InputLayout> inputLayout;
 
 	// Post processing options & resources
 	DemoBlurOptions blurOptions;
 
-	std::shared_ptr<SimplePixelShader> blurPS;
-	std::shared_ptr<SimpleVertexShader> fullscreenVS;
+	Microsoft::WRL::ComPtr<ID3D11PixelShader> blurPS;
+	Microsoft::WRL::ComPtr<ID3D11VertexShader> fullscreenVS;
 
 	Microsoft::WRL::ComPtr<ID3D11SamplerState> ppSampler;	// Clamp sampler for post processing
 
