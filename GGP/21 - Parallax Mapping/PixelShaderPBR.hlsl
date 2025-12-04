@@ -14,9 +14,12 @@ cbuffer ExternalData : register(b0)
 
 	// Camera related
 	float3 cameraPosition;
+	float pad;
 
 	// Material related
 	float3 colorTint;
+	float pad2;
+	
 	float2 uvScale;
 	float2 uvOffset;
 	int gammaCorrection;
