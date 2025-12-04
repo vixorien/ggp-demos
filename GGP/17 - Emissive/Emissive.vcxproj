@@ -202,6 +202,7 @@
     <ClInclude Include="..\Common\SimpleShader.h" />
     <ClInclude Include="..\Common\Transform.h" />
     <ClInclude Include="..\Common\Window.h" />
+    <ClInclude Include="BufferStructs.h" />
     <ClInclude Include="Game.h" />
     <ClInclude Include="GameEntity.h" />
     <ClInclude Include="Lights.h" />
