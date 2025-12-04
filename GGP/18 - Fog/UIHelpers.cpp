@@ -337,11 +337,6 @@ void UIMaterial(std::shared_ptr<Material> material)
 	if (ImGui::ColorEdit3("Color Tint", &tint.x))
 		material->SetColorTint(tint);
 
-	// Roughness
-	float rough = material->GetRoughness();
-	if (ImGui::SliderFloat("Roughness", &rough, 0.0f, 1.0f))
-		material->SetRoughness(rough);
-
 	ImGui::Spacing();
 }
 

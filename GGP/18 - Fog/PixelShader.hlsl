@@ -2,18 +2,19 @@
 #include "ShaderStructs.hlsli"
 #include "Lighting.hlsli"
 
-#define NUM_LIGHTS 3
-
 cbuffer ExternalData : register(b0)
 {
-	float roughness;
-	float3 colorTint;
+	Light lights[MAX_LIGHTS];
+	
+	int lightCount;
 	float3 ambientColor;
+	
 	float3 cameraPosition;
-
-	// Camera (necessary for fog)
 	float farClipDistance;
 	
+	// Material and fog
+	float3 colorTint;
+
 	// Fog options
 	int fogType;
 	float3 fogColor;
@@ -24,7 +25,6 @@ cbuffer ExternalData : register(b0)
 	float fogVerticalDensity;
 	float fogHeight;
 	
-	Light lights[NUM_LIGHTS];
 }
 
 
@@ -40,7 +40,7 @@ float4 main(VertexToPixel input) : SV_TARGET
 	float3 totalLight = ambientColor * colorTint;
 	
 	// Loop and handle all lights
-	for (int i = 0; i < NUM_LIGHTS; i++)
+	for (int i = 0; i < MAX_LIGHTS; i++)
 	{
 		// Grab this light and normalize the direction (just in case)
 		Light light = lights[i];
@@ -50,15 +50,15 @@ float4 main(VertexToPixel input) : SV_TARGET
 		switch (lights[i].Type)
 		{
 		case LIGHT_TYPE_DIRECTIONAL: 
-			totalLight += DirLight(light, input.normal, input.worldPos, cameraPosition, roughness, colorTint);
+			totalLight += DirLight(light, input.normal, input.worldPos, cameraPosition, 0.5f, colorTint, 1.0f);
 			break;
 
 		case LIGHT_TYPE_POINT: 
-			totalLight += PointLight(light, input.normal, input.worldPos, cameraPosition, roughness, colorTint);
+			totalLight += PointLight(light, input.normal, input.worldPos, cameraPosition, 0.5f, colorTint, 1.0f);
 			break;
 
 		case LIGHT_TYPE_SPOT:
-			totalLight += SpotLight(light, input.normal, input.worldPos, cameraPosition, roughness, colorTint);
+			totalLight += SpotLight(light, input.normal, input.worldPos, cameraPosition, 0.5f, colorTint, 1.0f);
 			break;
 		}
 	}

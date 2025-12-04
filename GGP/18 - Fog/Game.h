@@ -9,7 +9,6 @@
 #include "GameEntity.h"
 #include "Camera.h"
 #include "Material.h"
-#include "SimpleShader.h"
 #include "Lights.h"
 #include "UIHelpers.h"
 
@@ -45,5 +44,8 @@ private:
 	std::vector<std::shared_ptr<GameEntity>> entities;
 	std::vector<Light> lights;
 	DirectX::XMFLOAT3 ambientColor;
+
+	// D3D API objects
+	Microsoft::WRL::ComPtr<ID3D11InputLayout> inputLayout;
 };
 
