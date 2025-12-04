@@ -6,6 +6,7 @@
 #include "Window.h"
 #include "UIHelpers.h"
 #include "AssetPath.h"
+#include "BufferStructs.h"
 
 #include "ImGui/imgui.h"
 #include "ImGui/imgui_impl_dx11.h"
@@ -66,7 +67,58 @@ void Game::Initialize()
 	};
 
 	// Set initial graphics API state
-	Graphics::Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	//  - These settings persist until we change them
+	//  - Some of these, like the primitive topology & input layout, probably won't change
+	//  - Others, like setting shaders, will need to be moved elsewhere later
+	{
+		// Set up a constant buffer heap of an appropriate size
+		Graphics::ResizeConstantBufferHeap(256 * 5000); // 5000 chunks of 256 bytes
+
+		// Tell the input assembler (IA) stage of the pipeline what kind of
+		// geometric primitives (points, lines or triangles) we want to draw.  
+		// Essentially: "What kind of shape should the GPU draw with our vertices?"
+		Graphics::Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+		// Create an input layout 
+		//  - This describes the layout of data sent to a vertex shader
+		//  - In other words, it describes how to interpret data (numbers) in a vertex buffer
+		//  - Doing this NOW because it requires a vertex shader's byte code to verify against!
+		D3D11_INPUT_ELEMENT_DESC inputElements[4] = {};
+
+		// Set up the first element - a position, which is 3 float values
+		inputElements[0].Format = DXGI_FORMAT_R32G32B32_FLOAT;				// Most formats are described as color channels; really it just means "Three 32-bit floats"
+		inputElements[0].SemanticName = "POSITION";							// This is "POSITION" - needs to match the semantics in our vertex shader input!
+		inputElements[0].AlignedByteOffset = D3D11_APPEND_ALIGNED_ELEMENT;	// How far into the vertex is this?  Assume it's after the previous element
+
+		// Set up the second element - a uv, which is 2 more float values
+		inputElements[1].Format = DXGI_FORMAT_R32G32_FLOAT;					// 2x 32-bit floats
+		inputElements[1].SemanticName = "TEXCOORD";							// Match our vertex shader input!
+		inputElements[1].AlignedByteOffset = D3D11_APPEND_ALIGNED_ELEMENT;	// After the previous element
+
+		// Set up the third element - a normal, which is 3 more float values
+		inputElements[2].Format = DXGI_FORMAT_R32G32B32_FLOAT;				// 3x 32-bit floats
+		inputElements[2].SemanticName = "NORMAL";							// Match our vertex shader input!
+		inputElements[2].AlignedByteOffset = D3D11_APPEND_ALIGNED_ELEMENT;	// After the previous element
+
+		// Set up the fourth element - a tangent, which is 3 more float values
+		inputElements[3].Format = DXGI_FORMAT_R32G32B32_FLOAT;				// 3x 32-bit floats
+		inputElements[3].SemanticName = "TANGENT";							// Match our vertex shader input!
+		inputElements[3].AlignedByteOffset = D3D11_APPEND_ALIGNED_ELEMENT;	// After the previous element
+
+
+		// Create the input layout, verifying our description against actual shader code
+		ID3DBlob* vertexShaderBlob;
+		D3DReadFileToBlob(FixPath(L"VertexShader.cso").c_str(), &vertexShaderBlob);
+		Graphics::Device->CreateInputLayout(
+			inputElements,							// An array of descriptions
+			ARRAYSIZE(inputElements),				// How many elements in that array?
+			vertexShaderBlob->GetBufferPointer(),	// Pointer to the code of a shader that uses this layout
+			vertexShaderBlob->GetBufferSize(),		// Size of the shader code that uses this layout
+			inputLayout.GetAddressOf());			// Address of the resulting ID3D11InputLayout pointer
+
+		// Set the input layout now that it exists
+		Graphics::Context->IASetInputLayout(inputLayout.Get());
+	}
 
 	// Create the camera
 	camera = std::make_shared<FPSCamera>(
@@ -201,11 +253,11 @@ void Game::LoadAssetsAndCreateEntities()
 
 
 	// Load shaders (some are saved for later)
-	vertexShader = std::make_shared<SimpleVertexShader>(Graphics::Device, Graphics::Context, FixPath(L"VertexShader.cso").c_str());
-	pixelShader = std::make_shared<SimplePixelShader>(Graphics::Device, Graphics::Context, FixPath(L"PixelShaderPBR.cso").c_str());
-	solidColorPS = std::make_shared<SimplePixelShader>(Graphics::Device, Graphics::Context, FixPath(L"SolidColorPS.cso").c_str());
-	std::shared_ptr<SimpleVertexShader> skyVS = std::make_shared<SimpleVertexShader>(Graphics::Device, Graphics::Context, FixPath(L"SkyVS.cso").c_str());
-	std::shared_ptr<SimplePixelShader> skyPS = std::make_shared<SimplePixelShader>(Graphics::Device, Graphics::Context, FixPath(L"SkyPS.cso").c_str());
+	vertexShader = Graphics::LoadVertexShader(FixPath(L"VertexShader.cso").c_str());
+	pixelShader = Graphics::LoadPixelShader(FixPath(L"PixelShaderPBR.cso").c_str());
+	solidColorPS = Graphics::LoadPixelShader(FixPath(L"SolidColorPS.cso").c_str());
+	Microsoft::WRL::ComPtr<ID3D11VertexShader> skyVS = Graphics::LoadVertexShader(FixPath(L"SkyVS.cso").c_str());
+	Microsoft::WRL::ComPtr<ID3D11PixelShader> skyPS = Graphics::LoadPixelShader(FixPath(L"SkyPS.cso").c_str());
 
 	// Load 3D models	
 	std::shared_ptr<Mesh> cubeMesh = std::make_shared<Mesh>("Cube", FixPath(AssetPath + L"Meshes/cube.obj").c_str());
@@ -238,113 +290,113 @@ void Game::LoadAssetsAndCreateEntities()
 
 	// Create basic materials
 	std::shared_ptr<Material> cobbleMat2x = std::make_shared<Material>("Cobblestone (2x Scale)", pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(2, 2));
-	cobbleMat2x->AddSampler("BasicSampler", sampler);
-	cobbleMat2x->AddTextureSRV("Albedo", cobbleA);
-	cobbleMat2x->AddTextureSRV("NormalMap", cobbleN);
-	cobbleMat2x->AddTextureSRV("RoughnessMap", cobbleR);
-	cobbleMat2x->AddTextureSRV("MetalMap", cobbleM);
+	cobbleMat2x->AddSampler(0, sampler);
+	cobbleMat2x->AddTextureSRV(0, cobbleA);
+	cobbleMat2x->AddTextureSRV(1, cobbleN);
+	cobbleMat2x->AddTextureSRV(2, cobbleR);
+	cobbleMat2x->AddTextureSRV(3, cobbleM);
 
 	std::shared_ptr<Material> cobbleMat4x = std::make_shared<Material>("Cobblestone (4x Scale)", pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(4, 4));
-	cobbleMat4x->AddSampler("BasicSampler", sampler);
-	cobbleMat4x->AddTextureSRV("Albedo", cobbleA);
-	cobbleMat4x->AddTextureSRV("NormalMap", cobbleN);
-	cobbleMat4x->AddTextureSRV("RoughnessMap", cobbleR);
-	cobbleMat4x->AddTextureSRV("MetalMap", cobbleM);
+	cobbleMat4x->AddSampler(0, sampler);
+	cobbleMat4x->AddTextureSRV(0, cobbleA);
+	cobbleMat4x->AddTextureSRV(1, cobbleN);
+	cobbleMat4x->AddTextureSRV(2, cobbleR);
+	cobbleMat4x->AddTextureSRV(3, cobbleM);
 
 	std::shared_ptr<Material> floorMat = std::make_shared<Material>("Metal Floor", pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(2, 2));
-	floorMat->AddSampler("BasicSampler", sampler);
-	floorMat->AddTextureSRV("Albedo", floorA);
-	floorMat->AddTextureSRV("NormalMap", floorN);
-	floorMat->AddTextureSRV("RoughnessMap", floorR);
-	floorMat->AddTextureSRV("MetalMap", floorM);
+	floorMat->AddSampler(0, sampler);
+	floorMat->AddTextureSRV(0, floorA);
+	floorMat->AddTextureSRV(1, floorN);
+	floorMat->AddTextureSRV(2, floorR);
+	floorMat->AddTextureSRV(3, floorM);
 
 	std::shared_ptr<Material> paintMat = std::make_shared<Material>("Blue Paint", pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(2, 2));
-	paintMat->AddSampler("BasicSampler", sampler);
-	paintMat->AddTextureSRV("Albedo", paintA);
-	paintMat->AddTextureSRV("NormalMap", paintN);
-	paintMat->AddTextureSRV("RoughnessMap", paintR);
-	paintMat->AddTextureSRV("MetalMap", paintM);
+	paintMat->AddSampler(0, sampler);
+	paintMat->AddTextureSRV(0, paintA);
+	paintMat->AddTextureSRV(1, paintN);
+	paintMat->AddTextureSRV(2, paintR);
+	paintMat->AddTextureSRV(3, paintM);
 
 	std::shared_ptr<Material> scratchedMat = std::make_shared<Material>("Scratched Paint", pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(2, 2));
-	scratchedMat->AddSampler("BasicSampler", sampler);
-	scratchedMat->AddTextureSRV("Albedo", scratchedA);
-	scratchedMat->AddTextureSRV("NormalMap", scratchedN);
-	scratchedMat->AddTextureSRV("RoughnessMap", scratchedR);
-	scratchedMat->AddTextureSRV("MetalMap", scratchedM);
+	scratchedMat->AddSampler(0, sampler);
+	scratchedMat->AddTextureSRV(0, scratchedA);
+	scratchedMat->AddTextureSRV(1, scratchedN);
+	scratchedMat->AddTextureSRV(2, scratchedR);
+	scratchedMat->AddTextureSRV(3, scratchedM);
 
 	std::shared_ptr<Material> bronzeMat = std::make_shared<Material>("Bronze", pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(2, 2));
-	bronzeMat->AddSampler("BasicSampler", sampler);
-	bronzeMat->AddTextureSRV("Albedo", bronzeA);
-	bronzeMat->AddTextureSRV("NormalMap", bronzeN);
-	bronzeMat->AddTextureSRV("RoughnessMap", bronzeR);
-	bronzeMat->AddTextureSRV("MetalMap", bronzeM);
+	bronzeMat->AddSampler(0, sampler);
+	bronzeMat->AddTextureSRV(0, bronzeA);
+	bronzeMat->AddTextureSRV(1, bronzeN);
+	bronzeMat->AddTextureSRV(2, bronzeR);
+	bronzeMat->AddTextureSRV(3, bronzeM);
 
 	std::shared_ptr<Material> roughMat = std::make_shared<Material>("Rough Metal", pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(2, 2));
-	roughMat->AddSampler("BasicSampler", sampler);
-	roughMat->AddTextureSRV("Albedo", roughA);
-	roughMat->AddTextureSRV("NormalMap", roughN);
-	roughMat->AddTextureSRV("RoughnessMap", roughR);
-	roughMat->AddTextureSRV("MetalMap", roughM);
+	roughMat->AddSampler(0, sampler);
+	roughMat->AddTextureSRV(0, roughA);
+	roughMat->AddTextureSRV(1, roughN);
+	roughMat->AddTextureSRV(2, roughR);
+	roughMat->AddTextureSRV(3, roughM);
 
 	std::shared_ptr<Material> woodMat = std::make_shared<Material>("Wood", pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(2, 2));
-	woodMat->AddSampler("BasicSampler", sampler);
-	woodMat->AddTextureSRV("Albedo", woodA);
-	woodMat->AddTextureSRV("NormalMap", woodN);
-	woodMat->AddTextureSRV("RoughnessMap", woodR);
-	woodMat->AddTextureSRV("MetalMap", woodM);
+	woodMat->AddSampler(0, sampler);
+	woodMat->AddTextureSRV(0, woodA);
+	woodMat->AddTextureSRV(1, woodN);
+	woodMat->AddTextureSRV(2, woodR);
+	woodMat->AddTextureSRV(3, woodM);
 
 	// Create transparent materials
 	std::shared_ptr<Material> fenceMat = std::make_shared<Material>("Fence", pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(2, 1), XMFLOAT2(0, 0), true);
-	fenceMat->AddSampler("BasicSampler", sampler);
-	fenceMat->AddTextureSRV("Albedo", fenceA);
-	fenceMat->AddTextureSRV("NormalMap", fenceN);
-	fenceMat->AddTextureSRV("RoughnessMap", fenceR);
-	fenceMat->AddTextureSRV("MetalMap", fenceM);
+	fenceMat->AddSampler(0, sampler);
+	fenceMat->AddTextureSRV(0, fenceA);
+	fenceMat->AddTextureSRV(1, fenceN);
+	fenceMat->AddTextureSRV(2, fenceR);
+	fenceMat->AddTextureSRV(3, fenceM);
 
 	std::shared_ptr<Material> latticeMat = std::make_shared<Material>("Lattice", pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(1, 0.5f), XMFLOAT2(0, 0), true);
-	latticeMat->AddSampler("BasicSampler", sampler);
-	latticeMat->AddTextureSRV("Albedo", latticeA);
-	latticeMat->AddTextureSRV("NormalMap", latticeN);
-	latticeMat->AddTextureSRV("RoughnessMap", latticeR);
-	latticeMat->AddTextureSRV("MetalMap", latticeM);
+	latticeMat->AddSampler(0, sampler);
+	latticeMat->AddTextureSRV(0, latticeA);
+	latticeMat->AddTextureSRV(1, latticeN);
+	latticeMat->AddTextureSRV(2, latticeR);
+	latticeMat->AddTextureSRV(3, latticeM);
 
 	std::shared_ptr<Material> glassWindowMat = std::make_shared<Material>("Glass Window", pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(1, 0.5f), XMFLOAT2(0, 0), true);
-	glassWindowMat->AddSampler("BasicSampler", sampler);
-	glassWindowMat->AddTextureSRV("Albedo", glassWindowA);
-	glassWindowMat->AddTextureSRV("NormalMap", glassWindowN);
-	glassWindowMat->AddTextureSRV("RoughnessMap", glassWindowR);
-	glassWindowMat->AddTextureSRV("MetalMap", glassWindowM);
+	glassWindowMat->AddSampler(0, sampler);
+	glassWindowMat->AddTextureSRV(0, glassWindowA);
+	glassWindowMat->AddTextureSRV(1, glassWindowN);
+	glassWindowMat->AddTextureSRV(2, glassWindowR);
+	glassWindowMat->AddTextureSRV(3, glassWindowM);
 
 	std::shared_ptr<Material> glassPatternMat = std::make_shared<Material>("Glass Pattern", pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(2, 1), XMFLOAT2(0, 0), true);
-	glassPatternMat->AddSampler("BasicSampler", sampler);
-	glassPatternMat->AddTextureSRV("Albedo", glassPatternA);
-	glassPatternMat->AddTextureSRV("NormalMap", glassPatternN);
-	glassPatternMat->AddTextureSRV("RoughnessMap", glassPatternR);
-	glassPatternMat->AddTextureSRV("MetalMap", glassPatternM);
+	glassPatternMat->AddSampler(0, sampler);
+	glassPatternMat->AddTextureSRV(0, glassPatternA);
+	glassPatternMat->AddTextureSRV(1, glassPatternN);
+	glassPatternMat->AddTextureSRV(2, glassPatternR);
+	glassPatternMat->AddTextureSRV(3, glassPatternM);
 
 	// Alpha clip
 	std::shared_ptr<Material> clipMat = std::make_shared<Material>("Alpha Clip", pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(2, 2), XMFLOAT2(0, 0), false, 0.5f);
-	clipMat->AddSampler("BasicSampler", sampler);
-	clipMat->AddTextureSRV("Albedo", paintA);
-	clipMat->AddTextureSRV("NormalMap", bronzeN);
-	clipMat->AddTextureSRV("RoughnessMap", bronzeR);
-	clipMat->AddTextureSRV("MetalMap", bronzeM);
-	clipMat->AddTextureSRV("NoiseMap", noiseTexture);
+	clipMat->AddSampler(0, sampler);
+	clipMat->AddTextureSRV(0, paintA);
+	clipMat->AddTextureSRV(1, bronzeN);
+	clipMat->AddTextureSRV(2, bronzeR);
+	clipMat->AddTextureSRV(3, bronzeM);
+	clipMat->AddTextureSRV(4, noiseTexture);
 
 	// Tree
 	std::shared_ptr<Material> barkMat = std::make_shared<Material>("Bark", pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(2, 1), XMFLOAT2(0, 0), false);
-	barkMat->AddSampler("BasicSampler", sampler);
-	barkMat->AddTextureSRV("Albedo", barkA);
-	barkMat->AddTextureSRV("NormalMap", roughN); // Using general rough normal map
-	barkMat->AddTextureSRV("RoughnessMap", bronzeM); // 100% rough (white)
-	barkMat->AddTextureSRV("MetalMap", paintM); // Non-metal (black)
+	barkMat->AddSampler(0, sampler);
+	barkMat->AddTextureSRV(0, barkA);
+	barkMat->AddTextureSRV(1, roughN); // Using general rough normal map
+	barkMat->AddTextureSRV(2, bronzeM); // 100% rough (white)
+	barkMat->AddTextureSRV(3, paintM); // Non-metal (black)
 
 	std::shared_ptr<Material> leafMat = std::make_shared<Material>("Leaf", pixelShader, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(2, 1), XMFLOAT2(0, 0), false, 0.4f);
-	leafMat->AddSampler("BasicSampler", sampler);
-	leafMat->AddTextureSRV("Albedo", leafA);
-	leafMat->AddTextureSRV("NormalMap", leafN);
-	leafMat->AddTextureSRV("RoughnessMap", bronzeM); // 100% rough (white)
-	leafMat->AddTextureSRV("MetalMap", paintM); // Non-metal (black)
+	leafMat->AddSampler(0, sampler);
+	leafMat->AddTextureSRV(0, leafA);
+	leafMat->AddTextureSRV(1, leafN);
+	leafMat->AddTextureSRV(2, bronzeM); // 100% rough (white)
+	leafMat->AddTextureSRV(3, paintM); // Non-metal (black)
 
 	// Add materials to list
 	materials.insert(materials.end(), { 
@@ -744,27 +796,40 @@ void Game::Draw(float deltaTime, float totalTime)
 // --------------------------------------------------------
 void Game::DrawOneEntity(std::shared_ptr<GameEntity> entity, float totalTime, bool flipNormal)
 {
-	std::shared_ptr<SimplePixelShader> ps = entity->GetMaterial()->GetPixelShader();
+	// Grab the material and it have bind its resources (textures and samplers) and shaders
+	std::shared_ptr<Material> mat = entity->GetMaterial();
+	mat->BindTexturesAndSamplers();
+	Graphics::Context->VSSetShader(mat->GetVertexShader().Get(), 0, 0);
+	Graphics::Context->PSSetShader(mat->GetPixelShader().Get(), 0, 0);
 
-	// Set total time on this entity's material's pixel shader
-	// Note: If the shader doesn't have this variable, nothing happens
-	ps->SetFloat("time", totalTime);
-	ps->SetData("lights", &lights[0], sizeof(Light) * (int)lights.size());
-	ps->SetInt("lightCount", lightOptions.LightCount);
-	ps->SetInt("flipNormal", flipNormal);
+	// Set vertex shader data
+	VertexShaderExternalData vsData{};
+	vsData.worldMatrix = entity->GetTransform()->GetWorldMatrix();
+	vsData.worldInvTransMatrix = entity->GetTransform()->GetWorldInverseTransposeMatrix();
+	vsData.viewMatrix = camera->GetView();
+	vsData.projectionMatrix = camera->GetProjection();
+	Graphics::FillAndBindNextConstantBuffer(&vsData, sizeof(VertexShaderExternalData), D3D11_VERTEX_SHADER, 0);
 
+	// Set pixel shader data (mostly coming from the material)
+	PixelShaderExternalData psData{};
+	memcpy(&psData.lights, &lights[0], sizeof(Light) * lights.size());
+	psData.lightCount = lightOptions.LightCount;
+	psData.ambientColor = XMFLOAT3(0,0,0);
+	psData.cameraPosition = camera->GetTransform()->GetPosition();
+	psData.colorTint = mat->GetColorTint();
+	psData.uvOffset = mat->GetUVOffset();
+	psData.uvScale = mat->GetUVScale();
 	float clip = entity->GetMaterial()->GetAlphaClipThreshold();
-	ps->SetFloat("alphaClipThreshold", clip >= 0.0f && transparencyOptions.AlphaClippingOn ? clip : -1.0f);
-
-	// Only use noise for one entity
-	ps->SetInt("useNoiseForAlphaClip", entity == clipEntity);
-
+	psData.alphaClipThreshold = clip >= 0.0f && transparencyOptions.AlphaClippingOn ? clip : -1.0f;
+	psData.flipNormal = (int)flipNormal;
+	psData.useNoiseForAlphaClip = (int)(entity == clipEntity);
 	// Only dither for one entity
-	ps->SetFloat("fadeDistStart", entity == ditherEntity ? 20.0f : -1.0f);
-	ps->SetFloat("fadeDistEnd", entity == ditherEntity ? 50.0f : -1.0f);
+	psData.fadeDistStart = entity == ditherEntity ? 20.0f : -1.0f;
+	psData.fadeDistEnd = entity == ditherEntity ? 50.0f : -1.0f;
+	Graphics::FillAndBindNextConstantBuffer(&psData, sizeof(PixelShaderExternalData), D3D11_PIXEL_SHADER, 0);
 
 	// Draw one entity
-	entity->Draw(camera);
+	entity->Draw();
 }
 
 
@@ -779,12 +844,8 @@ void Game::DrawLightSources()
 	unsigned int indexCount = pointLightMesh->GetIndexCount();
 
 	// Turn on these shaders
-	vertexShader->SetShader();
-	solidColorPS->SetShader();
-
-	// Set up vertex shader
-	vertexShader->SetMatrix4x4("view", camera->GetView());
-	vertexShader->SetMatrix4x4("projection", camera->GetProjection());
+	Graphics::Context->VSSetShader(vertexShader.Get(), 0, 0);
+	Graphics::Context->PSSetShader(solidColorPS.Get(), 0, 0);
 
 	for (int i = 0; i < lightOptions.LightCount; i++)
 	{
@@ -810,19 +871,19 @@ void Game::DrawLightSources()
 		XMFLOAT4X4 world;
 		XMStoreFloat4x4(&world, scaleMat * transMat);
 
-		// Set up the world matrix for this light
-		vertexShader->SetMatrix4x4("world", world);
+		// Set vertex shader data
+		VertexShaderExternalData vsData{};
+		vsData.worldMatrix = world;
+		vsData.viewMatrix = camera->GetView();
+		vsData.projectionMatrix = camera->GetProjection();
+		Graphics::FillAndBindNextConstantBuffer(&vsData, sizeof(VertexShaderExternalData), D3D11_VERTEX_SHADER, 0);
 
 		// Set up the pixel shader data
 		XMFLOAT3 finalColor = light.Color;
 		finalColor.x *= light.Intensity;
 		finalColor.y *= light.Intensity;
 		finalColor.z *= light.Intensity;
-		solidColorPS->SetFloat3("Color", finalColor);
-
-		// Copy data
-		vertexShader->CopyAllBufferData();
-		solidColorPS->CopyAllBufferData();
+		Graphics::FillAndBindNextConstantBuffer(&finalColor, sizeof(XMFLOAT3), D3D11_PIXEL_SHADER, 0);
 
 		// Draw
 		Graphics::Context->DrawIndexed(indexCount, 0, 0);

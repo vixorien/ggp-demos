@@ -9,7 +9,6 @@
 #include "GameEntity.h"
 #include "Camera.h"
 #include "Material.h"
-#include "SimpleShader.h"
 #include "Lights.h"
 #include "Sky.h"
 #include "UIHelpers.h"
@@ -60,12 +59,16 @@ private:
 	DemoLightingOptions lightOptions;
 	std::shared_ptr<Mesh> pointLightMesh;
 
-	// Shaders (for shader swapping between pbr and non-pbr)
-	std::shared_ptr<SimplePixelShader> pixelShader;
+	// Shaders
+	Microsoft::WRL::ComPtr<ID3D11PixelShader> pixelShader;
 
 	// Shaders for solid color spheres
-	std::shared_ptr<SimplePixelShader> solidColorPS;
-	std::shared_ptr<SimpleVertexShader> vertexShader;
+	Microsoft::WRL::ComPtr<ID3D11PixelShader> solidColorPS;
+	Microsoft::WRL::ComPtr<ID3D11VertexShader> vertexShader;
+
+
+	// D3D API objects
+	Microsoft::WRL::ComPtr<ID3D11InputLayout> inputLayout;
 
 	// Transparency
 	std::shared_ptr<GameEntity> clipEntity;

@@ -7,19 +7,19 @@ cbuffer ExternalData : register(b0)
 {
 	// Scene related
 	Light lights[MAX_LIGHTS];
-	int lightCount;
 
+	int lightCount;
 	float3 ambientColor;
 
-	// Camera related
 	float3 cameraPosition;
+	int flipNormal;
 
-	// Material related
 	float3 colorTint;
+	float alphaClipThreshold;
+	
 	float2 uvScale;
 	float2 uvOffset;
-	float alphaClipThreshold;
-	int flipNormal;
+	
 	int useNoiseForAlphaClip;
 	float fadeDistStart;
 	float fadeDistEnd;

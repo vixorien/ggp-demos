@@ -10,48 +10,49 @@
 #include "Camera.h"
 #include "Transform.h"
 
+
 class Material
 {
 public:
 	Material(
-		const char* name, 
-		std::shared_ptr<SimplePixelShader> ps,
-		std::shared_ptr<SimpleVertexShader> vs,
-		DirectX::XMFLOAT3 tint, 
+		const char* name,
+		Microsoft::WRL::ComPtr<ID3D11PixelShader> ps,
+		Microsoft::WRL::ComPtr<ID3D11VertexShader> vs,
+		DirectX::XMFLOAT3 tint,
 		DirectX::XMFLOAT2 uvScale = DirectX::XMFLOAT2(1, 1),
 		DirectX::XMFLOAT2 uvOffset = DirectX::XMFLOAT2(0, 0),
 		bool transparent = false,
-		float alphaClipThreshold = -1.0f);
+		float alphaClipThreshold = 0.5f);
 
-	std::shared_ptr<SimplePixelShader> GetPixelShader();
-	std::shared_ptr<SimpleVertexShader> GetVertexShader();
+	Microsoft::WRL::ComPtr<ID3D11PixelShader> GetPixelShader();
+	Microsoft::WRL::ComPtr<ID3D11VertexShader> GetVertexShader();
 	DirectX::XMFLOAT3 GetColorTint();
 	DirectX::XMFLOAT2 GetUVScale();
 	DirectX::XMFLOAT2 GetUVOffset();
-	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> GetTextureSRV(std::string name);
-	Microsoft::WRL::ComPtr<ID3D11SamplerState> GetSampler(std::string name);
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> GetTextureSRV(unsigned int index);
+	Microsoft::WRL::ComPtr<ID3D11SamplerState> GetSampler(unsigned int index);
 	const char* GetName();
 	bool GetTransparent();
 	float GetAlphaClipThreshold();
 
-	std::unordered_map<std::string, Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>>& GetTextureSRVMap();
-	std::unordered_map<std::string, Microsoft::WRL::ComPtr<ID3D11SamplerState>>& GetSamplerMap();
+	std::unordered_map<unsigned int, Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>>& GetTextureSRVMap();
+	std::unordered_map<unsigned int, Microsoft::WRL::ComPtr<ID3D11SamplerState>>& GetSamplerMap();
 
-	void SetPixelShader(std::shared_ptr<SimplePixelShader> ps);
-	void SetVertexShader(std::shared_ptr<SimpleVertexShader> ps);
+	void SetPixelShader(Microsoft::WRL::ComPtr<ID3D11PixelShader> ps);
+	void SetVertexShader(Microsoft::WRL::ComPtr<ID3D11VertexShader> ps);
 	void SetColorTint(DirectX::XMFLOAT3 tint);
 	void SetUVScale(DirectX::XMFLOAT2 scale);
 	void SetUVOffset(DirectX::XMFLOAT2 offset);
 	void SetTransparent(bool transparent);
 	void SetAlphaClipThreshold(float clipThreshold);
 
-	void AddTextureSRV(std::string name, Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> srv);
-	void AddSampler(std::string name, Microsoft::WRL::ComPtr<ID3D11SamplerState> sampler);
+	void AddTextureSRV(unsigned int index, Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> srv);
+	void AddSampler(unsigned int index, Microsoft::WRL::ComPtr<ID3D11SamplerState> sampler);
 
-	void RemoveTextureSRV(std::string name);
-	void RemoveSampler(std::string name);
+	void RemoveTextureSRV(unsigned int index);
+	void RemoveSampler(unsigned int index);
 
-	void PrepareMaterial(std::shared_ptr<Transform> transform, std::shared_ptr<Camera> camera);
+	void BindTexturesAndSamplers();
 
 private:
 
@@ -59,8 +60,8 @@ private:
 	const char* name;
 
 	// Shaders
-	std::shared_ptr<SimplePixelShader> ps;
-	std::shared_ptr<SimpleVertexShader> vs;
+	Microsoft::WRL::ComPtr<ID3D11PixelShader> ps;
+	Microsoft::WRL::ComPtr<ID3D11VertexShader> vs;
 
 	// Material properties
 	DirectX::XMFLOAT3 colorTint;
@@ -70,7 +71,7 @@ private:
 	// Texture-related
 	DirectX::XMFLOAT2 uvOffset;
 	DirectX::XMFLOAT2 uvScale;
-	std::unordered_map<std::string, Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>> textureSRVs;
-	std::unordered_map<std::string, Microsoft::WRL::ComPtr<ID3D11SamplerState>> samplers;
+	std::unordered_map<unsigned int, Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>> textureSRVs;
+	std::unordered_map<unsigned int, Microsoft::WRL::ComPtr<ID3D11SamplerState>> samplers;
 };
 

@@ -1,9 +1,10 @@
 #include "Material.h"
+#include "Graphics.h"
 
 Material::Material(
 	const char* name, 
-	std::shared_ptr<SimplePixelShader> ps,
-	std::shared_ptr<SimpleVertexShader> vs,
+	Microsoft::WRL::ComPtr<ID3D11PixelShader> ps,
+	Microsoft::WRL::ComPtr<ID3D11VertexShader> vs,
 	DirectX::XMFLOAT3 tint,
 	DirectX::XMFLOAT2 uvScale,
 	DirectX::XMFLOAT2 uvOffset,
@@ -22,8 +23,8 @@ Material::Material(
 
 }
 
-std::shared_ptr<SimplePixelShader> Material::GetPixelShader() { return ps; }
-std::shared_ptr<SimpleVertexShader> Material::GetVertexShader() { return vs; }
+Microsoft::WRL::ComPtr<ID3D11PixelShader> Material::GetPixelShader() { return ps; }
+Microsoft::WRL::ComPtr<ID3D11VertexShader> Material::GetVertexShader() { return vs; }
 DirectX::XMFLOAT3 Material::GetColorTint() { return colorTint; }
 DirectX::XMFLOAT2 Material::GetUVScale() { return uvScale; }
 DirectX::XMFLOAT2 Material::GetUVOffset() { return uvOffset; }
@@ -31,10 +32,10 @@ const char* Material::GetName() { return name; }
 bool Material::GetTransparent() { return transparent; }
 float Material::GetAlphaClipThreshold() { return alphaClipThreshold; }
 
-Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Material::GetTextureSRV(std::string name)
+Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Material::GetTextureSRV(unsigned int index)
 {
 	// Search for the key
-	auto it = textureSRVs.find(name);
+	auto it = textureSRVs.find(index);
 
 	// Not found, return null
 	if (it == textureSRVs.end())
@@ -44,10 +45,10 @@ Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> Material::GetTextureSRV(std::st
 	return it->second;
 }
 
-Microsoft::WRL::ComPtr<ID3D11SamplerState> Material::GetSampler(std::string name)
+Microsoft::WRL::ComPtr<ID3D11SamplerState> Material::GetSampler(unsigned int index)
 {
 	// Search for the key
-	auto it = samplers.find(name);
+	auto it = samplers.find(index);
 
 	// Not found, return null
 	if (it == samplers.end())
@@ -57,65 +58,46 @@ Microsoft::WRL::ComPtr<ID3D11SamplerState> Material::GetSampler(std::string name
 	return it->second;
 }
 
-std::unordered_map<std::string, Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>>& Material::GetTextureSRVMap()
+std::unordered_map<unsigned int, Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>>& Material::GetTextureSRVMap()
 {
 	return textureSRVs;
 }
 
-std::unordered_map<std::string, Microsoft::WRL::ComPtr<ID3D11SamplerState>>& Material::GetSamplerMap()
+std::unordered_map<unsigned int, Microsoft::WRL::ComPtr<ID3D11SamplerState>>& Material::GetSamplerMap()
 {
 	return samplers;
 }
 
-void Material::SetPixelShader(std::shared_ptr<SimplePixelShader> ps) { this->ps = ps; }
-void Material::SetVertexShader(std::shared_ptr<SimpleVertexShader> vs) { this->vs = vs; }
+void Material::SetPixelShader(Microsoft::WRL::ComPtr<ID3D11PixelShader> ps) { this->ps = ps; }
+void Material::SetVertexShader(Microsoft::WRL::ComPtr<ID3D11VertexShader> vs) { this->vs = vs; }
 void Material::SetColorTint(DirectX::XMFLOAT3 tint) { this->colorTint = tint; }
 void Material::SetUVScale(DirectX::XMFLOAT2 scale) { uvScale = scale; }
 void Material::SetUVOffset(DirectX::XMFLOAT2 offset) { uvOffset = offset; }
 void Material::SetTransparent(bool transparent) { this->transparent = transparent; }
 void Material::SetAlphaClipThreshold(float clipThreshold) { this->alphaClipThreshold = clipThreshold; }
 
-void Material::AddTextureSRV(std::string name, Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> srv)
+void Material::AddTextureSRV(unsigned int index, Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> srv)
 {
-	textureSRVs.insert({ name, srv });
+	textureSRVs.insert({ index, srv });
 }
 
-void Material::AddSampler(std::string name, Microsoft::WRL::ComPtr<ID3D11SamplerState> sampler)
+void Material::AddSampler(unsigned int index, Microsoft::WRL::ComPtr<ID3D11SamplerState> sampler)
 {
-	samplers.insert({ name, sampler });
+	samplers.insert({ index, sampler });
 }
 
-void Material::RemoveTextureSRV(std::string name)
+void Material::RemoveTextureSRV(unsigned int index)
 {
-	textureSRVs.erase(name);
+	textureSRVs.erase(index);
 }
 
-void Material::RemoveSampler(std::string name)
+void Material::RemoveSampler(unsigned int index)
 {
-	samplers.erase(name);
+	samplers.erase(index);
 }
 
-void Material::PrepareMaterial(std::shared_ptr<Transform> transform, std::shared_ptr<Camera> camera)
+void Material::BindTexturesAndSamplers()
 {
-	// Turn on these shaders
-	vs->SetShader();
-	ps->SetShader();
-
-	// Send data to the vertex shader
-	vs->SetMatrix4x4("world", transform->GetWorldMatrix());
-	vs->SetMatrix4x4("worldInvTrans", transform->GetWorldInverseTransposeMatrix());
-	vs->SetMatrix4x4("view", camera->GetView());
-	vs->SetMatrix4x4("projection", camera->GetProjection());
-	vs->CopyAllBufferData();
-
-	// Send data to the pixel shader
-	ps->SetFloat3("colorTint", colorTint);
-	ps->SetFloat2("uvScale", uvScale);
-	ps->SetFloat2("uvOffset", uvOffset);
-	ps->SetFloat3("cameraPosition", camera->GetTransform()->GetPosition());
-	ps->CopyAllBufferData();
-
-	// Loop and set any other resources
-	for (auto& t : textureSRVs) { ps->SetShaderResourceView(t.first.c_str(), t.second.Get()); }
-	for (auto& s : samplers) { ps->SetSamplerState(s.first.c_str(), s.second.Get()); }
+	for (auto& t : textureSRVs) { Graphics::Context->PSSetShaderResources(t.first, 1, t.second.GetAddressOf()); }
+	for (auto& s : samplers) { Graphics::Context->PSSetSamplers(s.first, 1, s.second.GetAddressOf()); }
 }
