@@ -6,6 +6,7 @@
 #include "Window.h"
 #include "UIHelpers.h"
 #include "AssetPath.h"
+#include "BufferStructs.h"
 
 #include "ImGui/imgui.h"
 #include "ImGui/imgui_impl_dx11.h"
@@ -48,7 +49,58 @@ void Game::Initialize()
 	GenerateLights();
 
 	// Set initial graphics API state
-	Graphics::Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	//  - These settings persist until we change them
+	//  - Some of these, like the primitive topology & input layout, probably won't change
+	//  - Others, like setting shaders, will need to be moved elsewhere later
+	{
+		// Set up a constant buffer heap of an appropriate size
+		Graphics::ResizeConstantBufferHeap(256 * 5000); // 5000 chunks of 256 bytes
+
+		// Tell the input assembler (IA) stage of the pipeline what kind of
+		// geometric primitives (points, lines or triangles) we want to draw.  
+		// Essentially: "What kind of shape should the GPU draw with our vertices?"
+		Graphics::Context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+		// Create an input layout 
+		//  - This describes the layout of data sent to a vertex shader
+		//  - In other words, it describes how to interpret data (numbers) in a vertex buffer
+		//  - Doing this NOW because it requires a vertex shader's byte code to verify against!
+		D3D11_INPUT_ELEMENT_DESC inputElements[4] = {};
+
+		// Set up the first element - a position, which is 3 float values
+		inputElements[0].Format = DXGI_FORMAT_R32G32B32_FLOAT;				// Most formats are described as color channels; really it just means "Three 32-bit floats"
+		inputElements[0].SemanticName = "POSITION";							// This is "POSITION" - needs to match the semantics in our vertex shader input!
+		inputElements[0].AlignedByteOffset = D3D11_APPEND_ALIGNED_ELEMENT;	// How far into the vertex is this?  Assume it's after the previous element
+
+		// Set up the second element - a uv, which is 2 more float values
+		inputElements[1].Format = DXGI_FORMAT_R32G32_FLOAT;					// 2x 32-bit floats
+		inputElements[1].SemanticName = "TEXCOORD";							// Match our vertex shader input!
+		inputElements[1].AlignedByteOffset = D3D11_APPEND_ALIGNED_ELEMENT;	// After the previous element
+
+		// Set up the third element - a normal, which is 3 more float values
+		inputElements[2].Format = DXGI_FORMAT_R32G32B32_FLOAT;				// 3x 32-bit floats
+		inputElements[2].SemanticName = "NORMAL";							// Match our vertex shader input!
+		inputElements[2].AlignedByteOffset = D3D11_APPEND_ALIGNED_ELEMENT;	// After the previous element
+
+		// Set up the fourth element - a tangent, which is 3 more float values
+		inputElements[3].Format = DXGI_FORMAT_R32G32B32_FLOAT;				// 3x 32-bit floats
+		inputElements[3].SemanticName = "TANGENT";							// Match our vertex shader input!
+		inputElements[3].AlignedByteOffset = D3D11_APPEND_ALIGNED_ELEMENT;	// After the previous element
+
+
+		// Create the input layout, verifying our description against actual shader code
+		ID3DBlob* vertexShaderBlob;
+		D3DReadFileToBlob(FixPath(L"VertexShader.cso").c_str(), &vertexShaderBlob);
+		Graphics::Device->CreateInputLayout(
+			inputElements,							// An array of descriptions
+			ARRAYSIZE(inputElements),				// How many elements in that array?
+			vertexShaderBlob->GetBufferPointer(),	// Pointer to the code of a shader that uses this layout
+			vertexShaderBlob->GetBufferSize(),		// Size of the shader code that uses this layout
+			inputLayout.GetAddressOf());			// Address of the resulting ID3D11InputLayout pointer
+
+		// Set the input layout now that it exists
+		Graphics::Context->IASetInputLayout(inputLayout.Get());
+	}
 
 	// Create the camera
 	camera = std::make_shared<FPSCamera>(
@@ -139,18 +191,18 @@ void Game::LoadAssetsAndCreateEntities()
 #undef LoadTexture
 
 	// Load shaders (some are saved for later)
-	vertexShader = std::make_shared<SimpleVertexShader>(Graphics::Device, Graphics::Context, FixPath(L"VertexShader.cso").c_str());
-	insideOutVS = std::make_shared<SimpleVertexShader>(Graphics::Device, Graphics::Context, FixPath(L"InsideOutVS.cso").c_str());
-	fullscreenVS = std::make_shared<SimpleVertexShader>(Graphics::Device, Graphics::Context, FixPath(L"FullscreenTriangleVS.cso").c_str());
-	simpleTexturePS = std::make_shared<SimplePixelShader>(Graphics::Device, Graphics::Context, FixPath(L"SimpleTexturePS.cso").c_str());
-	solidColorPS = std::make_shared<SimplePixelShader>(Graphics::Device, Graphics::Context, FixPath(L"SolidColorPS.cso").c_str());
-	sobelFilterPS = std::make_shared<SimplePixelShader>(Graphics::Device, Graphics::Context, FixPath(L"SobelFilterPS.cso").c_str());
-	silhouettePS = std::make_shared<SimplePixelShader>(Graphics::Device, Graphics::Context, FixPath(L"SilhouettePS.cso").c_str());
-	depthNormalOutlinePS = std::make_shared<SimplePixelShader>(Graphics::Device, Graphics::Context, FixPath(L"DepthNormalOutlinePS.cso").c_str());
+	vertexShader = Graphics::LoadVertexShader(FixPath(L"VertexShader.cso").c_str());
+	insideOutVS = Graphics::LoadVertexShader(FixPath(L"InsideOutVS.cso").c_str());
+	fullscreenVS = Graphics::LoadVertexShader(FixPath(L"FullscreenTriangleVS.cso").c_str());
+	simpleTexturePS = Graphics::LoadPixelShader(FixPath(L"SimpleTexturePS.cso").c_str());
+	solidColorPS = Graphics::LoadPixelShader(FixPath(L"SolidColorPS.cso").c_str());
+	sobelFilterPS = Graphics::LoadPixelShader(FixPath(L"SobelFilterPS.cso").c_str());
+	silhouettePS = Graphics::LoadPixelShader(FixPath(L"SilhouettePS.cso").c_str());
+	depthNormalOutlinePS = Graphics::LoadPixelShader(FixPath(L"DepthNormalOutlinePS.cso").c_str());
 
-	std::shared_ptr<SimplePixelShader> toonPS = std::make_shared<SimplePixelShader>(Graphics::Device, Graphics::Context, FixPath(L"ToonPS.cso").c_str());
-	std::shared_ptr<SimpleVertexShader> skyVS = std::make_shared<SimpleVertexShader>(Graphics::Device, Graphics::Context, FixPath(L"SkyVS.cso").c_str());
-	std::shared_ptr<SimplePixelShader> skyPS = std::make_shared<SimplePixelShader>(Graphics::Device, Graphics::Context, FixPath(L"SkyPS.cso").c_str());
+	Microsoft::WRL::ComPtr<ID3D11PixelShader> toonPS = Graphics::LoadPixelShader(FixPath(L"ToonPS.cso").c_str());
+	Microsoft::WRL::ComPtr<ID3D11VertexShader> skyVS = Graphics::LoadVertexShader(FixPath(L"SkyVS.cso").c_str());
+	Microsoft::WRL::ComPtr<ID3D11PixelShader> skyPS = Graphics::LoadPixelShader(FixPath(L"SkyPS.cso").c_str());
 
 	// Load 3D models	
 	quadMesh = std::make_shared<Mesh>("Quad", FixPath(AssetPath + L"Meshes/quad.obj").c_str());
@@ -180,46 +232,46 @@ void Game::LoadAssetsAndCreateEntities()
 
 	// Create basic materials
 	std::shared_ptr<Material> whiteMat = std::make_shared<Material>("Toon White", toonPS, vertexShader, XMFLOAT3(1, 1, 1));
-	whiteMat->AddSampler("BasicSampler", sampler);
-	whiteMat->AddSampler("ClampSampler", clampSampler);
-	whiteMat->AddTextureSRV("Albedo", whiteSRV);
-	whiteMat->AddTextureSRV("NormalMap", flatNormalsSRV);
-	whiteMat->AddTextureSRV("RoughnessMap", blackSRV);
+	whiteMat->AddSampler(0, sampler);
+	whiteMat->AddSampler(1, clampSampler);
+	whiteMat->AddTextureSRV(0, whiteSRV);
+	whiteMat->AddTextureSRV(1, flatNormalsSRV);
+	whiteMat->AddTextureSRV(2, blackSRV);
 
 	std::shared_ptr<Material> redMat = std::make_shared<Material>("Toon Red", toonPS, vertexShader, XMFLOAT3(0.8f, 0, 0));
-	redMat->AddSampler("BasicSampler", sampler);
-	redMat->AddSampler("ClampSampler", clampSampler);
-	redMat->AddTextureSRV("Albedo", whiteSRV);
-	redMat->AddTextureSRV("NormalMap", flatNormalsSRV);
-	redMat->AddTextureSRV("RoughnessMap", blackSRV);
+	redMat->AddSampler(0, sampler);
+	redMat->AddSampler(1, clampSampler);
+	redMat->AddTextureSRV(0, whiteSRV);
+	redMat->AddTextureSRV(1, flatNormalsSRV);
+	redMat->AddTextureSRV(2, blackSRV);
 
 	std::shared_ptr<Material> detailedMat = std::make_shared<Material>("Toon Cushion", toonPS, vertexShader, XMFLOAT3(1, 1, 1), XMFLOAT2(2, 2));
-	detailedMat->AddSampler("BasicSampler", sampler);
-	detailedMat->AddSampler("ClampSampler", clampSampler);
-	detailedMat->AddTextureSRV("Albedo", cushionA);
-	detailedMat->AddTextureSRV("NormalMap", cushionN);
-	detailedMat->AddTextureSRV("RoughnessMap", blackSRV);
+	detailedMat->AddSampler(0, sampler);
+	detailedMat->AddSampler(1, clampSampler);
+	detailedMat->AddTextureSRV(0, cushionA);
+	detailedMat->AddTextureSRV(1, cushionN);
+	detailedMat->AddTextureSRV(2, blackSRV);
 
 	std::shared_ptr<Material> crateMat = std::make_shared<Material>("Toon Crate", toonPS, vertexShader, XMFLOAT3(1, 1, 1));
-	crateMat->AddSampler("BasicSampler", sampler);
-	crateMat->AddSampler("ClampSampler", clampSampler);
-	crateMat->AddTextureSRV("Albedo", crateA);
-	crateMat->AddTextureSRV("NormalMap", flatNormalsSRV);
-	crateMat->AddTextureSRV("RoughnessMap", greySRV);
+	crateMat->AddSampler(0, sampler);
+	crateMat->AddSampler(1, clampSampler);
+	crateMat->AddTextureSRV(0, crateA);
+	crateMat->AddTextureSRV(1, flatNormalsSRV);
+	crateMat->AddTextureSRV(2, greySRV);
 
 	std::shared_ptr<Material> mandoMat = std::make_shared<Material>("Toon Mando", toonPS, vertexShader, XMFLOAT3(1, 1, 1));
-	mandoMat->AddSampler("BasicSampler", sampler);
-	mandoMat->AddSampler("ClampSampler", clampSampler);
-	mandoMat->AddTextureSRV("Albedo", mandoA);
-	mandoMat->AddTextureSRV("NormalMap", flatNormalsSRV);
-	mandoMat->AddTextureSRV("RoughnessMap", blackSRV);
+	mandoMat->AddSampler(0, sampler);
+	mandoMat->AddSampler(1, clampSampler);
+	mandoMat->AddTextureSRV(0, mandoA);
+	mandoMat->AddTextureSRV(1, flatNormalsSRV);
+	mandoMat->AddTextureSRV(2, blackSRV);
 
 	std::shared_ptr<Material> containerMat = std::make_shared<Material>("Toon Container", toonPS, vertexShader, XMFLOAT3(1, 1, 1));
-	containerMat->AddSampler("BasicSampler", sampler);
-	containerMat->AddSampler("ClampSampler", clampSampler);
-	containerMat->AddTextureSRV("Albedo", containerA);
-	containerMat->AddTextureSRV("NormalMap", flatNormalsSRV);
-	containerMat->AddTextureSRV("RoughnessMap", greySRV);
+	containerMat->AddSampler(0, sampler);
+	containerMat->AddSampler(1, clampSampler);
+	containerMat->AddTextureSRV(0, containerA);
+	containerMat->AddTextureSRV(1, flatNormalsSRV);
+	containerMat->AddTextureSRV(2, greySRV);
 
 	// Add materials to list
 	materials.insert(materials.end(), { whiteMat, redMat, detailedMat, crateMat, mandoMat, containerMat });
@@ -484,12 +536,8 @@ void Game::DrawLightSources()
 	unsigned int indexCount = pointLightMesh->GetIndexCount();
 
 	// Turn on these shaders
-	vertexShader->SetShader();
-	solidColorPS->SetShader();
-
-	// Set up vertex shader
-	vertexShader->SetMatrix4x4("view", camera->GetView());
-	vertexShader->SetMatrix4x4("projection", camera->GetProjection());
+	Graphics::Context->VSSetShader(vertexShader.Get(), 0, 0);
+	Graphics::Context->PSSetShader(solidColorPS.Get(), 0, 0);
 
 	for (int i = 0; i < options.LightCount; i++)
 	{
@@ -515,19 +563,19 @@ void Game::DrawLightSources()
 		XMFLOAT4X4 world;
 		XMStoreFloat4x4(&world, scaleMat * transMat);
 
-		// Set up the world matrix for this light
-		vertexShader->SetMatrix4x4("world", world);
+		// Set vertex shader data
+		VertexShaderExternalData vsData{};
+		vsData.worldMatrix = world;
+		vsData.viewMatrix = camera->GetView();
+		vsData.projectionMatrix = camera->GetProjection();
+		Graphics::FillAndBindNextConstantBuffer(&vsData, sizeof(VertexShaderExternalData), D3D11_VERTEX_SHADER, 0);
 
 		// Set up the pixel shader data
 		XMFLOAT3 finalColor = light.Color;
 		finalColor.x *= light.Intensity;
 		finalColor.y *= light.Intensity;
 		finalColor.z *= light.Intensity;
-		solidColorPS->SetFloat3("Color", finalColor);
-
-		// Copy data
-		vertexShader->CopyAllBufferData();
-		solidColorPS->CopyAllBufferData();
+		Graphics::FillAndBindNextConstantBuffer(&finalColor, sizeof(XMFLOAT3), D3D11_PIXEL_SHADER, 0);
 
 		// Draw
 		Graphics::Context->DrawIndexed(indexCount, 0, 0);
@@ -541,8 +589,8 @@ void Game::DrawLightSources()
 void Game::DrawQuadAtLocation(Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> srv, DirectX::XMFLOAT3 position, DirectX::XMFLOAT2 scale, DirectX::XMFLOAT3 pitchYawRoll)
 {
 	// Turn on these shaders
-	vertexShader->SetShader();
-	simpleTexturePS->SetShader();
+	Graphics::Context->VSSetShader(vertexShader.Get(), 0, 0);
+	Graphics::Context->PSSetShader(simpleTexturePS.Get(), 0, 0);
 
 	// Set up vertex shader
 	XMFLOAT4X4 world;
@@ -550,14 +598,17 @@ void Game::DrawQuadAtLocation(Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> s
 		XMMatrixScaling(0.5f * scale.x, -0.5f * scale.y, 1) *
 		XMMatrixRotationRollPitchYaw(pitchYawRoll.x, pitchYawRoll.y, pitchYawRoll.z) *
 		XMMatrixTranslation(position.x, position.y, position.z));
-	vertexShader->SetMatrix4x4("world", world);
-	vertexShader->SetMatrix4x4("view", camera->GetView());
-	vertexShader->SetMatrix4x4("projection", camera->GetProjection());
-	vertexShader->CopyAllBufferData();
+	
+	// Set vertex shader data (skipping inv-transpose matrix on purpose)
+	VertexShaderExternalData vsData{};
+	vsData.worldMatrix = world;
+	vsData.viewMatrix = camera->GetView();
+	vsData.projectionMatrix = camera->GetProjection();
+	Graphics::FillAndBindNextConstantBuffer(&vsData, sizeof(VertexShaderExternalData), D3D11_VERTEX_SHADER, 0);
 
-	// Set up pixel shader
-	simpleTexturePS->SetShaderResourceView("Pixels", srv);
-	simpleTexturePS->SetSamplerState("BasicSampler", clampSampler);
+	// Set up pixel shader resources
+	Graphics::Context->PSSetShaderResources(0, 1, srv.GetAddressOf());
+	Graphics::Context->PSSetSamplers(0, 1, clampSampler.GetAddressOf());
 
 	// Draw quad
 	quadMesh->SetBuffersAndDraw();
@@ -572,33 +623,55 @@ void Game::RenderEntitiesWithToonShading(ToonShadingType toonMode, Microsoft::WR
 	// Loop through the game entities in the current scene and draw
 	for (auto& e : entities)
 	{
-		// Set total time on this entity's material's pixel shader
-		// Note: If the shader doesn't have this variable, nothing happens
-		std::shared_ptr<SimplePixelShader> ps = e->GetMaterial()->GetPixelShader();
-		ps->SetData("lights", &lights[0], sizeof(Light) * (int)lights.size());
-		ps->SetInt("lightCount", options.LightCount);
-		ps->SetInt("toonShadingType", toonMode);
+		// Grab the material and it have bind its resources (textures and samplers)
+		std::shared_ptr<Material> mat = e->GetMaterial();
+		mat->BindTexturesAndSamplers();
 
+		// Set up shaders
+		Graphics::Context->VSSetShader(mat->GetVertexShader().Get(), 0, 0);
+		Graphics::Context->PSSetShader(mat->GetPixelShader().Get(), 0, 0);
+
+		// If we're overriding the position, save the old one
+		XMFLOAT3 originalPos = e->GetTransform()->GetPosition();
+		if (offsetPositions) e->GetTransform()->MoveAbsolute(offset);
+
+		// Set vertex shader data
+		VertexShaderExternalData vsData{};
+		vsData.worldMatrix = e->GetTransform()->GetWorldMatrix();
+		vsData.worldInvTransMatrix = e->GetTransform()->GetWorldInverseTransposeMatrix();
+		vsData.viewMatrix = camera->GetView();
+		vsData.projectionMatrix = camera->GetProjection();
+		Graphics::FillAndBindNextConstantBuffer(&vsData, sizeof(VertexShaderExternalData), D3D11_VERTEX_SHADER, 0);
+
+		// Set pixel shader data
+		PixelShaderExternalData psData{};
+		memcpy(&psData.lights, &lights[0], sizeof(Light) * lights.size());
+		psData.lightCount = options.LightCount;
+		psData.cameraPosition = camera->GetTransform()->GetPosition();
+		psData.colorTint = mat->GetColorTint();
+		psData.uvOffset = mat->GetUVOffset();
+		psData.uvScale = mat->GetUVScale();
+		psData.toonShadingType = (int)toonMode;
+	
 		// Need to set the silhouette ID if that's the outline mode
 		if (options.OutlineMode == OutlineSilhouette)
 		{
-			ps->SetInt("silhouetteID", silhouetteID);
+			psData.silhouetteID = silhouetteID;
 			silhouetteID++; // Increment, too!
 		}
 
 		// Set toon-shading textures if necessary
 		if (toonMode == ToonShadingRamp)
 		{
-			ps->SetShaderResourceView("ToonRamp", toonRamp);
-			ps->SetShaderResourceView("ToonRampSpecular", specularRamp);
+			Graphics::Context->PSSetShaderResources(3, 1, toonRamp.GetAddressOf());
+			Graphics::Context->PSSetShaderResources(4, 1, specularRamp.GetAddressOf());
 		}
 
-		// If we're overriding the position, save the old one
-		XMFLOAT3 originalPos = e->GetTransform()->GetPosition();
-		if (offsetPositions) e->GetTransform()->MoveAbsolute(offset);
-
+		// Finally copy the data to the GPU
+		Graphics::FillAndBindNextConstantBuffer(&psData, sizeof(PixelShaderExternalData), D3D11_PIXEL_SHADER, 0);
+		
 		// Draw one entity
-		e->Draw(camera);
+		e->Draw();
 
 		// Outline too?
 		if (options.OutlineMode == OutlineInsideOut)
@@ -713,80 +786,49 @@ void Game::PreRender()
 // --------------------------------------------------------
 void Game::PostRender()
 {
-	// Which form of outline are we handling?
+	// Early out if no post processing
+	if (options.OutlineMode == OutlineNone || options.OutlineMode == OutlineInsideOut)
+		return;
+
+	// Now that the scene is rendered, swap to the back buffer
+	Graphics::Context->OMSetRenderTargets(1, Graphics::BackBufferRTV.GetAddressOf(), 0);
+
+	// Set common states and resources
+	Graphics::Context->VSSetShader(fullscreenVS.Get(), 0, 0);
+	Graphics::Context->PSSetShaderResources(0, 1, ppSRV.GetAddressOf());
+	Graphics::Context->PSSetSamplers(0, 1, clampSampler.GetAddressOf());
+
+	// Set up common data for any of the below pixel shaders
+	// Note: They're all written with compatible cbuffer layouts
+	struct PSData
+	{
+		float pixelWidth;
+		float pixelHeight;
+		float depthAdjust;
+		float normalAdjust;
+	};
+	PSData psData{};
+	psData.pixelWidth = 1.0f / Window::Width();
+	psData.pixelHeight = 1.0f / Window::Height();
+	psData.depthAdjust = 5.0f;
+	psData.normalAdjust = 5.0f;
+	Graphics::FillAndBindNextConstantBuffer(&psData, sizeof(PSData), D3D11_PIXEL_SHADER, 0);
+
+	// Set the appropriate shader and other resources
 	switch (options.OutlineMode)
 	{
-
-	case OutlineSobelFilter:
-		// Now that the scene is rendered, swap to the back buffer
-		Graphics::Context->OMSetRenderTargets(1, Graphics::BackBufferRTV.GetAddressOf(), 0);
-
-		// Set up post process shaders
-		fullscreenVS->SetShader();
-
-		// Note: Probably needs a clamp sampler, too
-		sobelFilterPS->SetShader();
-		sobelFilterPS->SetShaderResourceView("pixels", ppSRV.Get());
-		sobelFilterPS->SetSamplerState("samplerOptions", clampSampler.Get());
-		sobelFilterPS->SetFloat("pixelWidth", 1.0f / Window::Width());
-		sobelFilterPS->SetFloat("pixelHeight", 1.0f / Window::Height());
-		sobelFilterPS->CopyAllBufferData();
-
-		// Draw exactly 3 vertices, which the special post-process vertex shader will
-		// "figure out" on the fly (resulting in our "full screen triangle")
-		Graphics::Context->Draw(3, 0);
-
-		break;
-
-
-	case OutlineSilhouette:
-
-		// Now that the scene is rendered, swap to the back buffer
-		Graphics::Context->OMSetRenderTargets(1, Graphics::BackBufferRTV.GetAddressOf(), 0);
-		
-		// Set up post process shaders
-		fullscreenVS->SetShader();
-
-		silhouettePS->SetShaderResourceView("pixels", ppSRV.Get());
-		silhouettePS->SetSamplerState("samplerOptions", clampSampler.Get());
-		silhouettePS->SetShader();
-
-		silhouettePS->SetFloat("pixelWidth", 1.0f / Window::Width());
-		silhouettePS->SetFloat("pixelHeight", 1.0f / Window::Height());
-		silhouettePS->CopyAllBufferData();
-
-		// Draw exactly 3 vertices, which the special post-process vertex shader will
-		// "figure out" on the fly (resulting in our "full screen triangle")
-		Graphics::Context->Draw(3, 0);
-
-		break;
-
+	case OutlineSobelFilter: Graphics::Context->PSSetShader(sobelFilterPS.Get(), 0, 0); break;
+	case OutlineSilhouette: Graphics::Context->PSSetShader(silhouettePS.Get(), 0, 0); break;
 	case OutlineDepthNormals:
-
-		// Now that the scene is rendered, swap to the back buffer
-		Graphics::Context->OMSetRenderTargets(1, Graphics::BackBufferRTV.GetAddressOf(), 0);
-
-		// Set up post process shaders
-		fullscreenVS->SetShader();
-
-		depthNormalOutlinePS->SetShaderResourceView("pixels", ppSRV.Get());
-		depthNormalOutlinePS->SetShaderResourceView("normals", sceneNormalsSRV.Get());
-		depthNormalOutlinePS->SetShaderResourceView("depth", sceneDepthSRV.Get());
-		depthNormalOutlinePS->SetSamplerState("samplerOptions", clampSampler.Get());
-		depthNormalOutlinePS->SetShader();
-
-		depthNormalOutlinePS->SetFloat("pixelWidth", 1.0f / Window::Width());
-		depthNormalOutlinePS->SetFloat("pixelHeight", 1.0f / Window::Height());
-		depthNormalOutlinePS->SetFloat("depthAdjust", 5.0f);
-		depthNormalOutlinePS->SetFloat("normalAdjust", 5.0f);
-		depthNormalOutlinePS->CopyAllBufferData();
-
-		// Draw exactly 3 vertices, which the special post-process vertex shader will
-		// "figure out" on the fly (resulting in our "full screen triangle")
-		Graphics::Context->Draw(3, 0);
-
+		Graphics::Context->PSSetShader(depthNormalOutlinePS.Get(), 0, 0);
+		Graphics::Context->PSSetShaderResources(1, 1, sceneNormalsSRV.GetAddressOf());
+		Graphics::Context->PSSetShaderResources(2, 1, sceneDepthSRV.GetAddressOf());
 		break;
 	}
+
+	// Draw exactly 3 vertices, which the special post-process vertex shader will
+	// "figure out" on the fly (resulting in our "full screen triangle")
+	Graphics::Context->Draw(3, 0);
 
 	// Unbind shader resource views at the end of the frame,
 	// since we'll be rendering into one of those textures
@@ -802,23 +844,35 @@ void Game::PostRender()
 // --------------------------------------------------------
 void Game::DrawOutlineInsideOut(std::shared_ptr<GameEntity> entity, std::shared_ptr<Camera> camera, float outlineSize)
 {
-	insideOutVS->SetShader();
-	solidColorPS->SetShader();
+	// Set up shaders
+	Graphics::Context->VSSetShader(insideOutVS.Get(), 0, 0);
+	Graphics::Context->PSSetShader(solidColorPS.Get(), 0, 0);
 
-	insideOutVS->SetMatrix4x4("world", entity->GetTransform()->GetWorldMatrix());
-	insideOutVS->SetMatrix4x4("view", camera->GetView());
-	insideOutVS->SetMatrix4x4("projection", camera->GetProjection());
-	insideOutVS->SetFloat("outlineSize", outlineSize);
-	insideOutVS->CopyAllBufferData();
+	struct InsideOutVSData
+	{
+		XMFLOAT4X4 world;
+		XMFLOAT4X4 view;
+		XMFLOAT4X4 projection;
+		float outlineSize;
+	};
 
-	solidColorPS->SetFloat3("Color", XMFLOAT3(0, 0, 0));
-	solidColorPS->CopyAllBufferData();
+	InsideOutVSData vsData{};
+	vsData.world = entity->GetTransform()->GetWorldMatrix();
+	vsData.view = camera->GetView();
+	vsData.projection = camera->GetProjection();
+	vsData.outlineSize = outlineSize;
+	Graphics::FillAndBindNextConstantBuffer(&vsData, sizeof(InsideOutVSData), D3D11_VERTEX_SHADER, 0);
+
+
+	// Set up the pixel shader data
+	XMFLOAT3 black{};
+	Graphics::FillAndBindNextConstantBuffer(&black, sizeof(XMFLOAT3), D3D11_PIXEL_SHADER, 0);
 
 	// Set render states
 	Graphics::Context->RSSetState(insideOutRasterState.Get());
 
 	// Draw the mesh
-	entity->GetMesh()->SetBuffersAndDraw();
+	entity->Draw();
 
 	// Reset render states
 	Graphics::Context->RSSetState(0);

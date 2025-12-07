@@ -9,7 +9,6 @@
 #include "GameEntity.h"
 #include "Camera.h"
 #include "Material.h"
-#include "SimpleShader.h"
 #include "Lights.h"
 #include "Sky.h"
 #include "UIHelpers.h"
@@ -62,15 +61,18 @@ private:
 	std::shared_ptr<Mesh> pointLightMesh;
 
 	// Shaders for solid color spheres
-	std::shared_ptr<SimplePixelShader> solidColorPS;
-	std::shared_ptr<SimpleVertexShader> vertexShader;
+	Microsoft::WRL::ComPtr<ID3D11PixelShader> solidColorPS;
+	Microsoft::WRL::ComPtr<ID3D11VertexShader> vertexShader;
+
+	// D3D API objects
+	Microsoft::WRL::ComPtr<ID3D11InputLayout> inputLayout;
 
 	// Toon shading -------------------------------
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> toonRamp1;
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> toonRamp2;
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> toonRamp3;
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> specularRamp;
-	std::shared_ptr<SimplePixelShader> simpleTexturePS;
+	Microsoft::WRL::ComPtr<ID3D11PixelShader> simpleTexturePS;
 
 
 	// Outline rendering --------------------------
@@ -79,24 +81,24 @@ private:
 	Microsoft::WRL::ComPtr<ID3D11RenderTargetView> ppRTV;		// Allows us to render to a texture
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> ppSRV;		// Allows us to sample from the same texture
 	Microsoft::WRL::ComPtr<ID3D11SamplerState> clampSampler;
-	std::shared_ptr<SimpleVertexShader> fullscreenVS;
+	Microsoft::WRL::ComPtr<ID3D11VertexShader> fullscreenVS;
 	void PreRender();
 	void PostRender();
 
 	// Sobel
-	std::shared_ptr<SimplePixelShader> sobelFilterPS;
+	Microsoft::WRL::ComPtr<ID3D11PixelShader> sobelFilterPS;
 
 	// Inside-out technique
-	std::shared_ptr<SimpleVertexShader> insideOutVS;
+	Microsoft::WRL::ComPtr<ID3D11VertexShader> insideOutVS;
 	Microsoft::WRL::ComPtr<ID3D11RasterizerState> insideOutRasterState;
 	void DrawOutlineInsideOut(std::shared_ptr<GameEntity> entity, std::shared_ptr<Camera> camera, float outlineSize);
 
 	// Silhouette technique
-	std::shared_ptr<SimplePixelShader> silhouettePS;
+	Microsoft::WRL::ComPtr<ID3D11PixelShader> silhouettePS;
 	int silhouetteID;
 
 	// Depth/normal technique
-	std::shared_ptr<SimplePixelShader> depthNormalOutlinePS;
+	Microsoft::WRL::ComPtr<ID3D11PixelShader> depthNormalOutlinePS;
 	Microsoft::WRL::ComPtr<ID3D11RenderTargetView> sceneDepthRTV;
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> sceneDepthSRV;
 	Microsoft::WRL::ComPtr<ID3D11RenderTargetView> sceneNormalsRTV;
