@@ -444,7 +444,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> Graphics::CreateStaticBuffer(size_t dataS
 		IID_PPV_ARGS(localList.GetAddressOf()));
 
 	// The overall buffer we'll be creating
-	Microsoft::WRL::ComPtr<ID3D12Resource> buffer;
+	Microsoft::WRL::ComPtr<ID3D12Resource> finalBuffer;
 
 	// Describes the final heap
 	D3D12_HEAP_PROPERTIES props = {};
@@ -467,15 +467,19 @@ Microsoft::WRL::ComPtr<ID3D12Resource> Graphics::CreateStaticBuffer(size_t dataS
 	desc.SampleDesc.Quality = 0;
 	desc.Width = dataStride * dataCount; // Size of the buffer
 
+	// Note that even though we're starting this buffer in the "common" resource
+	// state, it will be implicitly transitioned to the "copy destination" state
+	// when used for a copy operation below.  For more info, see:
+	// https://learn.microsoft.com/en-us/windows/win32/direct3d12/user-mode-heap-synchronization#multi-queue-resource-access
 	Device->CreateCommittedResource(
 		&props,
 		D3D12_HEAP_FLAG_NONE,
 		&desc,
-		D3D12_RESOURCE_STATE_COPY_DEST,
+		D3D12_RESOURCE_STATE_COMMON, // Must start in "common" state to avoid warning
 		0,
-		IID_PPV_ARGS(buffer.GetAddressOf()));
+		IID_PPV_ARGS(finalBuffer.GetAddressOf()));
 
-	// Now create an intermediate upload heap for copying initial data
+	// Now create an intermediate upload heap for CPU->GPU copy of initial data
 	D3D12_HEAP_PROPERTIES uploadProps = {};
 	uploadProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
 	uploadProps.CreationNodeMask = 1;
@@ -483,30 +487,30 @@ Microsoft::WRL::ComPtr<ID3D12Resource> Graphics::CreateStaticBuffer(size_t dataS
 	uploadProps.Type = D3D12_HEAP_TYPE_UPLOAD;
 	uploadProps.VisibleNodeMask = 1;
 
-	Microsoft::WRL::ComPtr<ID3D12Resource> uploadHeap;
+	Microsoft::WRL::ComPtr<ID3D12Resource> uploadBuffer;
 	Device->CreateCommittedResource(
 		&uploadProps,
 		D3D12_HEAP_FLAG_NONE,
 		&desc,
 		D3D12_RESOURCE_STATE_GENERIC_READ,
 		0,
-		IID_PPV_ARGS(uploadHeap.GetAddressOf()));
+		IID_PPV_ARGS(uploadBuffer.GetAddressOf()));
 
 	// Do a straight map/memcpy/unmap
 	void* gpuAddress = 0;
-	uploadHeap->Map(0, 0, &gpuAddress);
+	uploadBuffer->Map(0, 0, &gpuAddress);
 	memcpy(gpuAddress, data, dataStride * dataCount);
-	uploadHeap->Unmap(0, 0);
+	uploadBuffer->Unmap(0, 0);
 
 	// Copy the whole buffer from uploadheap to vert buffer
-	localList->CopyResource(buffer.Get(), uploadHeap.Get());
+	localList->CopyResource(finalBuffer.Get(), uploadBuffer.Get());
 
-	// Transition the buffer to generic read for the rest of the app lifetime (presumable)
+	// Transition the buffer to generic read
 	D3D12_RESOURCE_BARRIER rb = {};
 	rb.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
 	rb.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-	rb.Transition.pResource = buffer.Get();
-	rb.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
+	rb.Transition.pResource = finalBuffer.Get();
+	rb.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST; // Was implicitly transitioned to copy_dest
 	rb.Transition.StateAfter = D3D12_RESOURCE_STATE_GENERIC_READ;
 	rb.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
 	localList->ResourceBarrier(1, &rb);
@@ -518,7 +522,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> Graphics::CreateStaticBuffer(size_t dataS
 	CommandQueue->ExecuteCommandLists(1, list);
 	
 	WaitForGPU();
-	return buffer;
+	return finalBuffer;
 }
 
 
