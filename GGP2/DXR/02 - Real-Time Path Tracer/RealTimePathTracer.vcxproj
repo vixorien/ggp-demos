@@ -24,7 +24,7 @@
     <ProjectGuid>{acf860a3-2352-4ab1-a8d0-00295a054e84}</ProjectGuid>
     <RootNamespace>DX11Starter</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
-    <ProjectName>Multiple Objects</ProjectName>
+    <ProjectName>RealTimePathTracer</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">

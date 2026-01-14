@@ -226,7 +226,7 @@ void RayGen()
 		// Set up the payload for the ray
 		RayPayload payload;
 		payload.color = float3(1, 1, 1);
-		payload.recursionDepth = 0;
+		payload.recursionDepth = 22;
 		payload.rayPerPixelIndex = r;
 		
 		// Perform the ray trace for this ray
@@ -291,7 +291,7 @@ void ClosestHit(inout RayPayload payload, BuiltInTriangleIntersectionAttributes 
 	float3 refl = reflect(WorldRayDirection(), normal_WS);
 	float3 randomBounce = RandomCosineWeightedHemisphere(rand(rng), rand(rng.yx), normal_WS);
 	float3 dir = normalize(lerp(refl, randomBounce, entityColor[InstanceID()].a));
-	
+		
 	// Create the new recursive ray
 	RayDesc ray;
 	ray.Origin = WorldRayOrigin() + WorldRayDirection() * RayTCurrent();
