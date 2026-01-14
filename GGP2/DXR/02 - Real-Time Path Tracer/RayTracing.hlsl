@@ -226,7 +226,7 @@ void RayGen()
 		// Set up the payload for the ray
 		RayPayload payload;
 		payload.color = float3(1, 1, 1);
-		payload.recursionDepth = 22;
+		payload.recursionDepth = 0;
 		payload.rayPerPixelIndex = r;
 		
 		// Perform the ray trace for this ray
