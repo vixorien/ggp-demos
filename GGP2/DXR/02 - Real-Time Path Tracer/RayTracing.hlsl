@@ -272,7 +272,7 @@ void ClosestHit(inout RayPayload payload, BuiltInTriangleIntersectionAttributes 
 	// If we've reached the max recursion, we haven't hit a light source (the sky, which is the "miss shader" here)
 	if (payload.recursionDepth == 10)
 	{
-		payload.color = float3(0, 0, 0);
+		payload.color = float3(1, 0, 0);
 		return;
 	}
 	
