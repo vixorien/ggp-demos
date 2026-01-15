@@ -268,11 +268,11 @@ void Miss(inout RayPayload payload)
 // Closest hit shader - Runs the first time a ray hits anything
 [shader("closesthit")]
 void ClosestHit(inout RayPayload payload, BuiltInTriangleIntersectionAttributes hitAttributes)
-{
+{	
 	// If we've reached the max recursion, we haven't hit a light source (the sky, which is the "miss shader" here)
 	if (payload.recursionDepth == 10)
 	{
-		payload.color = float3(1, 0, 0);
+		payload.color = float3(0, 0, 0);
 		return;
 	}
 	
