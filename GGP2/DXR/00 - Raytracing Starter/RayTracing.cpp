@@ -428,7 +428,7 @@ void RayTracing::CreateRaytracingOutputUAV(unsigned int width, unsigned int heig
 		&heapDesc,
 		D3D12_HEAP_FLAG_NONE,
 		&desc,
-		D3D12_RESOURCE_STATE_COPY_SOURCE,
+		D3D12_RESOURCE_STATE_COMMON,
 		0,
 		IID_PPV_ARGS(RaytracingOutput.GetAddressOf()));
 
@@ -519,7 +519,7 @@ void RayTracing::CreateBottomLevelAccelerationStructureForMesh(Mesh* mesh)
 	BLASScratchBuffer = Graphics::CreateBuffer(
 		accelStructPrebuildInfo.ScratchDataSizeInBytes,
 		D3D12_HEAP_TYPE_DEFAULT,
-		D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+		D3D12_RESOURCE_STATE_COMMON,
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
 		max(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT, D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT));
 
@@ -653,7 +653,7 @@ void RayTracing::CreateTopLevelAccelerationStructureForScene()
 	TLASScratchBuffer = Graphics::CreateBuffer(
 		accelStructPrebuildInfo.ScratchDataSizeInBytes,
 		D3D12_HEAP_TYPE_DEFAULT,
-		D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+		D3D12_RESOURCE_STATE_COMMON,
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
 		max(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT, D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT));
 
