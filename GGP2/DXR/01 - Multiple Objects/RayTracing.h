@@ -8,6 +8,7 @@
 #include "Mesh.h"
 #include "Camera.h"
 #include "GameEntity.h"
+#include "Graphics.h"
 
 namespace RayTracing
 {
@@ -42,8 +43,7 @@ namespace RayTracing
 
 	// Accel structure requirements
 	inline Microsoft::WRL::ComPtr<ID3D12Resource> TLASScratchBuffer;
-	inline Microsoft::WRL::ComPtr<ID3D12Resource> BLASScratchBuffer;
-	inline Microsoft::WRL::ComPtr<ID3D12Resource> TLASInstanceDescBuffer;
+	inline Microsoft::WRL::ComPtr<ID3D12Resource> TLASInstanceDescBuffer[Graphics::NumBackBuffers];
 	inline Microsoft::WRL::ComPtr<ID3D12Resource> TLAS;
 
 	// Actual output resource

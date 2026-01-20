@@ -243,17 +243,8 @@ void Game::Initialize()
 
 	}
 
-
-
-	// Once we have all of the BLAS ready, we can make a TLAS
-	RayTracing::CreateTopLevelAccelerationStructureForScene(entities);
-
-	// Finalize any initialization and wait for the GPU
-	// before proceeding to the game loop
-	Graphics::CloseAndExecuteCommandList();
-	Graphics::WaitForGPU();
-	Graphics::ResetAllocatorAndCommandList(0);
-
+	// Note: Waiting until the first Draw() to build the
+	// initial ray tracing top level accel structure
 }
 
 

@@ -25,7 +25,7 @@ namespace RayTracing
 		// in the event they need to be resized later
 		UINT64 tlasBufferSizeInBytes = 0;
 		UINT64 tlasScratchSizeInBytes = 0;
-		UINT64 tlasInstanceDataSizeInBytes = 0;
+		UINT64 tlasInstanceDataSizeInBytes[Graphics::NumBackBuffers]{};
 
 
 		// Error messages
@@ -545,10 +545,7 @@ void RayTracing::ResizeOutputUAV(
 
 
 // --------------------------------------------------------
-// Creates a BLAS for a particular mesh.  
-// 
-// NOTE: This demo assumes exactly one BLAS, so running this 
-// method more than once is not advised!
+// Creates a BLAS for a particular mesh.
 // --------------------------------------------------------
 MeshRayTracingData RayTracing::CreateBottomLevelAccelerationStructureForMesh(Mesh* mesh)
 {
@@ -588,10 +585,10 @@ MeshRayTracingData RayTracing::CreateBottomLevelAccelerationStructureForMesh(Mes
 	accelStructPrebuildInfo.ResultDataMaxSizeInBytes = ALIGN(accelStructPrebuildInfo.ResultDataMaxSizeInBytes, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT);
 
 	// Create a scratch buffer so the device has a place to temporarily store data
-	BLASScratchBuffer = Graphics::CreateBuffer(
+	Microsoft::WRL::ComPtr<ID3D12Resource> BLASScratchBuffer = Graphics::CreateBuffer(
 		accelStructPrebuildInfo.ScratchDataSizeInBytes,
 		D3D12_HEAP_TYPE_DEFAULT,
-		D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+		D3D12_RESOURCE_STATE_COMMON,
 		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
 		max(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT, D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT));
 
@@ -682,7 +679,7 @@ MeshRayTracingData RayTracing::CreateBottomLevelAccelerationStructureForMesh(Mes
 // --------------------------------------------------------
 // Creates the top level accel structure, which can be made
 // up of one or more BLAS instances, each with their own
-// unique transform.  This demo uses exactly one BLAS instance.
+// unique transform.
 // --------------------------------------------------------
 void RayTracing::CreateTopLevelAccelerationStructureForScene(std::vector<std::shared_ptr<GameEntity>> scene)
 {
@@ -756,32 +753,34 @@ void RayTracing::CreateTopLevelAccelerationStructureForScene(std::vector<std::sh
 		instanceIDs[meshBlasIndex]++;
 	}
 
+	// Grab the frame index
+	unsigned int frameIndex = Graphics::SwapChainIndex();
 
 	// Is our current description buffer too small?
-	if (sizeof(D3D12_RAYTRACING_INSTANCE_DESC) * instanceDescs.size() > tlasInstanceDataSizeInBytes)
+	if (sizeof(D3D12_RAYTRACING_INSTANCE_DESC) * instanceDescs.size() > tlasInstanceDataSizeInBytes[frameIndex])
 	{
 		// Create a new buffer to hold instance descriptions, since they
 		// need to actually be on the GPU
-		TLASInstanceDescBuffer.Reset();
-		tlasInstanceDataSizeInBytes = sizeof(D3D12_RAYTRACING_INSTANCE_DESC) * instanceDescs.size();
+		TLASInstanceDescBuffer[frameIndex].Reset();
+		tlasInstanceDataSizeInBytes[frameIndex] = sizeof(D3D12_RAYTRACING_INSTANCE_DESC) * instanceDescs.size();
 
-		TLASInstanceDescBuffer = Graphics::CreateBuffer(
-			tlasInstanceDataSizeInBytes,
+		TLASInstanceDescBuffer[frameIndex] = Graphics::CreateBuffer(
+			tlasInstanceDataSizeInBytes[frameIndex],
 			D3D12_HEAP_TYPE_UPLOAD,
 			D3D12_RESOURCE_STATE_GENERIC_READ);
 	}
 
 	// Copy the description into the new buffer
 	unsigned char* mapped = 0;
-	TLASInstanceDescBuffer->Map(0, 0, (void**)&mapped);
+	TLASInstanceDescBuffer[frameIndex]->Map(0, 0, (void**)&mapped);
 	memcpy(mapped, &instanceDescs[0], sizeof(D3D12_RAYTRACING_INSTANCE_DESC) * instanceDescs.size());
-	TLASInstanceDescBuffer->Unmap(0, 0);
+	TLASInstanceDescBuffer[frameIndex]->Unmap(0, 0);
 
 	// Describe our overall input so we can get sizing info
 	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS accelStructInputs = {};
 	accelStructInputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
 	accelStructInputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
-	accelStructInputs.InstanceDescs = TLASInstanceDescBuffer->GetGPUVirtualAddress();
+	accelStructInputs.InstanceDescs = TLASInstanceDescBuffer[frameIndex]->GetGPUVirtualAddress();
 	accelStructInputs.NumDescs = (unsigned int)instanceDescs.size();
 	accelStructInputs.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
 
@@ -803,7 +802,7 @@ void RayTracing::CreateTopLevelAccelerationStructureForScene(std::vector<std::sh
 		TLASScratchBuffer = Graphics::CreateBuffer(
 			tlasScratchSizeInBytes,
 			D3D12_HEAP_TYPE_DEFAULT,
-			D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
+			D3D12_RESOURCE_STATE_COMMON,
 			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
 			max(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT, D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT));
 	}

@@ -118,17 +118,8 @@ void Game::Initialize()
 		entities.push_back(sphereEnt);
 	}
 
-
-
-	// Once we have all of the BLAS ready, we can make a TLAS
-	RayTracing::CreateTopLevelAccelerationStructureForScene(entities);
-
-	// Finalize any initialization and wait for the GPU
-	// before proceeding to the game loop
-	Graphics::CloseAndExecuteCommandList();
-	Graphics::WaitForGPU();
-	Graphics::ResetAllocatorAndCommandList(0);
-
+	// Note: Waiting until the first Draw() to build the
+	// initial ray tracing top level accel structure
 }
 
 
@@ -252,16 +243,17 @@ void Game::Draw(float deltaTime, float totalTime)
 
 		// Must occur BEFORE present
 		Graphics::CloseAndExecuteCommandList();
-
+		
 		// Present the current back buffer and move to the next one
 		bool vsync = Graphics::VsyncState();
 		Graphics::SwapChain->Present(
 			vsync ? 1 : 0,
 			vsync ? 0 : DXGI_PRESENT_ALLOW_TEARING);
 		Graphics::AdvanceSwapChainIndex();
-
+		
 		// Reset the command list & allocator for the upcoming frame
 		Graphics::ResetAllocatorAndCommandList(Graphics::SwapChainIndex());
+		
 	}
 }
 
