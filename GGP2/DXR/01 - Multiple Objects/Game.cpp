@@ -32,9 +32,8 @@ using namespace DirectX;
 // --------------------------------------------------------
 void Game::Initialize()
 {
-	// Check for DXR support
-	if(FAILED(RayTracing::Initialize()))
-		return;
+	// Check for DXR support and setup required API objects
+	RayTracing::Initialize();
 
 	// Seed random
 	srand((unsigned int)time(0));

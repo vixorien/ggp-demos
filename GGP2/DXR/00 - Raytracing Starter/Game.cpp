@@ -28,6 +28,9 @@ using namespace DirectX;
 // --------------------------------------------------------
 void Game::Initialize()
 {
+	// Check for DXR support and setup required API objects
+	RayTracing::Initialize();
+
 	// Reserve a descriptor slot for ImGui's font texture
 	D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle;
 	D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle;
@@ -52,12 +55,6 @@ void Game::Initialize()
 
 		ImGui_ImplDX12_Init(&info);
 	}
-
-	// Initialize raytracing
-	RayTracing::Initialize(
-		Window::Width(),
-		Window::Height(),
-		FixPath(L"RayTracing.cso"));
 	
 	// Create the camera
 	camera = std::make_shared<FPSCamera>(
@@ -72,6 +69,12 @@ void Game::Initialize()
 
 	// Load mesh(es)
 	sphereMesh = std::make_shared<Mesh>("Sphere", FixPath(AssetPath + L"Meshes/sphere.obj").c_str());
+
+	// Initialize raytracing
+	RayTracing::CreateRequiredResources(
+		Window::Width(),
+		Window::Height(),
+		FixPath(L"RayTracing.cso"));
 
 	// Last step in raytracing setup is to create the accel structures,
 	// which require mesh data.  Currently just a single mesh is handled!

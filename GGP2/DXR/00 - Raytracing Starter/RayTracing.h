@@ -48,7 +48,8 @@ namespace RayTracing
 	inline D3D12_GPU_DESCRIPTOR_HANDLE vertexBufferSRV;
 
 	// --- FUNCTIONS ---
-	HRESULT Initialize(
+	HRESULT Initialize();
+	HRESULT CreateRequiredResources(
 		unsigned int outputWidth,
 		unsigned int outputHeight,
 		std::wstring raytracingShaderLibraryFile);

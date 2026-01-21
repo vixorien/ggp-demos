@@ -13,7 +13,7 @@ namespace RayTracing
 	namespace
 	{
 		bool dxrAvailable = false;
-		bool dxrInitialized = false;
+		bool dxrResourcesInitialized = false;
 
 		// Error messages
 		const char* errorRaytracingNotSupported = "\nERROR: Raytracing not supported by the current graphics device.\n(On laptops, this may be due to battery saver mode.)\n";
@@ -27,13 +27,9 @@ namespace RayTracing
 
 
 // --------------------------------------------------------
-// Check for raytracing support and create all necessary
-// raytracing resources, pipeline states, etc.
+// Check for raytracing support and prepare main API objects
 // --------------------------------------------------------
-HRESULT RayTracing::Initialize(
-	unsigned int outputWidth, 
-	unsigned int outputHeight, 
-	std::wstring raytracingShaderLibraryFile)
+HRESULT RayTracing::Initialize()
 {
 	// Use CheckFeatureSupport to determine if ray tracing is supported
 	D3D12_FEATURE_DATA_D3D12_OPTIONS5 rtSupport = {};
@@ -50,19 +46,30 @@ HRESULT RayTracing::Initialize(
 	if (FAILED(supportResult) || rtSupport.RaytracingTier == D3D12_RAYTRACING_TIER_NOT_SUPPORTED) { printf("%s", errorRaytracingNotSupported); return supportResult; }
 	if (FAILED(dxrDeviceResult)) { printf("%s", errorDXRDeviceQueryFailed); return dxrDeviceResult; }
 	if (FAILED(dxrCommandListResult)) { printf("%s", errorDXRCommandListQueryFailed); return dxrCommandListResult; }
-
+	
 	// We have DXR support
 	dxrAvailable = true;
 	printf("\nDXR initialization success!\n");
+	return S_OK;
+}
 
+// --------------------------------------------------------
+// Create all necessary ray tracing 
+// resources, pipeline states, etc.
+// --------------------------------------------------------
+HRESULT RayTracing::CreateRequiredResources(
+	unsigned int outputWidth,
+	unsigned int outputHeight,
+	std::wstring raytracingShaderLibraryFile)
+{
 	// Proceed with setup
 	CreateRaytracingRootSignatures();
 	CreateRaytracingPipelineState(raytracingShaderLibraryFile);
-	CreateShaderTable();
 	CreateRaytracingOutputUAV(outputWidth, outputHeight);
+	CreateShaderTable();
 
 	// All set
-	dxrInitialized = true;
+	dxrResourcesInitialized = true;
 	return S_OK;
 }
 
@@ -75,7 +82,7 @@ HRESULT RayTracing::Initialize(
 void RayTracing::CreateRaytracingRootSignatures()
 {
 	// Don't bother if DXR isn't available
-	if (dxrInitialized || !dxrAvailable)
+	if (dxrResourcesInitialized || !dxrAvailable)
 		return;
 
 	// Create a global root signature shared across all raytracing shaders
@@ -176,7 +183,7 @@ void RayTracing::CreateRaytracingRootSignatures()
 void RayTracing::CreateRaytracingPipelineState(std::wstring raytracingShaderLibraryFile)
 {
 	// Don't bother if DXR isn't available
-	if (dxrInitialized || !dxrAvailable)
+	if (dxrResourcesInitialized || !dxrAvailable)
 		return;
 
 	// Read the pre-compiled shader library to a blob
@@ -347,7 +354,7 @@ void RayTracing::CreateRaytracingPipelineState(std::wstring raytracingShaderLibr
 void RayTracing::CreateShaderTable()
 {
 	// Don't bother if DXR isn't available
-	if (dxrInitialized || !dxrAvailable)
+	if (dxrResourcesInitialized || !dxrAvailable)
 		return;
 
 	// Create the table of shaders and their data to use for rays
@@ -460,7 +467,7 @@ void RayTracing::ResizeOutputUAV(
 	unsigned int outputWidth,
 	unsigned int outputHeight)
 {
-	if (!dxrInitialized || !dxrAvailable)
+	if (!dxrResourcesInitialized || !dxrAvailable)
 		return;
 
 	// Wait for the GPU to be done
@@ -694,7 +701,7 @@ void RayTracing::CreateTopLevelAccelerationStructureForScene()
 // --------------------------------------------------------
 void RayTracing::Raytrace(std::shared_ptr<Camera> camera, Microsoft::WRL::ComPtr<ID3D12Resource> currentBackBuffer)
 {
-	if (!dxrInitialized || !dxrAvailable)
+	if (!dxrResourcesInitialized || !dxrAvailable)
 		return;
 
 	// Transition the output-related resources to the proper states
