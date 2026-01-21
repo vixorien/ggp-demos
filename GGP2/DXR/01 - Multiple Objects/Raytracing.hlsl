@@ -35,12 +35,10 @@ cbuffer SceneData : register(b0)
 	float3 cameraPosition;
 };
 
-// Ensure this matches C++ buffer struct define!
-#define MAX_INSTANCES_PER_BLAS 100
 cbuffer ObjectData : register(b1)
 {
-	float4 entityColor[MAX_INSTANCES_PER_BLAS];
-};
+	float4 entityColor;	
+}
 
 
 // === Resources ===
@@ -191,6 +189,5 @@ void ClosestHit(inout RayPayload payload, BuiltInTriangleIntersectionAttributes 
 	//payload.color = interpolatedVert.normal;
 	
 	// Get the data for this entity
-	uint instanceID = InstanceID();
-	payload.color = entityColor[instanceID].rgb;
+	payload.color = entityColor.rgb;
 }

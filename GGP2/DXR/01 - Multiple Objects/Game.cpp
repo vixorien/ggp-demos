@@ -32,6 +32,10 @@ using namespace DirectX;
 // --------------------------------------------------------
 void Game::Initialize()
 {
+	// Check for DXR support
+	if(FAILED(RayTracing::Initialize()))
+		return;
+
 	// Seed random
 	srand((unsigned int)time(0));
 
@@ -70,12 +74,6 @@ void Game::Initialize()
 		0.01f,					// Near clip
 		100.0f,					// Far clip
 		CameraProjectionType::Perspective);
-
-	// Initialize raytracing
-	RayTracing::Initialize(
-		Window::Width(),
-		Window::Height(),
-		FixPath(L"RayTracing.cso"));
 
 	// Create materials
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> pipelineState{};
@@ -117,6 +115,14 @@ void Game::Initialize()
 
 		entities.push_back(sphereEnt);
 	}
+
+	// Initialize raytracing
+	RayTracing::CreateRequiredResources(
+		Window::Width(),
+		Window::Height(),
+		FixPath(L"RayTracing.cso"),
+		entities);
+
 
 	// Note: Waiting until the first Draw() to build the
 	// initial ray tracing top level accel structure
