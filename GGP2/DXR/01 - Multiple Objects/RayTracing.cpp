@@ -650,12 +650,6 @@ void RayTracing::CreateTopLevelAccelerationStructureForScene(std::vector<std::sh
 	// Create vector of instance descriptions
 	std::vector<D3D12_RAYTRACING_INSTANCE_DESC> instanceDescs;
 
-	// Create a vector of instance IDs and another for per-BLAS entity data
-	std::vector<unsigned int> instanceIDs;
-	std::vector<RaytracingEntityData> entityData;
-	instanceIDs.resize(blasCount); // One per BLAS (mesh) - all starting at zero due to resize()
-	entityData.resize(blasCount);
-
 	// Create an instance description for each entity
 	for (size_t i = 0; i < scene.size(); i++)
 	{

@@ -41,12 +41,10 @@ cbuffer SceneData : register(b0)
 	int raysPerPixel;
 };
 
-// Ensure this matches C++ buffer struct define!
-#define MAX_INSTANCES_PER_BLAS 100
 cbuffer ObjectData : register(b1)
 {
-	float4 entityColor[MAX_INSTANCES_PER_BLAS];
-};
+	float4 entityColor;	
+}
 
 
 // === Resources ===
@@ -277,7 +275,7 @@ void ClosestHit(inout RayPayload payload, BuiltInTriangleIntersectionAttributes 
 	}
 	
 	// We've hit, so adjust the payload color by this instance's color
-	payload.color *= entityColor[InstanceID()].rgb;
+	payload.color *= entityColor.rgb;
 	
 	// Get the geometry hit details and convert normal to world space
 	Vertex hit = InterpolateVertices(PrimitiveIndex(), hitAttributes.barycentrics);
@@ -290,7 +288,7 @@ void ClosestHit(inout RayPayload payload, BuiltInTriangleIntersectionAttributes 
 	// Interpolate between perfect reflection and random bounce based on roughness
 	float3 refl = reflect(WorldRayDirection(), normal_WS);
 	float3 randomBounce = RandomCosineWeightedHemisphere(rand(rng), rand(rng.yx), normal_WS);
-	float3 dir = normalize(lerp(refl, randomBounce, entityColor[InstanceID()].a));
+	float3 dir = normalize(lerp(refl, randomBounce, entityColor.a));
 		
 	// Create the new recursive ray
 	RayDesc ray;

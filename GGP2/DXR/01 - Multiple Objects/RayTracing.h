@@ -42,11 +42,6 @@ namespace RayTracing
 	inline D3D12_CPU_DESCRIPTOR_HANDLE RaytracingOutputUAV_CPU;
 	inline D3D12_GPU_DESCRIPTOR_HANDLE RaytracingOutputUAV_GPU;
 
-	// Other SRVs for geometry
-	// - Larger application will need these FOR EACH MESH
-	inline D3D12_GPU_DESCRIPTOR_HANDLE indexBufferSRV;
-	inline D3D12_GPU_DESCRIPTOR_HANDLE vertexBufferSRV;
-
 	// --- FUNCTIONS ---
 	HRESULT Initialize();
 	HRESULT CreateRequiredResources(
