@@ -57,11 +57,9 @@ cbuffer SceneData : register(b0)
 	int raysPerPixel;
 };
 
-// Ensure this matches C++ buffer struct define!
-#define MAX_INSTANCES_PER_BLAS 100
 cbuffer ObjectData : register(b1)
 {
-	RaytracingMaterial materials[MAX_INSTANCES_PER_BLAS];
+	RaytracingMaterial material;
 };
 
 
@@ -320,7 +318,7 @@ void ClosestHit(inout RayPayload payload, BuiltInTriangleIntersectionAttributes 
 	float3 tangent_WS = normalize(mul(hit.tangent, (float3x3)ObjectToWorld4x3()));
 	
 	// Get this material data
-	RaytracingMaterial mat = materials[InstanceID()];
+	RaytracingMaterial mat = material;
 	float roughness = saturate(pow(mat.roughness, 2)); // Squared remap
 	float3 surfaceColor = mat.color.rgb;
 	float metal = mat.metal;

@@ -12,15 +12,6 @@
 
 namespace RayTracing
 {
-	// --- CONSTANTS ---
-
-	// This represents the maximum number of hit groups
-	// in our shader table, each of which corresponds to
-	// a unique combination of geometry & hit shader.
-	// In a simple demo, this is effectively the maximum
-	// number of unique mesh BLAS's.
-	const unsigned int MaxHitGroupsInShaderTable = 1000;
-
 	// --- GLOBAL VARS ---
 	// Raytracing-specific versions of base DX12 objects
 	inline Microsoft::WRL::ComPtr<ID3D12Device5> DXRDevice;
@@ -52,10 +43,12 @@ namespace RayTracing
 	inline D3D12_GPU_DESCRIPTOR_HANDLE RaytracingOutputUAV_GPU;
 
 	// --- FUNCTIONS ---
-	HRESULT Initialize(
+	HRESULT Initialize();
+	HRESULT CreateRequiredResources(
 		unsigned int outputWidth,
 		unsigned int outputHeight,
-		std::wstring raytracingShaderLibraryFile);
+		std::wstring raytracingShaderLibraryFile,
+		std::vector<std::shared_ptr<GameEntity>> scene);
 	void ResizeOutputUAV(
 		unsigned int outputWidth,
 		unsigned int outputHeight);
@@ -71,6 +64,6 @@ namespace RayTracing
 	// Helper functions for each initalization step
 	void CreateRaytracingRootSignatures();
 	void CreateRaytracingPipelineState(std::wstring raytracingShaderLibraryFile);
-	void CreateShaderTable();
+	void CreateShaderTable(std::vector<std::shared_ptr<GameEntity>> scene);
 	void CreateRaytracingOutputUAV(unsigned int width, unsigned int height);
 }

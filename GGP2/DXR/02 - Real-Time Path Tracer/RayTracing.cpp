@@ -166,7 +166,7 @@ void RayTracing::CreateRaytracingRootSignatures()
 		geometrySRVRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
 		geometrySRVRange.RegisterSpace = 0;
 
-		// Two params: Tables for constant buffer and geometry
+		// Two params: Table for geometry and a root param for entity data
 		D3D12_ROOT_PARAMETER rootParams[2] = {};
 
 		// Range of SRVs for geometry (verts & indices)
@@ -379,7 +379,8 @@ void RayTracing::CreateShaderTable(std::vector<std::shared_ptr<GameEntity>> scen
 	if (dxrResourcesInitialized || !dxrAvailable)
 		return;
 
-	// How many hit groups?  One per scene element
+	// Size of constants in the hit group record
+	unsigned int hitGroupConstantsSize = sizeof(float) * 4; // Just a color
 
 	// Create the table of shaders and their data to use for rays
 	// 0 - Ray generation shader
@@ -391,7 +392,7 @@ void RayTracing::CreateShaderTable(std::vector<std::shared_ptr<GameEntity>> scen
 	//       - This also must be aligned up to D3D12_RAYTRACING_SHADER_BINDING_TABLE_RECORD_BYTE_ALIGNMENT
 	UINT64 shaderTableRayGenRecordSize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
 	UINT64 shaderTableMissRecordSize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
-	UINT64 shaderTableHitGroupRecordSize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES + sizeof(D3D12_GPU_DESCRIPTOR_HANDLE) + sizeof(XMFLOAT4); // SRV for geom, float4 for color (root constant)
+	UINT64 shaderTableHitGroupRecordSize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES + sizeof(D3D12_GPU_DESCRIPTOR_HANDLE) + hitGroupConstantsSize; // SRV for geom, other constants
 
 	// Align them
 	shaderTableRayGenRecordSize = ALIGN(shaderTableRayGenRecordSize, D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT);
