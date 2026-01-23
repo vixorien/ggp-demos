@@ -120,7 +120,8 @@ HRESULT Graphics::Initialize(unsigned int windowWidth, unsigned int windowHeight
 			D3D_FEATURE_LEVEL_11_0,
 			D3D_FEATURE_LEVEL_11_1,
 			D3D_FEATURE_LEVEL_12_0,
-			D3D_FEATURE_LEVEL_12_1
+			D3D_FEATURE_LEVEL_12_1,
+			D3D_FEATURE_LEVEL_12_2
 		};
 		D3D12_FEATURE_DATA_FEATURE_LEVELS levels = {};
 		levels.pFeatureLevelsRequested = levelsToCheck;
@@ -192,93 +193,6 @@ HRESULT Graphics::Initialize(unsigned int windowWidth, unsigned int windowHeight
 			return swapResult;
 	}
 
-	// What is the increment size between RTV descriptors in a
-	// descriptor heap?  This differs per GPU so we need to 
-	// get it at applications start up
-	SIZE_T RTVDescriptorSize = (SIZE_T)Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-
-	// Create back buffers
-	{
-		// First create a descriptor heap for RTVs
-		D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
-		rtvHeapDesc.NumDescriptors = NumBackBuffers;
-		rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-		Device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(RTVHeap.GetAddressOf()));
-
-		// Now create the RTV handles for each buffer (buffers were created by the swap chain)
-		for (unsigned int i = 0; i < NumBackBuffers; i++)
-		{
-			// Grab this buffer from the swap chain
-			SwapChain->GetBuffer(i, IID_PPV_ARGS(BackBuffers[i].GetAddressOf()));
-
-			// Make a handle for it
-			RTVHandles[i] = RTVHeap->GetCPUDescriptorHandleForHeapStart();
-			RTVHandles[i].ptr += RTVDescriptorSize * i;
-
-			// Create the render target view
-			Device->CreateRenderTargetView(BackBuffers[i].Get(), 0, RTVHandles[i]);
-		}
-	}
-
-	// Create depth/stencil buffer
-	{
-		// Create a descriptor heap for DSV
-		D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {};
-		dsvHeapDesc.NumDescriptors = 1;
-		dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
-		Device->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(DSVHeap.GetAddressOf()));
-
-		// Describe the depth stencil buffer resource
-		D3D12_RESOURCE_DESC depthBufferDesc = {};
-		depthBufferDesc.Alignment = 0;
-		depthBufferDesc.DepthOrArraySize = 1;
-		depthBufferDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
-		depthBufferDesc.Flags = D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL;
-		depthBufferDesc.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-		depthBufferDesc.Height = windowHeight;
-		depthBufferDesc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
-		depthBufferDesc.MipLevels = 1;
-		depthBufferDesc.SampleDesc.Count = 1;
-		depthBufferDesc.SampleDesc.Quality = 0;
-		depthBufferDesc.Width = windowWidth;
-
-		// Describe the clear value that will most often be used
-		// for this buffer (which optimizes the clearing of the buffer)
-		D3D12_CLEAR_VALUE clear = {};
-		clear.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
-		clear.DepthStencil.Depth = 1.0f;
-		clear.DepthStencil.Stencil = 0;
-
-		// Describe the memory heap that will house this resource
-		D3D12_HEAP_PROPERTIES props = {};
-		props.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
-		props.CreationNodeMask = 1;
-		props.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
-		props.Type = D3D12_HEAP_TYPE_DEFAULT;
-		props.VisibleNodeMask = 1;
-
-		// Actually create the resource, and the heap in which it
-		// will reside, and map the resource to that heap
-		Device->CreateCommittedResource(
-			&props,
-			D3D12_HEAP_FLAG_NONE,
-			&depthBufferDesc,
-			D3D12_RESOURCE_STATE_DEPTH_WRITE,
-			&clear,
-			IID_PPV_ARGS(DepthBuffer.GetAddressOf()));
-
-		// Get the handle to the Depth Stencil View that we'll
-		// be using for the depth buffer.  The DSV is stored in
-		// our DSV-specific descriptor Heap.
-		DSVHandle = DSVHeap->GetCPUDescriptorHandleForHeapStart();
-
-		// Actually make the DSV
-		Device->CreateDepthStencilView(
-			DepthBuffer.Get(),
-			0,	// Default view (first mip)
-			DSVHandle);
-	}
-
 	// Create the fences for basic synchronization
 	{
 		// Our basic "wait for GPU" hard stop
@@ -290,6 +204,25 @@ HRESULT Graphics::Initialize(unsigned int windowWidth, unsigned int windowHeight
 		Device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(FrameSyncFence.GetAddressOf()));
 		FrameSyncFenceEvent = CreateEventEx(0, 0, 0, EVENT_ALL_ACCESS);
 	}
+
+	// Overall API has been initialized
+	apiInitialized = true;
+
+	// Create a descriptor heaps for the back buffers and the depth buffer
+	{
+		D3D12_DESCRIPTOR_HEAP_DESC rtvHeapDesc = {};
+		rtvHeapDesc.NumDescriptors = NumBackBuffers;
+		rtvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+		Device->CreateDescriptorHeap(&rtvHeapDesc, IID_PPV_ARGS(RTVHeap.GetAddressOf()));
+
+		D3D12_DESCRIPTOR_HEAP_DESC dsvHeapDesc = {};
+		dsvHeapDesc.NumDescriptors = 1;
+		dsvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_DSV;
+		Device->CreateDescriptorHeap(&dsvHeapDesc, IID_PPV_ARGS(DSVHeap.GetAddressOf()));
+	}
+
+	// Create the initial back & depth buffers and descriptors for them
+	ResizeBuffers(windowWidth, windowHeight);
 
 	// Create the CBV/SRV descriptor heap
 	{
@@ -360,7 +293,6 @@ HRESULT Graphics::Initialize(unsigned int windowWidth, unsigned int windowHeight
 
 	// Wait for the GPU before we proceed
 	WaitForGPU();
-	apiInitialized = true;
 	return S_OK;
 }
 
@@ -614,7 +546,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> Graphics::CreateStaticBuffer(size_t dataS
 		IID_PPV_ARGS(localList.GetAddressOf()));
 
 	// The overall buffer we'll be creating
-	Microsoft::WRL::ComPtr<ID3D12Resource> buffer;
+	Microsoft::WRL::ComPtr<ID3D12Resource> finalBuffer;
 
 	// Describes the final heap
 	D3D12_HEAP_PROPERTIES props = {};
@@ -637,13 +569,17 @@ Microsoft::WRL::ComPtr<ID3D12Resource> Graphics::CreateStaticBuffer(size_t dataS
 	desc.SampleDesc.Quality = 0;
 	desc.Width = dataStride * dataCount; // Size of the buffer
 
+	// Note that even though we're starting this buffer in the "common" resource
+	// state, it will be implicitly transitioned to the "copy destination" state
+	// when used for a copy operation below.  For more info, see:
+	// https://learn.microsoft.com/en-us/windows/win32/direct3d12/user-mode-heap-synchronization#multi-queue-resource-access
 	Device->CreateCommittedResource(
 		&props,
 		D3D12_HEAP_FLAG_NONE,
 		&desc,
-		D3D12_RESOURCE_STATE_COPY_DEST,
+		D3D12_RESOURCE_STATE_COMMON, // Must start in "common" state to avoid warning
 		0,
-		IID_PPV_ARGS(buffer.GetAddressOf()));
+		IID_PPV_ARGS(finalBuffer.GetAddressOf()));
 
 	// Now create an intermediate upload heap for copying initial data
 	D3D12_HEAP_PROPERTIES uploadProps = {};
@@ -669,13 +605,13 @@ Microsoft::WRL::ComPtr<ID3D12Resource> Graphics::CreateStaticBuffer(size_t dataS
 	uploadHeap->Unmap(0, 0);
 
 	// Copy the whole buffer from uploadheap to vert buffer
-	localList->CopyResource(buffer.Get(), uploadHeap.Get());
+	localList->CopyResource(finalBuffer.Get(), uploadHeap.Get());
 
 	// Transition the buffer to generic read for the rest of the app lifetime (presumable)
 	D3D12_RESOURCE_BARRIER rb = {};
 	rb.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
 	rb.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-	rb.Transition.pResource = buffer.Get();
+	rb.Transition.pResource = finalBuffer.Get();
 	rb.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
 	rb.Transition.StateAfter = D3D12_RESOURCE_STATE_GENERIC_READ;
 	rb.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
@@ -688,7 +624,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> Graphics::CreateStaticBuffer(size_t dataS
 	CommandQueue->ExecuteCommandLists(1, list);
 
 	WaitForGPU();
-	return buffer;
+	return finalBuffer;
 }
 
 
