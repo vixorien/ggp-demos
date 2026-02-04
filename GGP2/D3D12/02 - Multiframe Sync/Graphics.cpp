@@ -1,10 +1,5 @@
 #include "Graphics.h"
 
-#include "WICTextureLoader.h"
-#include "ResourceUploadBatch.h"
-
-#include <vector>
-
 // Tell the drivers to use high-performance GPU in multi-GPU systems (like laptops)
 extern "C"
 {
@@ -30,16 +25,11 @@ namespace Graphics
 		// Descriptor heap management
 		SIZE_T cbvSrvDescriptorHeapIncrementSize = 0;
 		unsigned int cbvDescriptorOffset = 0;
-		unsigned int srvDescriptorOffset = MaxConstantBuffers; // Assume first SRV will be after all possible CBVs
 
 		// CB upload heap management
 		UINT64 cbUploadHeapSizeInBytes = 0;
 		UINT64 cbUploadHeapOffsetInBytes = 0;
 		void* cbUploadHeapStartAddress = 0;
-
-		// Textures
-		std::vector<Microsoft::WRL::ComPtr<ID3D12Resource>> textures;
-		std::vector<Microsoft::WRL::ComPtr<ID3D12DescriptorHeap>> cpuSideTextureDescriptorHeaps;
 	}
 }
 
@@ -234,7 +224,7 @@ HRESULT Graphics::Initialize(unsigned int windowWidth, unsigned int windowHeight
 		D3D12_DESCRIPTOR_HEAP_DESC dhDesc = {};
 		dhDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE; // Shaders can see these!
 		dhDesc.NodeMask = 0; // Node here means physical GPU - we only have 1 so its index is 0
-		dhDesc.NumDescriptors = MaxConstantBuffers + MaxTextureDescriptors; // How many descriptors will we need?  **Now including texture descriptors (SRVs)!**
+		dhDesc.NumDescriptors = MaxConstantBuffers; // How many descriptors will we need?
 		dhDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV; // This heap can store CBVs, SRVs and UAVs
 
 		Device->CreateDescriptorHeap(&dhDesc, IID_PPV_ARGS(CBVSRVDescriptorHeap.GetAddressOf()));
@@ -461,60 +451,6 @@ void Graphics::AdvanceSwapChainIndex()
 
 
 // --------------------------------------------------------
-// Loads a texture using the DirectX Toolkit and creates a
-// non-shader-visible SRV descriptor heap to hold its SRV.  
-// The handle to this descriptor is returned so materials
-// can copy this texture's SRV to the overall heap later.
-// 
-// file - The image file to attempt to load
-// generateMips - Should mip maps be generated? (defaults to true)
-// --------------------------------------------------------
-D3D12_CPU_DESCRIPTOR_HANDLE Graphics::LoadTexture(const wchar_t* file, bool generateMips)
-{
-	// Helper function from DXTK for uploading a resource
-	// (like a texture) to the appropriate GPU memory
-	DirectX::ResourceUploadBatch upload(Device.Get());
-	upload.Begin();
-
-	// Attempt to create the texture
-	Microsoft::WRL::ComPtr<ID3D12Resource> texture;
-	DirectX::CreateWICTextureFromFile(Device.Get(), upload, file, texture.GetAddressOf(), generateMips);
-
-	// Perform the upload and wait for it to finish before returning the texture
-	auto finish = upload.End(CommandQueue.Get());
-	finish.wait();
-
-	// Now that we have the texture, add to our list and make a CPU-side descriptor heap
-	// just for this texture's SRV.  Note that it would probably be better to put all 
-	// texture SRVs into the same descriptor heap, but we don't know how many we'll need
-	// until they're all loaded and this is a quick and dirty implementation!
-	textures.push_back(texture);
-
-	// Create the CPU-SIDE descriptor heap for our descriptor
-	D3D12_DESCRIPTOR_HEAP_DESC dhDesc = {};
-	dhDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE; // Non-shader visible for CPU-side-only descriptor heap!
-	dhDesc.NodeMask = 0;
-	dhDesc.NumDescriptors = 1;
-	dhDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-
-	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> descHeap;
-	Device->CreateDescriptorHeap(&dhDesc, IID_PPV_ARGS(descHeap.GetAddressOf()));
-
-	// Add to our list of heaps (to keep the resource alive)
-	cpuSideTextureDescriptorHeaps.push_back(descHeap);
-
-	// Create the SRV on this descriptor heap
-	// Note: Using a null description results in the "default" SRV (same format, all mips, all array slices, etc.)
-	D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = descHeap->GetCPUDescriptorHandleForHeapStart();
-	Device->CreateShaderResourceView(texture.Get(), 0, cpuHandle);
-
-	// Return the CPU descriptor handle, which can be used to
-	// copy the descriptor to a shader-visible heap later
-	return cpuHandle;
-}
-
-
-// --------------------------------------------------------
 // Helper for creating a static buffer that will get
 // data once and remain immutable
 // 
@@ -706,35 +642,7 @@ D3D12_GPU_DESCRIPTOR_HANDLE Graphics::FillNextConstantBufferAndGetGPUDescriptorH
 
 
 // --------------------------------------------------------
-// Copies one or more SRVs starting at the given CPU handle
-// to the final CBV/SRV descriptor heap, and returns
-// the GPU handle to the beginning of this section.
-// 
-// firstDescriptorToCopy - The handle to the first descriptor
-// numDescriptorsToCopy - How many to copy
-// --------------------------------------------------------
-D3D12_GPU_DESCRIPTOR_HANDLE Graphics::CopySRVsToDescriptorHeapAndGetGPUDescriptorHandle(D3D12_CPU_DESCRIPTOR_HANDLE firstDescriptorToCopy, unsigned int numDescriptorsToCopy)
-{
-	// Grab the actual heap start on both sides and offset to the next open SRV portion
-	D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = CBVSRVDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
-	D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle = CBVSRVDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
-
-	cpuHandle.ptr += (SIZE_T)srvDescriptorOffset * cbvSrvDescriptorHeapIncrementSize;
-	gpuHandle.ptr += (SIZE_T)srvDescriptorOffset * cbvSrvDescriptorHeapIncrementSize;
-
-	// We know where to copy these descriptors, so copy all of them and remember the new offset
-	Device->CopyDescriptorsSimple(numDescriptorsToCopy, cpuHandle, firstDescriptorToCopy, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	srvDescriptorOffset += numDescriptorsToCopy;
-
-	// Pass back the GPU handle to the start of this section
-	// in the final CBV/SRV heap so the caller can use it later
-	return gpuHandle;
-}
-
-
-// --------------------------------------------------------
-// Resets the command allocator and list associated
-// with a particular back buffer in the swap chain
+// Resets the command allocator and list
 // 
 // Always wait before reseting command allocator, as it should not
 // be reset while the GPU is processing a command list

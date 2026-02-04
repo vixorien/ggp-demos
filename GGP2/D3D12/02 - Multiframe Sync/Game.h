@@ -4,7 +4,6 @@
 #include "GameEntity.h"
 #include "Transform.h"
 #include "Camera.h"
-#include "Lights.h"
 
 #include <d3d12.h>
 #include <wrl/client.h>
@@ -31,15 +30,12 @@ private:
 	// Initialization helper methods - feel free to customize, combine, remove, etc.
 	void CreateRootSigAndPipelineState();
 	void CreateGeometry();
-	void GenerateLights();
 
 	// Pipeline
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature;
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> pipelineState;
 
 	// Scene
-	int lightCount;
-	std::vector<Light> lights;
 	std::shared_ptr<FPSCamera> camera;
 	std::vector<std::shared_ptr<GameEntity>> entities;
 

@@ -12,21 +12,12 @@
 namespace Graphics
 {
 	// --- CONSTANTS ---
-	const unsigned int NumBackBuffers = 3;
+	const unsigned int NumBackBuffers = 2;
 
 	// Maximum number of constant buffers, assuming each buffer
 	// is 256 bytes or less.  Larger buffers are fine, but will
 	// result in fewer buffers in use at any time
 	const unsigned int MaxConstantBuffers = 1000;
-
-	// Maximum number of texture descriptors (SRVs) we can have.
-	// Each material will have a chunk of this, plus any 
-	// non-material textures we may need for our program.
-	// Note: If we delayed the creation of this heap until 
-	//       after all textures and materials were created,
-	//       we could come up with an exact amount.  The following
-	//       constant ensures we (hopefully) never run out of room.
-	const unsigned int MaxTextureDescriptors = 100;
 
 	// --- GLOBAL VARS ---
 
@@ -78,17 +69,12 @@ namespace Graphics
 	void AdvanceSwapChainIndex();
 
 	// Resource creation
-	D3D12_CPU_DESCRIPTOR_HANDLE LoadTexture(const wchar_t* file, bool generateMips = true);
 	Microsoft::WRL::ComPtr<ID3D12Resource> CreateStaticBuffer(size_t dataStride, size_t dataCount, void* data);
 
 	// Resource usage
 	D3D12_GPU_DESCRIPTOR_HANDLE FillNextConstantBufferAndGetGPUDescriptorHandle(
 		void* data,
 		unsigned int dataSizeInBytes);
-
-	D3D12_GPU_DESCRIPTOR_HANDLE CopySRVsToDescriptorHeapAndGetGPUDescriptorHandle(
-		D3D12_CPU_DESCRIPTOR_HANDLE firstDescriptorToCopy, 
-		unsigned int numDescriptorsToCopy);
 
 	// Command list & synchronization
 	void ResetAllocatorAndCommandList(unsigned int swapChainIndex);
