@@ -81,10 +81,6 @@ namespace Graphics
 		void* data,
 		unsigned int dataSizeInBytes);
 
-	D3D12_GPU_DESCRIPTOR_HANDLE CopySRVsToDescriptorHeapAndGetGPUDescriptorHandle(
-		D3D12_CPU_DESCRIPTOR_HANDLE firstDescriptorToCopy, 
-		unsigned int numDescriptorsToCopy);
-
 	// Command list & synchronization
 	void ResetAllocatorAndCommandList();
 	void CloseAndExecuteCommandList();

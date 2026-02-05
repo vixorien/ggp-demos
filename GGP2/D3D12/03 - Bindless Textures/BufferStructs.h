@@ -15,13 +15,13 @@ struct VertexShaderExternalData
 // Must match pixel shader definition!
 struct PixelShaderExternalData
 {
-	DirectX::XMFLOAT2 uvScale;
-	DirectX::XMFLOAT2 uvOffset;
-	DirectX::XMFLOAT3 cameraPosition;
 	unsigned int albedoIndex;
 	unsigned int normalMapIndex;
 	unsigned int roughnessIndex;
 	unsigned int metalnessIndex;
+	DirectX::XMFLOAT2 uvScale;
+	DirectX::XMFLOAT2 uvOffset;
+	DirectX::XMFLOAT3 cameraPosition;
 	int lightCount;
 	Light lights[MAX_LIGHTS];
 };

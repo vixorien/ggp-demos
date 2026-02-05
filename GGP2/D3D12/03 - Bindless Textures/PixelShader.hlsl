@@ -3,13 +3,13 @@
 // Alignment matters!!!
 cbuffer ExternalData : register(b0)
 {
-	float2 uvScale;
-	float2 uvOffset;
-	float3 cameraPosition;
 	uint albedoIndex;
 	uint normalMapIndex;
 	uint roughnessIndex;
 	uint metalnessIndex;
+	float2 uvScale;
+	float2 uvOffset;
+	float3 cameraPosition;
 	int lightCount;
 	Light lights[MAX_LIGHTS];
 }
