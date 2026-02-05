@@ -245,11 +245,11 @@ void Game::CreateGeometry()
 	// Create a critical mass of entity to tax the frame rate a bit
 	int meshCount = 0;
 	int dimensionSize = 8;
-	for (int x = 0; x < dimensionSize; x++)
+	for (float x = 0; x < dimensionSize; x++)
 	{
-		for (int y = 0; y < dimensionSize; y++)
+		for (float y = 0; y < dimensionSize; y++)
 		{
-			for (int z = 0; z < dimensionSize; z++)
+			for (float z = 0; z < dimensionSize; z++)
 			{
 				// Create a single entity
 				std::shared_ptr<GameEntity> e = std::make_shared<GameEntity>(meshes[meshCount % 5]);
