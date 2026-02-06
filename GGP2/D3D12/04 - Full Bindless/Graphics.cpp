@@ -664,6 +664,31 @@ D3D12_GPU_DESCRIPTOR_HANDLE Graphics::FillNextConstantBufferAndGetGPUDescriptorH
 	}
 }
 
+// --------------------------------------------------------
+// Reserves a slot in the SRV/UAV section of the overall
+// CBV/SRV/UAV descriptor heap.  Handles to CPU and/or GPU
+// are set via parameters.  Pass in 0 to skip a parameter.
+// --------------------------------------------------------
+void Graphics::ReserveDescriptorHeapSlot(
+	D3D12_CPU_DESCRIPTOR_HANDLE* reservedCPUHandle, 
+	D3D12_GPU_DESCRIPTOR_HANDLE* reservedGPUHandle)
+{
+	// Grab the actual heap start on both sides and offset to the next open SRV/UAV portion
+	D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = CBVSRVDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+	D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle = CBVSRVDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
+
+	cpuHandle.ptr += (SIZE_T)srvDescriptorOffset * cbvSrvDescriptorHeapIncrementSize;
+	gpuHandle.ptr += (SIZE_T)srvDescriptorOffset * cbvSrvDescriptorHeapIncrementSize;
+
+	// Set the requested handle(s)
+	if (reservedCPUHandle) { *reservedCPUHandle = cpuHandle; }
+	if (reservedGPUHandle) { *reservedGPUHandle = gpuHandle; }
+
+	// Update the overall offset if at least one handle was reserved
+	if (reservedCPUHandle || reservedGPUHandle)
+		srvDescriptorOffset++;
+}
+
 unsigned int Graphics::GetDescriptorIndex(D3D12_GPU_DESCRIPTOR_HANDLE handle)
 {
 	return (unsigned int)((handle.ptr - CBVSRVDescriptorHeap->GetGPUDescriptorHandleForHeapStart().ptr) /

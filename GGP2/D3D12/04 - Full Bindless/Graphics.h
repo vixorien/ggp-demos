@@ -80,6 +80,11 @@ namespace Graphics
 	D3D12_GPU_DESCRIPTOR_HANDLE FillNextConstantBufferAndGetGPUDescriptorHandle(
 		void* data,
 		unsigned int dataSizeInBytes);
+
+	void ReserveDescriptorHeapSlot(
+		D3D12_CPU_DESCRIPTOR_HANDLE* reservedCPUHandle, 
+		D3D12_GPU_DESCRIPTOR_HANDLE* reservedGPUHandle);
+
 	unsigned int GetDescriptorIndex(D3D12_GPU_DESCRIPTOR_HANDLE handle);
 
 	// Command list & synchronization

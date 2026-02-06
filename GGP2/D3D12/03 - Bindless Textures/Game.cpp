@@ -133,16 +133,8 @@ void Game::CreateRootSigAndPipelineState()
 		cbvRangePS.RegisterSpace = 0;
 		cbvRangePS.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 
-		// Create a range of SRV's for textures
-		D3D12_DESCRIPTOR_RANGE srvRange = {};
-		srvRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-		srvRange.NumDescriptors = 4;		// Set to max number of textures at once (match pixel shader!)
-		srvRange.BaseShaderRegister = 0;	// Starts at t0 (match pixel shader!)
-		srvRange.RegisterSpace = 0;
-		srvRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-
 		// Create the root parameters
-		D3D12_ROOT_PARAMETER rootParams[3] = {};
+		D3D12_ROOT_PARAMETER rootParams[2] = {};
 
 		// CBV table param for vertex shader
 		rootParams[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
@@ -155,12 +147,6 @@ void Game::CreateRootSigAndPipelineState()
 		rootParams[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 		rootParams[1].DescriptorTable.NumDescriptorRanges = 1;
 		rootParams[1].DescriptorTable.pDescriptorRanges = &cbvRangePS;
-
-		// SRV table param
-		rootParams[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-		rootParams[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-		rootParams[2].DescriptorTable.NumDescriptorRanges = 1;
-		rootParams[2].DescriptorTable.pDescriptorRanges = &srvRange;
 
 		// Create a single static sampler (available to all pixel shaders at the same slot)
 		// Note: This is in lieu of having materials have their own samplers for this demo

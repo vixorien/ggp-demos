@@ -2,6 +2,7 @@
 
 cbuffer BindlessData : register(b0)
 {
+	uint vsVertexBufferIndex;
 	uint vsConstantBufferIndex;	
 	uint psConstantBufferIndex;	
 }

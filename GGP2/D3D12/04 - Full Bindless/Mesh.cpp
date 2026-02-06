@@ -31,7 +31,8 @@ Mesh::Mesh(const char* name, Vertex* vertArray, size_t numVerts, unsigned int* i
 Mesh::Mesh(const char* name, const std::wstring& objFile) :
 	name(name),
 	vbView{},
-	ibView{}
+	ibView{},
+	vbGPUDescriptorHandle{}
 {
 	// Set indicies to 0 in the event the file reading fails
 	numIndices = 0;
@@ -242,6 +243,7 @@ Mesh::~Mesh() { }
 // Getters for private variables
 // --------------------------------------------------------
 D3D12_VERTEX_BUFFER_VIEW Mesh::GetVertexBufferView() { return vbView; }
+D3D12_GPU_DESCRIPTOR_HANDLE Mesh::GetVertexBufferDescriptorHandle() { return vbGPUDescriptorHandle; }
 D3D12_INDEX_BUFFER_VIEW Mesh::GetIndexBufferView() { return ibView; }
 const char* Mesh::GetName() { return name; }
 size_t Mesh::GetIndexCount() { return numIndices; }
@@ -278,6 +280,20 @@ void Mesh::CreateBuffers(Vertex* vertArray, size_t numVerts, unsigned int* index
 	ibView.Format = DXGI_FORMAT_R32_UINT;
 	ibView.SizeInBytes = (UINT)(sizeof(unsigned int) * numIndices);
 	ibView.BufferLocation = indexBuffer->GetGPUVirtualAddress();
+
+	// Set up an SRV for the vertex buffer
+	D3D12_CPU_DESCRIPTOR_HANDLE vbCPU; // Need this for creating the SRV below
+	Graphics::ReserveDescriptorHeapSlot(&vbCPU, &vbGPUDescriptorHandle);
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
+	srvDesc.Format = DXGI_FORMAT_UNKNOWN;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.Buffer.FirstElement = 0;
+	srvDesc.Buffer.NumElements = numVerts;
+	srvDesc.Buffer.StructureByteStride = sizeof(Vertex);
+	srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
+	Graphics::Device->CreateShaderResourceView(vertexBuffer.Get(), &srvDesc, vbCPU);
 }
 
 

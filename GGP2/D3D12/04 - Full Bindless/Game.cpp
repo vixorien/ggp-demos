@@ -123,7 +123,7 @@ void Game::CreateRootSigAndPipelineState()
 		// Root params for descriptor indices
 		rootParams[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
 		rootParams[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-		rootParams[0].Constants.Num32BitValues = 2;
+		rootParams[0].Constants.Num32BitValues = sizeof(DrawDescriptorIndices) / sizeof(unsigned int);
 		rootParams[0].Constants.RegisterSpace = 0;
 		rootParams[0].Constants.ShaderRegister = 0;
 
@@ -488,6 +488,7 @@ void Game::Draw(float deltaTime, float totalTime)
 			}
 
 			DrawDescriptorIndices drawData{};
+			drawData.vsVertexBufferIndex = Graphics::GetDescriptorIndex(e->GetMesh()->GetVertexBufferDescriptorHandle());
 
 			// Set up the data we intend to use for drawing this entity
 			{
@@ -526,15 +527,13 @@ void Game::Draw(float deltaTime, float totalTime)
 				drawData.psConstantBufferIndex = Graphics::GetDescriptorIndex(cbHandlePS);
 			}
 
-			Graphics::CommandList->SetGraphicsRoot32BitConstants(0, 2, &drawData, 0);
+			Graphics::CommandList->SetGraphicsRoot32BitConstants(0, sizeof(DrawDescriptorIndices) / sizeof(unsigned int), &drawData, 0);
 
 			// Grab the mesh and its buffer views
 			std::shared_ptr<Mesh> mesh = e->GetMesh();
-			D3D12_VERTEX_BUFFER_VIEW vbv = mesh->GetVertexBufferView();
 			D3D12_INDEX_BUFFER_VIEW  ibv = mesh->GetIndexBufferView();
 
 			// Set the geometry
-			Graphics::CommandList->IASetVertexBuffers(0, 1, &vbv);
 			Graphics::CommandList->IASetIndexBuffer(&ibv);
 
 			// Draw

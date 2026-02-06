@@ -5,6 +5,7 @@
 
 struct DrawDescriptorIndices
 {
+	unsigned int vsVertexBufferIndex;
 	unsigned int vsConstantBufferIndex;
 	unsigned int psConstantBufferIndex;
 };

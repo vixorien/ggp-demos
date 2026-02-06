@@ -16,6 +16,7 @@ public:
 
 	// Getters for mesh data
 	D3D12_VERTEX_BUFFER_VIEW GetVertexBufferView();
+	D3D12_GPU_DESCRIPTOR_HANDLE GetVertexBufferDescriptorHandle();
 	D3D12_INDEX_BUFFER_VIEW GetIndexBufferView();
 	const char* GetName();
 	size_t GetIndexCount();
@@ -24,6 +25,7 @@ public:
 private:
 	// D3D buffers
 	D3D12_VERTEX_BUFFER_VIEW vbView;
+	D3D12_GPU_DESCRIPTOR_HANDLE vbGPUDescriptorHandle;
 	Microsoft::WRL::ComPtr<ID3D12Resource> vertexBuffer;
 
 	D3D12_INDEX_BUFFER_VIEW ibView;
