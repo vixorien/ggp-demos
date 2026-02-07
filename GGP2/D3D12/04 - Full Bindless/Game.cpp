@@ -81,40 +81,6 @@ void Game::CreateRootSigAndPipelineState()
 		D3DReadFileToBlob(FixPath(L"PixelShader.cso").c_str(), pixelShaderByteCode.GetAddressOf());
 	}
 
-	// Input layout
-	const unsigned int inputElementCount = 4;
-	D3D12_INPUT_ELEMENT_DESC inputElements[inputElementCount] = {};
-	{
-		// Create an input layout that describes the vertex format
-		// used by the vertex shader we're using
-		//  - This is used by the pipeline to know how to interpret the raw data
-		//     sitting inside a vertex buffer
-
-		// Set up the first element - a position, which is 3 float values
-		inputElements[0].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT; // How far into the vertex is this?  Assume it's after the previous element
-		inputElements[0].Format = DXGI_FORMAT_R32G32B32_FLOAT;		// Most formats are described as color channels, really it just means "Three 32-bit floats"
-		inputElements[0].SemanticName = "POSITION";					// This is "POSITION" - needs to match the semantics in our vertex shader input!
-		inputElements[0].SemanticIndex = 0;							// This is the 0th position (there could be more)
-
-		// Set up the second element - a UV, which is 2 more float values
-		inputElements[1].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;	// After the previous element
-		inputElements[1].Format = DXGI_FORMAT_R32G32_FLOAT;			// 2x 32-bit floats
-		inputElements[1].SemanticName = "TEXCOORD";					// Match our vertex shader input!
-		inputElements[1].SemanticIndex = 0;							// This is the 0th uv (there could be more)
-
-		// Set up the third element - a normal, which is 3 more float values
-		inputElements[2].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;	// After the previous element
-		inputElements[2].Format = DXGI_FORMAT_R32G32B32_FLOAT;		// 3x 32-bit floats
-		inputElements[2].SemanticName = "NORMAL";					// Match our vertex shader input!
-		inputElements[2].SemanticIndex = 0;							// This is the 0th normal (there could be more)
-
-		// Set up the fourth element - a tangent, which is 2 more float values
-		inputElements[3].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;	// After the previous element
-		inputElements[3].Format = DXGI_FORMAT_R32G32B32_FLOAT;		// 3x 32-bit floats
-		inputElements[3].SemanticName = "TANGENT";					// Match our vertex shader input!
-		inputElements[3].SemanticIndex = 0;							// This is the 0th tangent (there could be more)
-	}
-
 	// Root Signature
 	{
 		// Create the root parameters
@@ -143,7 +109,7 @@ void Game::CreateRootSigAndPipelineState()
 
 		// Describe and serialize the root signature
 		D3D12_ROOT_SIGNATURE_DESC rootSig = {};
-		rootSig.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT | D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED;
+		rootSig.Flags = D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED;
 		rootSig.NumParameters = ARRAYSIZE(rootParams);
 		rootSig.pParameters = rootParams;
 		rootSig.NumStaticSamplers = ARRAYSIZE(samplers);
@@ -178,8 +144,6 @@ void Game::CreateRootSigAndPipelineState()
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
 
 		// -- Input assembler related ---
-		psoDesc.InputLayout.NumElements = inputElementCount;
-		psoDesc.InputLayout.pInputElementDescs = inputElements;
 		psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 		// Overall primitive topology type (triangle, line, etc.) is set here 
 		// IASetPrimTop() is still used to set list/strip/adj options
