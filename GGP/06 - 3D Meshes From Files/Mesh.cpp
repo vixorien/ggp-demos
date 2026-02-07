@@ -157,13 +157,13 @@ Mesh::Mesh(const char* name, const std::wstring& objFile) :
 			v3.Normal = normals[max(i[8] - 1, 0)];
 
 			// The model is most likely in a right-handed space,
-			// especially if it came from Maya.  We want to convert
-			// to a left-handed space for DirectX.  This means we 
+			// especially if it came from Maya.  We probably want 
+			// to convert to a left-handed space.  This means we 
 			// need to:
 			//  - Invert the Z position
 			//  - Invert the normal's Z
 			//  - Flip the winding order
-			// We also need to flip the UV coordinate since DirectX
+			// We also need to flip the UV coordinate since Direct3D
 			// defines (0,0) as the top left of the texture, and many
 			// 3D modeling packages use the bottom left as (0,0)
 
@@ -211,15 +211,15 @@ Mesh::Mesh(const char* name, const std::wstring& objFile) :
 		}
 	}
 
-	// We'll use this vertex map (hash table) to determine
+	// We'll use hash table (unordered_map) to determine
 	// if any of the vertices are duplicates
 	std::unordered_map<std::string, unsigned int> vertMap;
 	for (auto& v : vertsFromFile)
 	{
 		// Create a "unique" representation of the vertex (its key)
-		// Note: This isn't super efficient, but since strings
+		// Note: This isn't a super efficient method, but since strings
 		//       inherently work with unordered_maps, this saves
-		//       us from having to write our own hash function
+		//       us from having to write our own custom hash function
 		std::string vStr =
 			std::to_string(v.Position.x) +
 			std::to_string(v.Position.y) +
