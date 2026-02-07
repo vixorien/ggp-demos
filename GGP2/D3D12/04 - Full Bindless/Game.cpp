@@ -440,6 +440,34 @@ void Game::Draw(float deltaTime, float totalTime)
 		Graphics::CommandList->RSSetScissorRects(1, &scissorRect);
 		Graphics::CommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
+		// Set up per-frame data
+		DrawDescriptorIndices drawData{};
+		
+		// Per-frame vertex data
+		{
+			VertexShaderPerFrameData vsFrame{};
+			vsFrame.view = camera->GetView();
+			vsFrame.projection = camera->GetProjection();
+
+			D3D12_GPU_DESCRIPTOR_HANDLE cbHandleVS = Graphics::FillNextConstantBufferAndGetGPUDescriptorHandle(
+				(void*)(&vsFrame), sizeof(VertexShaderPerFrameData));
+
+			drawData.vsPerFrameCBIndex = Graphics::GetDescriptorIndex(cbHandleVS);
+		}
+
+		// Per-frame pixel data
+		{
+			PixelShaderPerFrameData psFrame{};
+			psFrame.cameraPosition = camera->GetTransform()->GetPosition();
+			psFrame.lightCount = lightCount;
+			memcpy(psFrame.lights, &lights[0], sizeof(Light) * lightCount);
+
+			D3D12_GPU_DESCRIPTOR_HANDLE cbHandlePS = Graphics::FillNextConstantBufferAndGetGPUDescriptorHandle(
+				(void*)(&psFrame), sizeof(PixelShaderPerFrameData));
+
+			drawData.psPerFrameCBIndex = Graphics::GetDescriptorIndex(cbHandlePS);
+		}
+
 		// Loop through the entities
 		for (auto& e : entities)
 		{
@@ -451,47 +479,45 @@ void Game::Draw(float deltaTime, float totalTime)
 				Graphics::CommandList->SetPipelineState(mat->GetPipelineState().Get());
 			}
 
-			DrawDescriptorIndices drawData{};
 			drawData.vsVertexBufferIndex = Graphics::GetDescriptorIndex(e->GetMesh()->GetVertexBufferDescriptorHandle());
 
 			// Set up the data we intend to use for drawing this entity
 			{
-				VertexShaderExternalData vsData = {};
+				VertexShaderPerObjectData vsData = {};
 				vsData.world = e->GetTransform()->GetWorldMatrix();
 				vsData.worldInverseTranspose = e->GetTransform()->GetWorldInverseTransposeMatrix();
-				vsData.view = camera->GetView();
-				vsData.projection = camera->GetProjection();
 
 				// Send this to a chunk of the constant buffer heap
 				// and grab the GPU handle for it so we can set it for this draw
-				D3D12_GPU_DESCRIPTOR_HANDLE cbHandle = Graphics::FillNextConstantBufferAndGetGPUDescriptorHandle(
-					(void*)(&vsData), sizeof(VertexShaderExternalData));
+				D3D12_GPU_DESCRIPTOR_HANDLE cbHandleVS = Graphics::FillNextConstantBufferAndGetGPUDescriptorHandle(
+					(void*)(&vsData), sizeof(VertexShaderPerObjectData));
 
-				drawData.vsConstantBufferIndex = Graphics::GetDescriptorIndex(cbHandle);
+				drawData.vsPerObjectCBIndex = Graphics::GetDescriptorIndex(cbHandleVS);
 			}
 
 			// Pixel shader data and cbuffer setup
 			{
-				PixelShaderExternalData psData = {};
+				PixelShaderPerObjectData psData = {};
 				psData.uvScale = mat->GetUVScale();
 				psData.uvOffset = mat->GetUVOffset();
-				psData.cameraPosition = camera->GetTransform()->GetPosition();
 				psData.albedoIndex = mat->GetAlbedoIndex();
 				psData.normalMapIndex = mat->GetNormalMapIndex();
 				psData.roughnessIndex = mat->GetRoughnessIndex();
 				psData.metalnessIndex = mat->GetMetalnessIndex();
-				psData.lightCount = lightCount;
-				memcpy(psData.lights, &lights[0], sizeof(Light) * MAX_LIGHTS);
 
 				// Send this to a chunk of the constant buffer heap
 				// and grab the GPU handle for it so we can set it for this draw
 				D3D12_GPU_DESCRIPTOR_HANDLE cbHandlePS = Graphics::FillNextConstantBufferAndGetGPUDescriptorHandle(
-					(void*)(&psData), sizeof(PixelShaderExternalData));
+					(void*)(&psData), sizeof(PixelShaderPerObjectData));
 
-				drawData.psConstantBufferIndex = Graphics::GetDescriptorIndex(cbHandlePS);
+				drawData.psPerObjectCBIndex = Graphics::GetDescriptorIndex(cbHandlePS);
 			}
 
-			Graphics::CommandList->SetGraphicsRoot32BitConstants(0, sizeof(DrawDescriptorIndices) / sizeof(unsigned int), &drawData, 0);
+			Graphics::CommandList->SetGraphicsRoot32BitConstants(
+				0, 
+				sizeof(DrawDescriptorIndices) / sizeof(unsigned int), 
+				&drawData,
+				0);
 
 			// Grab the mesh and its buffer views
 			std::shared_ptr<Mesh> mesh = e->GetMesh();

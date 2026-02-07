@@ -6,21 +6,34 @@
 struct DrawDescriptorIndices
 {
 	unsigned int vsVertexBufferIndex;
-	unsigned int vsConstantBufferIndex;
-	unsigned int psConstantBufferIndex;
+	unsigned int vsPerFrameCBIndex;
+	unsigned int vsPerObjectCBIndex;
+	unsigned int psPerFrameCBIndex;
+	unsigned int psPerObjectCBIndex;
 };
 
 // Must match vertex shader definition!
-struct VertexShaderExternalData
+struct VertexShaderPerFrameData
 {
-	DirectX::XMFLOAT4X4 world;
-	DirectX::XMFLOAT4X4 worldInverseTranspose;
 	DirectX::XMFLOAT4X4 view;
 	DirectX::XMFLOAT4X4 projection;
 };
 
+struct VertexShaderPerObjectData
+{
+	DirectX::XMFLOAT4X4 world;
+	DirectX::XMFLOAT4X4 worldInverseTranspose;
+};
+
 // Must match pixel shader definition!
-struct PixelShaderExternalData
+struct PixelShaderPerFrameData
+{
+	DirectX::XMFLOAT3 cameraPosition;
+	int lightCount;
+	Light lights[MAX_LIGHTS];
+};
+
+struct PixelShaderPerObjectData
 {
 	unsigned int albedoIndex;
 	unsigned int normalMapIndex;
@@ -28,7 +41,4 @@ struct PixelShaderExternalData
 	unsigned int metalnessIndex;
 	DirectX::XMFLOAT2 uvScale;
 	DirectX::XMFLOAT2 uvOffset;
-	DirectX::XMFLOAT3 cameraPosition;
-	int lightCount;
-	Light lights[MAX_LIGHTS];
 };
