@@ -290,7 +290,7 @@ void Mesh::CreateBuffers(Vertex* vertArray, size_t numVerts, unsigned int* index
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_BUFFER;
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 	srvDesc.Buffer.FirstElement = 0;
-	srvDesc.Buffer.NumElements = numVerts;
+	srvDesc.Buffer.NumElements = (unsigned int)numVerts;
 	srvDesc.Buffer.StructureByteStride = sizeof(Vertex);
 	srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
 	Graphics::Device->CreateShaderResourceView(vertexBuffer.Get(), &srvDesc, vbCPU);
