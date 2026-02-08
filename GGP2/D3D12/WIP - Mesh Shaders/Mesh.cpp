@@ -6,6 +6,8 @@
 #include "Mesh.h"
 #include "Graphics.h"
 
+#include "meshopt/meshoptimizer.h"
+
 using namespace DirectX;
 
 // --------------------------------------------------------
@@ -325,6 +327,105 @@ void Mesh::CreateBuffers(Vertex* vertArray, size_t numVerts, unsigned int* index
 	srvDesc.Buffer.StructureByteStride = sizeof(Vertex);
 	srvDesc.Buffer.Flags = D3D12_BUFFER_SRV_FLAG_NONE;
 	Graphics::Device->CreateShaderResourceView(vertexBuffer.Get(), &srvDesc, vbCPU);
+
+	// --- Meshlets ---
+
+	// Meshlet generation
+	size_t maxVertsPerMeshlet = 64; // From nvidia best practices
+	size_t maxTrianglesPerMeshlet = 124; // Should be 126, but 124 works better with meshopt
+	size_t maxMeshlets = meshopt_buildMeshletsBound(numIndices, 64, 124);
+
+	// Vectors of resulting meshlet data
+	std::vector<meshopt_Meshlet> meshlets;
+	std::vector<unsigned int> meshletVertIndices; // ?
+	std::vector<unsigned char> meshletTriangleIndices; // ?
+
+	// Resize based on calc above
+	meshlets.resize(maxMeshlets);
+	meshletVertIndices.resize(maxMeshlets * maxVertsPerMeshlet);
+	meshletTriangleIndices.resize(maxMeshlets * maxTrianglesPerMeshlet * 3);
+
+	// Actually build and get the real amount of meshlets
+	size_t meshletCount = meshopt_buildMeshlets(
+		&meshlets[0],
+		&meshletVertIndices[0],
+		&meshletTriangleIndices[0],
+		indexArray,
+		numIndices,
+		&vertArray[0].Position.x, // First position data
+		numVertices,
+		sizeof(Vertex),
+		maxVertsPerMeshlet,
+		maxTrianglesPerMeshlet,
+		0.0f);
+
+	// Shrink back down after build
+	meshlets.resize(meshletCount);
+
+	meshopt_Meshlet& lastMeshlet = meshlets[meshletCount - 1];
+	meshletVertIndices.resize(lastMeshlet.vertex_offset + lastMeshlet.vertex_count); // last meshlet's offset plus its size
+	
+	// Repack triangle indices (3 bytes) into an unsigned int (4 bytes) for ease of GPU read
+	std::vector<unsigned int> meshletTriangleIndicesPacked;
+	for (meshopt_Meshlet& m : meshlets)
+	{
+		// Grab our current offset
+		unsigned int offset = (unsigned int)meshletTriangleIndicesPacked.size();
+
+		// 
+		for (unsigned int i = 0; i < m.triangle_count; i++)
+		{
+			// Offset to this triangle
+			unsigned int t = m.triangle_offset + i * 3;
+
+			// Grab verts
+			unsigned char v0 = meshletTriangleIndices[t + 0];
+			unsigned char v1 = meshletTriangleIndices[t + 1];
+			unsigned char v2 = meshletTriangleIndices[t + 2];
+
+			// Pack into an int and store
+			unsigned int packedVerts =
+				(((unsigned int)v0 & 0xFF) << 0) |
+				(((unsigned int)v1 & 0xFF) << 8) |
+				(((unsigned int)v2 & 0xFF) << 16);
+			meshletTriangleIndicesPacked.push_back(packedVerts);
+		}
+
+		// Update the offset for this meshlet
+		m.triangle_offset = offset;
+	}
+
+	// Create the final buffers & SRVs
+	{
+		meshletBuffer = Graphics::CreateStaticBuffer(sizeof(meshopt_Meshlet), meshlets.size(), &meshlets[0]);
+
+		D3D12_CPU_DESCRIPTOR_HANDLE cpu;
+		Graphics::ReserveDescriptorHeapSlot(&cpu, &meshletSRV);
+		srvDesc.Buffer.NumElements = (unsigned int)meshlets.size();
+		srvDesc.Buffer.StructureByteStride = sizeof(meshopt_Meshlet);
+		Graphics::Device->CreateShaderResourceView(meshletBuffer.Get(), &srvDesc, cpu);
+	}
+
+	{
+		meshletVertexIndicesBuffer = Graphics::CreateStaticBuffer(sizeof(unsigned int), meshletVertIndices.size(), &meshletVertIndices[0]);
+
+		D3D12_CPU_DESCRIPTOR_HANDLE cpu;
+		Graphics::ReserveDescriptorHeapSlot(&cpu, &meshletVertSRV);
+		srvDesc.Buffer.NumElements = (unsigned int)meshletVertIndices.size();
+		srvDesc.Buffer.StructureByteStride = sizeof(unsigned int);
+		Graphics::Device->CreateShaderResourceView(meshletVertexIndicesBuffer.Get(), &srvDesc, cpu);
+	}
+
+	{
+		meshletTriangleIndicesBuffer = Graphics::CreateStaticBuffer(sizeof(unsigned int), meshletTriangleIndicesPacked.size(), &meshletTriangleIndicesPacked[0]);
+
+		D3D12_CPU_DESCRIPTOR_HANDLE cpu;
+		Graphics::ReserveDescriptorHeapSlot(&cpu, &meshletTriSRV);
+		srvDesc.Buffer.NumElements = (unsigned int)meshletTriangleIndicesPacked.size();
+		srvDesc.Buffer.StructureByteStride = sizeof(unsigned int);
+		Graphics::Device->CreateShaderResourceView(meshletTriangleIndicesBuffer.Get(), &srvDesc, cpu);
+	}
+
 }
 
 

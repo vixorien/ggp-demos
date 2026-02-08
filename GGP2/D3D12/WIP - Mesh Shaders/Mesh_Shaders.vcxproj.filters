@@ -1,0 +1,173 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
+    </Filter>
+    <Filter Include="Shaders">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    </Filter>
+    <Filter Include="Source Files\meshopt">
+      <UniqueIdentifier>{836dd728-2dee-4587-b799-d6a9877a4db5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\meshopt">
+      <UniqueIdentifier>{21af725e-8930-49f0-9357-50b64116a96f}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="Window.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Graphics.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Game.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Common\Main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Common\PathHelpers.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Common\Input.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Common\Camera.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\Common\Transform.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="GameEntity.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Mesh.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Material.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="meshopt\indexanalyzer.cpp">
+      <Filter>Source Files\meshopt</Filter>
+    </ClCompile>
+    <ClCompile Include="meshopt\indexcodec.cpp">
+      <Filter>Source Files\meshopt</Filter>
+    </ClCompile>
+    <ClCompile Include="meshopt\indexgenerator.cpp">
+      <Filter>Source Files\meshopt</Filter>
+    </ClCompile>
+    <ClCompile Include="meshopt\meshletcodec.cpp">
+      <Filter>Source Files\meshopt</Filter>
+    </ClCompile>
+    <ClCompile Include="meshopt\overdrawoptimizer.cpp">
+      <Filter>Source Files\meshopt</Filter>
+    </ClCompile>
+    <ClCompile Include="meshopt\partition.cpp">
+      <Filter>Source Files\meshopt</Filter>
+    </ClCompile>
+    <ClCompile Include="meshopt\quantization.cpp">
+      <Filter>Source Files\meshopt</Filter>
+    </ClCompile>
+    <ClCompile Include="meshopt\rasterizer.cpp">
+      <Filter>Source Files\meshopt</Filter>
+    </ClCompile>
+    <ClCompile Include="meshopt\simplifier.cpp">
+      <Filter>Source Files\meshopt</Filter>
+    </ClCompile>
+    <ClCompile Include="meshopt\spatialorder.cpp">
+      <Filter>Source Files\meshopt</Filter>
+    </ClCompile>
+    <ClCompile Include="meshopt\stripifier.cpp">
+      <Filter>Source Files\meshopt</Filter>
+    </ClCompile>
+    <ClCompile Include="meshopt\vcacheoptimizer.cpp">
+      <Filter>Source Files\meshopt</Filter>
+    </ClCompile>
+    <ClCompile Include="meshopt\vertexcodec.cpp">
+      <Filter>Source Files\meshopt</Filter>
+    </ClCompile>
+    <ClCompile Include="meshopt\vertexfilter.cpp">
+      <Filter>Source Files\meshopt</Filter>
+    </ClCompile>
+    <ClCompile Include="meshopt\vfetchoptimizer.cpp">
+      <Filter>Source Files\meshopt</Filter>
+    </ClCompile>
+    <ClCompile Include="meshopt\allocator.cpp">
+      <Filter>Source Files\meshopt</Filter>
+    </ClCompile>
+    <ClCompile Include="meshopt\clusterizer.cpp">
+      <Filter>Source Files\meshopt</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Window.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Graphics.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Game.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Vertex.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Common\PathHelpers.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Common\Input.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Common\Camera.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Common\Transform.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="BufferStructs.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="GameEntity.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Mesh.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\Common\AssetPath.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Material.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Lights.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="meshopt\meshoptimizer.h">
+      <Filter>Header Files\meshopt</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="PixelShader.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="VertexShader.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="MeshShader.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Lighting.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="packages.config" />
+  </ItemGroup>
+</Project>
