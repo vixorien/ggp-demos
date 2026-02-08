@@ -1,6 +1,7 @@
 #include <fstream>
 #include <vector>
 #include <stdexcept>
+#include <unordered_map>
 
 #include "Mesh.h"
 #include "Graphics.h"
@@ -45,10 +46,9 @@ Mesh::Mesh(const char* name, const std::wstring& objFile) :
 	std::vector<XMFLOAT3> positions;	// Positions from the file
 	std::vector<XMFLOAT3> normals;		// Normals from the file
 	std::vector<XMFLOAT2> uvs;			// UVs from the file
-	std::vector<Vertex> verts;			// Verts we're assembling
-	std::vector<UINT> indices;			// Indices of these verts
-	unsigned int vertCounter = 0;		// Count of vertices/indices
-	int indexCounter = 0;				// Count of indices
+	std::vector<Vertex> vertsFromFile;	// Verts from file (including duplicates)
+	std::vector<Vertex> finalVertices;	// Final, de-duplicated verts
+	std::vector<UINT> finalIndices;		// Indices for final verts
 	char chars[100];					// String for line reading
 
 	// Still have data left?
@@ -157,13 +157,13 @@ Mesh::Mesh(const char* name, const std::wstring& objFile) :
 			v3.Normal = normals[max(i[8] - 1, 0)];
 
 			// The model is most likely in a right-handed space,
-			// especially if it came from Maya.  We want to convert
-			// to a left-handed space for DirectX.  This means we 
+			// especially if it came from Maya.  We probably want 
+			// to convert to a left-handed space.  This means we 
 			// need to:
 			//  - Invert the Z position
 			//  - Invert the normal's Z
 			//  - Flip the winding order
-			// We also need to flip the UV coordinate since DirectX
+			// We also need to flip the UV coordinate since Direct3D
 			// defines (0,0) as the top left of the texture, and many
 			// 3D modeling packages use the bottom left as (0,0)
 
@@ -183,15 +183,9 @@ Mesh::Mesh(const char* name, const std::wstring& objFile) :
 			v3.Normal.z *= -1.0f;
 
 			// Add the verts to the vector (flipping the winding order)
-			verts.push_back(v1);
-			verts.push_back(v3);
-			verts.push_back(v2);
-			vertCounter += 3;
-
-			// Add three more indices
-			indices.push_back(indexCounter); indexCounter += 1;
-			indices.push_back(indexCounter); indexCounter += 1;
-			indices.push_back(indexCounter); indexCounter += 1;
+			vertsFromFile.push_back(v1);
+			vertsFromFile.push_back(v3);
+			vertsFromFile.push_back(v2);
 
 			// Was there a 4th face?
 			// - 12 numbers read means 4 faces WITH uv's
@@ -210,22 +204,58 @@ Mesh::Mesh(const char* name, const std::wstring& objFile) :
 				v4.Normal.z *= -1.0f;
 
 				// Add a whole triangle (flipping the winding order)
-				verts.push_back(v1);
-				verts.push_back(v4);
-				verts.push_back(v3);
-				vertCounter += 3;
-
-				// Add three more indices
-				indices.push_back(indexCounter); indexCounter += 1;
-				indices.push_back(indexCounter); indexCounter += 1;
-				indices.push_back(indexCounter); indexCounter += 1;
+				vertsFromFile.push_back(v1);
+				vertsFromFile.push_back(v4);
+				vertsFromFile.push_back(v3);
 			}
 		}
 	}
 
+	// We'll use hash table (unordered_map) to determine
+	// if any of the vertices are duplicates
+	std::unordered_map<std::string, unsigned int> vertMap;
+	for (auto& v : vertsFromFile)
+	{
+		// Create a "unique" representation of the vertex (its key)
+		// Note: This isn't a super efficient method, but since strings
+		//       inherently work with unordered_maps, this saves
+		//       us from having to write our own custom hash function
+		std::string vStr =
+			std::to_string(v.Position.x) +
+			std::to_string(v.Position.y) +
+			std::to_string(v.Position.z) +
+			std::to_string(v.Normal.x) +
+			std::to_string(v.Normal.y) +
+			std::to_string(v.Normal.z) +
+			std::to_string(v.UV.x) +
+			std::to_string(v.UV.y);
+
+		// Prepare the index for this vertex and
+		// search for the vertex in the hash table
+		unsigned int index = -1;
+		auto pair = vertMap.find(vStr);
+		if (pair == vertMap.end())
+		{
+			// Vertex not found, so this
+			// is the first time we've seen it
+			index = (unsigned int)finalVertices.size();
+			finalVertices.push_back(v);
+			vertMap.insert({ vStr, index });
+		}
+		else
+		{
+			// Vert already exists, just
+			// grab its index
+			index = pair->second;
+		}
+
+		// Either way, save the index
+		finalIndices.push_back(index);
+	}
+
 	// Close the file and create the actual buffers
 	obj.close();
-	CreateBuffers(&verts[0], vertCounter, &indices[0], indexCounter);
+	CreateBuffers(&finalVertices[0], finalVertices.size(), &finalIndices[0], finalIndices.size());
 }
 
 
