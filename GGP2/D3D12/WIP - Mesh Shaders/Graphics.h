@@ -31,13 +31,13 @@ namespace Graphics
 	// --- GLOBAL VARS ---
 
 	// Primary D3D12 API objects
-	inline Microsoft::WRL::ComPtr<ID3D12Device>		Device;
+	inline Microsoft::WRL::ComPtr<ID3D12Device2>	Device;
 	inline Microsoft::WRL::ComPtr<IDXGISwapChain>	SwapChain;
 
 	// Command submission
 	inline Microsoft::WRL::ComPtr<ID3D12CommandAllocator>		CommandAllocator;
 	inline Microsoft::WRL::ComPtr<ID3D12CommandQueue>			CommandQueue;
-	inline Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList>	CommandList;
+	inline Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList6>	CommandList;
 
 	// Rendering buffers & descriptors
 	inline Microsoft::WRL::ComPtr<ID3D12Resource>		BackBuffers[NumBackBuffers];

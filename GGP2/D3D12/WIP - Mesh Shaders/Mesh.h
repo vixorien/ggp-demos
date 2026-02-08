@@ -17,10 +17,14 @@ public:
 	// Getters for mesh data
 	D3D12_VERTEX_BUFFER_VIEW GetVertexBufferView();
 	D3D12_GPU_DESCRIPTOR_HANDLE GetVertexBufferDescriptorHandle();
+	D3D12_GPU_DESCRIPTOR_HANDLE GetMeshletBufferDescriptorHandle();
+	D3D12_GPU_DESCRIPTOR_HANDLE GetVertexIndicesBufferDescriptorHandle();
+	D3D12_GPU_DESCRIPTOR_HANDLE GetTriangleIndicesBufferDescriptorHandle();
 	D3D12_INDEX_BUFFER_VIEW GetIndexBufferView();
 	const char* GetName();
 	size_t GetIndexCount();
 	size_t GetVertexCount();
+	size_t GetMeshletCount();
 
 private:
 	// D3D buffers
@@ -43,6 +47,7 @@ private:
 	// Total indices & vertices in this mesh
 	size_t numIndices;
 	size_t numVertices;
+	size_t numMeshlets;
 
 	// Name (mostly for UI purposes)
 	const char* name;

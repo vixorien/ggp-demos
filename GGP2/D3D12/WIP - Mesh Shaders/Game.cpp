@@ -70,6 +70,7 @@ Game::~Game()
 void Game::CreateRootSigAndPipelineState()
 {
 	// Blobs to hold raw shader byte code used in several steps below
+	Microsoft::WRL::ComPtr<ID3DBlob> meshShaderByteCode;
 	Microsoft::WRL::ComPtr<ID3DBlob> vertexShaderByteCode;
 	Microsoft::WRL::ComPtr<ID3DBlob> pixelShaderByteCode;
 
@@ -77,6 +78,7 @@ void Game::CreateRootSigAndPipelineState()
 	{
 		// Read our compiled vertex shader code into a blob
 		// - Essentially just "open the file and plop its contents here"
+		D3DReadFileToBlob(FixPath(L"MeshShader.cso").c_str(), meshShaderByteCode.GetAddressOf());
 		D3DReadFileToBlob(FixPath(L"VertexShader.cso").c_str(), vertexShaderByteCode.GetAddressOf());
 		D3DReadFileToBlob(FixPath(L"PixelShader.cso").c_str(), pixelShaderByteCode.GetAddressOf());
 	}
@@ -140,50 +142,171 @@ void Game::CreateRootSigAndPipelineState()
 
 	// Pipeline state
 	{
-		// Describe the pipeline state
-		D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
+		// Mesh shader PSO setup
+		// - Requires ID3D12Device2, which has been set up in Graphics
+		// - Will also require ID3D12GraphicsCommandList6 (also setup)
 
-		// -- Input assembler related ---
-		psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-		// Overall primitive topology type (triangle, line, etc.) is set here 
-		// IASetPrimTop() is still used to set list/strip/adj options
-		// See: https://docs.microsoft.com/en-us/windows/desktop/direct3d12/managing-graphics-pipeline-state-in-direct3d-12
+		// Fill out PSO manually w/ subobjects
+		D3D12_PIPELINE_STATE_SUBOBJECT_TYPE subobjectTypes[] = 
+		{
+			D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_ROOT_SIGNATURE,
+			D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_PRIMITIVE_TOPOLOGY,
+			D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_MS, // Mesh Shader
+			D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_PS,
+			D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_RENDER_TARGET_FORMATS,
+			D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_RASTERIZER,
+			D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_DEPTH_STENCIL,
+			D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_BLEND
+		};
+		
+		// Note: This must be an interleaved set of 
+		// - subobject type
+		// - associated description
+		// and it must be aligned to "void*"
+		struct PSO {
+			struct alignas(void*) RootSigSubobject
+			{
+				D3D12_PIPELINE_STATE_SUBOBJECT_TYPE Type = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_ROOT_SIGNATURE;
+				ID3D12RootSignature* pointer{};
+			} RootSig;
 
-		// Root sig
-		psoDesc.pRootSignature = rootSignature.Get();
+			struct alignas(void*) PrimTopSubobject
+			{
+				D3D12_PIPELINE_STATE_SUBOBJECT_TYPE Type = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_PRIMITIVE_TOPOLOGY;
+				D3D12_PRIMITIVE_TOPOLOGY_DESC Desc{};
+			} PrimTop;
 
-		// -- Shaders (VS/PS) --- 
-		psoDesc.VS.pShaderBytecode = vertexShaderByteCode->GetBufferPointer();
-		psoDesc.VS.BytecodeLength = vertexShaderByteCode->GetBufferSize();
-		psoDesc.PS.pShaderBytecode = pixelShaderByteCode->GetBufferPointer();
-		psoDesc.PS.BytecodeLength = pixelShaderByteCode->GetBufferSize();
+			struct alignas(void*) MSSubobject
+			{
+				D3D12_PIPELINE_STATE_SUBOBJECT_TYPE Type = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_MS;
+				D3D12_SHADER_BYTECODE Bytecode{};
+			} MS;
 
-		// -- Render targets ---
-		psoDesc.NumRenderTargets = 1;
-		psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
-		psoDesc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
-		psoDesc.SampleDesc.Count = 1;
-		psoDesc.SampleDesc.Quality = 0;
+			struct alignas(void*) PSSubobject
+			{
+				D3D12_PIPELINE_STATE_SUBOBJECT_TYPE Type = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_PS;
+				D3D12_SHADER_BYTECODE Bytecode{};
+			} PS;
 
-		// -- States ---
-		psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
-		psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
-		psoDesc.RasterizerState.DepthClipEnable = true;
+			struct alignas(void*) RenderTargetSubobject
+			{
+				D3D12_PIPELINE_STATE_SUBOBJECT_TYPE Type = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_RENDER_TARGET_FORMATS;
+				D3D12_RT_FORMAT_ARRAY Array{};
+			} RTs;
 
-		psoDesc.DepthStencilState.DepthEnable = true;
-		psoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
-		psoDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+			struct alignas(void*) DepthFormatSubobject
+			{
+				D3D12_PIPELINE_STATE_SUBOBJECT_TYPE Type = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_DEPTH_STENCIL_FORMAT;
+				D3D12_DEPTH_STENCIL_FORMAT Desc{};
+			} DepthFormat;
+			
+			struct alignas(void*) SampleSubobject
+			{
+				D3D12_PIPELINE_STATE_SUBOBJECT_TYPE Type = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_SAMPLE_DESC;
+				DXGI_SAMPLE_DESC Desc{};
+			} Sample;
 
-		psoDesc.BlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_ONE;
-		psoDesc.BlendState.RenderTarget[0].DestBlend = D3D12_BLEND_ZERO;
-		psoDesc.BlendState.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
-		psoDesc.BlendState.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+			struct alignas(void*) SampleMaskSubobject
+			{
+				D3D12_PIPELINE_STATE_SUBOBJECT_TYPE Type = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_SAMPLE_MASK;
+				unsigned int Value{};
+			} SampleMask;
 
-		// -- Misc ---
-		psoDesc.SampleMask = 0xffffffff;
+			struct alignas(void*) RastSuboject
+			{
+				D3D12_PIPELINE_STATE_SUBOBJECT_TYPE Type = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_RASTERIZER;
+				D3D12_RASTERIZER_DESC Desc{};
+			} Rast;
+
+			struct alignas(void*) DepthSuboject
+			{
+				D3D12_PIPELINE_STATE_SUBOBJECT_TYPE Type = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_DEPTH_STENCIL;
+				D3D12_DEPTH_STENCIL_DESC Desc{};
+			} Depth;
+
+			struct alignas(void*) BlendSubobject
+			{
+				D3D12_PIPELINE_STATE_SUBOBJECT_TYPE Type = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_BLEND;
+				D3D12_BLEND_DESC Desc{};
+			} Blend;
+		};
+
+		PSO pso;
+		pso.RootSig.pointer = rootSignature.Get();
+		pso.PrimTop.Desc.PrimitiveTopology = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+		pso.MS.Bytecode.pShaderBytecode = meshShaderByteCode->GetBufferPointer();
+		pso.MS.Bytecode.BytecodeLength = meshShaderByteCode->GetBufferSize();
+		pso.PS.Bytecode.pShaderBytecode = pixelShaderByteCode->GetBufferPointer();
+		pso.PS.Bytecode.BytecodeLength = pixelShaderByteCode->GetBufferSize();
+		pso.RTs.Array.NumRenderTargets = 1;
+		pso.RTs.Array.RTFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+		pso.DepthFormat.Desc.DepthStencilFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+		pso.Sample.Desc.Count = 1;
+		pso.Sample.Desc.Quality = 0;
+		pso.SampleMask.Value = D3D12_DEFAULT_SAMPLE_MASK;
+		pso.Rast.Desc.FillMode = D3D12_FILL_MODE_SOLID;
+		pso.Rast.Desc.CullMode = D3D12_CULL_MODE_BACK;
+		pso.Rast.Desc.DepthClipEnable = true;
+		pso.Depth.Desc.DepthEnable = true;
+		pso.Depth.Desc.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
+		pso.Depth.Desc.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+		pso.Blend.Desc.RenderTarget[0].SrcBlend = D3D12_BLEND_ONE;
+		pso.Blend.Desc.RenderTarget[0].DestBlend = D3D12_BLEND_ZERO;
+		pso.Blend.Desc.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+		pso.Blend.Desc.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+
+		D3D12_PIPELINE_STATE_STREAM_DESC psoStreamDesc = {};
+		psoStreamDesc.SizeInBytes = sizeof(PSO);
+		psoStreamDesc.pPipelineStateSubobjectStream = &pso;
+
+		Graphics::Device->CreatePipelineState(&psoStreamDesc, IID_PPV_ARGS(&pipelineState));
+
+
+
+		//// Describe the pipeline state
+		//D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
+
+		//// -- Input assembler related ---
+		//psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+		//// Overall primitive topology type (triangle, line, etc.) is set here 
+		//// IASetPrimTop() is still used to set list/strip/adj options
+		//// See: https://docs.microsoft.com/en-us/windows/desktop/direct3d12/managing-graphics-pipeline-state-in-direct3d-12
+
+		//// Root sig
+		//psoDesc.pRootSignature = rootSignature.Get();
+
+		//// -- Shaders (VS/PS) --- 
+		//psoDesc.VS.pShaderBytecode = vertexShaderByteCode->GetBufferPointer();
+		//psoDesc.VS.BytecodeLength = vertexShaderByteCode->GetBufferSize();
+		//psoDesc.PS.pShaderBytecode = pixelShaderByteCode->GetBufferPointer();
+		//psoDesc.PS.BytecodeLength = pixelShaderByteCode->GetBufferSize();
+
+		//// -- Render targets ---
+		//psoDesc.NumRenderTargets = 1;
+		//psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+		//psoDesc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+		//psoDesc.SampleDesc.Count = 1;
+		//psoDesc.SampleDesc.Quality = 0;
+
+		//// -- States ---
+		//psoDesc.RasterizerState.FillMode = D3D12_FILL_MODE_SOLID;
+		//psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
+		//psoDesc.RasterizerState.DepthClipEnable = true;
+
+		//psoDesc.DepthStencilState.DepthEnable = true;
+		//psoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
+		//psoDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+
+		//psoDesc.BlendState.RenderTarget[0].SrcBlend = D3D12_BLEND_ONE;
+		//psoDesc.BlendState.RenderTarget[0].DestBlend = D3D12_BLEND_ZERO;
+		//psoDesc.BlendState.RenderTarget[0].BlendOp = D3D12_BLEND_OP_ADD;
+		//psoDesc.BlendState.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+
+		//// -- Misc ---
+		//psoDesc.SampleMask = 0xffffffff;
 
 		// Create the pipe state object
-		Graphics::Device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(pipelineState.GetAddressOf()));
+		//Graphics::Device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(pipelineState.GetAddressOf()));
 	}
 
 	// Set up the viewport and scissor rectangle
@@ -452,7 +575,7 @@ void Game::Draw(float deltaTime, float totalTime)
 			D3D12_GPU_DESCRIPTOR_HANDLE cbHandleVS = Graphics::FillNextConstantBufferAndGetGPUDescriptorHandle(
 				(void*)(&vsFrame), sizeof(VertexShaderPerFrameData));
 
-			drawData.vsPerFrameCBIndex = Graphics::GetDescriptorIndex(cbHandleVS);
+			drawData.msPerFrameCBIndex = Graphics::GetDescriptorIndex(cbHandleVS);
 		}
 
 		// Per-frame pixel data
@@ -479,7 +602,10 @@ void Game::Draw(float deltaTime, float totalTime)
 				Graphics::CommandList->SetPipelineState(mat->GetPipelineState().Get());
 			}
 
-			drawData.vsVertexBufferIndex = Graphics::GetDescriptorIndex(e->GetMesh()->GetVertexBufferDescriptorHandle());
+			drawData.msVertexBufferIndex = Graphics::GetDescriptorIndex(e->GetMesh()->GetVertexBufferDescriptorHandle());
+			drawData.msMeshletBufferIndex = Graphics::GetDescriptorIndex(e->GetMesh()->GetMeshletBufferDescriptorHandle());
+			drawData.msVertexIndicesBufferIndex = Graphics::GetDescriptorIndex(e->GetMesh()->GetVertexIndicesBufferDescriptorHandle());
+			drawData.msTriangleIndicesBufferIndex = Graphics::GetDescriptorIndex(e->GetMesh()->GetTriangleIndicesBufferDescriptorHandle());
 
 			// Set up the data we intend to use for drawing this entity
 			{
@@ -492,7 +618,7 @@ void Game::Draw(float deltaTime, float totalTime)
 				D3D12_GPU_DESCRIPTOR_HANDLE cbHandleVS = Graphics::FillNextConstantBufferAndGetGPUDescriptorHandle(
 					(void*)(&vsData), sizeof(VertexShaderPerObjectData));
 
-				drawData.vsPerObjectCBIndex = Graphics::GetDescriptorIndex(cbHandleVS);
+				drawData.msPerObjectCBIndex = Graphics::GetDescriptorIndex(cbHandleVS);
 			}
 
 			// Pixel shader data and cbuffer setup
@@ -519,15 +645,9 @@ void Game::Draw(float deltaTime, float totalTime)
 				&drawData,
 				0);
 
-			// Grab the mesh and its buffer views
+			// Grab the mesh and dispatch
 			std::shared_ptr<Mesh> mesh = e->GetMesh();
-			D3D12_INDEX_BUFFER_VIEW  ibv = mesh->GetIndexBufferView();
-
-			// Set the geometry
-			Graphics::CommandList->IASetIndexBuffer(&ibv);
-
-			// Draw
-			Graphics::CommandList->DrawIndexedInstanced((UINT)mesh->GetIndexCount(), 1, 0, 0, 0);
+			Graphics::CommandList->DispatchMesh((UINT)mesh->GetMeshletCount(), 1, 1);			
 		}
 	}
 

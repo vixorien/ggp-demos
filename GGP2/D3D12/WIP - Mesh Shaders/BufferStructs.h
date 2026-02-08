@@ -5,9 +5,13 @@
 
 struct DrawDescriptorIndices
 {
-	unsigned int vsVertexBufferIndex;
-	unsigned int vsPerFrameCBIndex;
-	unsigned int vsPerObjectCBIndex;
+	unsigned int msVertexBufferIndex;
+	unsigned int msMeshletBufferIndex;
+	unsigned int msVertexIndicesBufferIndex;
+	unsigned int msTriangleIndicesBufferIndex;
+
+	unsigned int msPerFrameCBIndex;
+	unsigned int msPerObjectCBIndex;
 	unsigned int psPerFrameCBIndex;
 	unsigned int psPerObjectCBIndex;
 };

@@ -277,10 +277,14 @@ Mesh::~Mesh() { }
 // --------------------------------------------------------
 D3D12_VERTEX_BUFFER_VIEW Mesh::GetVertexBufferView() { return vbView; }
 D3D12_GPU_DESCRIPTOR_HANDLE Mesh::GetVertexBufferDescriptorHandle() { return vbGPUDescriptorHandle; }
+D3D12_GPU_DESCRIPTOR_HANDLE Mesh::GetMeshletBufferDescriptorHandle() { return meshletSRV; }
+D3D12_GPU_DESCRIPTOR_HANDLE Mesh::GetVertexIndicesBufferDescriptorHandle() { return meshletVertSRV; }
+D3D12_GPU_DESCRIPTOR_HANDLE Mesh::GetTriangleIndicesBufferDescriptorHandle() { return meshletTriSRV; }
 D3D12_INDEX_BUFFER_VIEW Mesh::GetIndexBufferView() { return ibView; }
 const char* Mesh::GetName() { return name; }
 size_t Mesh::GetIndexCount() { return numIndices; }
 size_t Mesh::GetVertexCount() { return numVertices; }
+size_t Mesh::GetMeshletCount() { return numMeshlets; }
 
 
 // --------------------------------------------------------
@@ -358,6 +362,9 @@ void Mesh::CreateBuffers(Vertex* vertArray, size_t numVerts, unsigned int* index
 		maxVertsPerMeshlet,
 		maxTrianglesPerMeshlet,
 		0.0f);
+
+	// Save for draw later!
+	numMeshlets = meshletCount;
 
 	// Shrink back down after build
 	meshlets.resize(meshletCount);
