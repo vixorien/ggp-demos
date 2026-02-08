@@ -79,7 +79,7 @@ void main(
 		uint i2 = (packedIndices >> 16) & 0xFF;
 		
 		// Set output
-		triangles[id.x] = uint3(i0, i1, i2);
+		triangles[threadID.x] = uint3(i0, i1, i2);
 	}
 	
 	// Handle vertex

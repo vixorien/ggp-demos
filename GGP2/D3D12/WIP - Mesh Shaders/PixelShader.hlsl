@@ -2,9 +2,13 @@
 
 cbuffer BindlessData : register(b0)
 {
-	uint vsVertexBufferIndex;
-	uint vsPerFrameCBIndex;
-	uint vsPerObjectCBIndex;
+	uint msVertexBufferIndex;
+	uint msMeshletBufferIndex;
+	uint msVertexIndicesBufferIndex;
+	uint msTriangleIndicesBufferIndex;
+	
+	uint msPerFrameCBIndex;
+	uint msPerObjectCBIndex;
 	uint psPerFrameCBIndex;
 	uint psPerObjectCBIndex;
 }
@@ -78,7 +82,7 @@ float4 main(VertexToPixel input) : SV_TARGET
 
 	// Keep a running total of light
 	float3 totalLight = float3(0,0,0);
-
+	
 	// Loop and handle all lights
 	for (int i = 0; i < cbFrame.lightCount; i++)
 	{
