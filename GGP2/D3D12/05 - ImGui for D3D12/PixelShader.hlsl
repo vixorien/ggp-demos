@@ -1,16 +1,31 @@
 #include "Lighting.hlsli"
 
-// Alignment matters!!!
-cbuffer ExternalData : register(b0)
+cbuffer BindlessData : register(b0)
 {
-	float2 uvScale;
-	float2 uvOffset;
-	
+	uint vsVertexBufferIndex;
+	uint vsPerFrameCBIndex;
+	uint vsPerObjectCBIndex;
+	uint psPerFrameCBIndex;
+	uint psPerObjectCBIndex;
+}
+
+// Alignment matters!!!
+struct PSPerFrameData
+{
 	float3 cameraPosition;
 	int lightCount;
-	
 	Light lights[MAX_LIGHTS];
-}
+};
+
+struct PSPerObjectData
+{
+	uint albedoIndex;
+	uint normalMapIndex;
+	uint roughnessIndex;
+	uint metalnessIndex;
+	float2 uvScale;
+	float2 uvOffset;
+};
 
 // Struct representing the data we expect to receive from earlier pipeline stages
 struct VertexToPixel
@@ -23,10 +38,6 @@ struct VertexToPixel
 };
 
 // Texture related
-Texture2D AlbedoTexture			: register(t0);
-Texture2D NormalMap				: register(t1);
-Texture2D RoughnessMap			: register(t2);
-Texture2D MetalMap				: register(t3);
 SamplerState BasicSampler		: register(s0);
 
 // --------------------------------------------------------
@@ -34,12 +45,20 @@ SamplerState BasicSampler		: register(s0);
 // --------------------------------------------------------
 float4 main(VertexToPixel input) : SV_TARGET
 {
+	ConstantBuffer<PSPerFrameData> cbFrame = ResourceDescriptorHeap[psPerFrameCBIndex];
+	ConstantBuffer<PSPerObjectData> cbObject = ResourceDescriptorHeap[psPerObjectCBIndex];
+	
+	Texture2D AlbedoTexture = ResourceDescriptorHeap[cbObject.albedoIndex];
+	Texture2D NormalMap		= ResourceDescriptorHeap[cbObject.normalMapIndex];
+	Texture2D RoughnessMap	= ResourceDescriptorHeap[cbObject.roughnessIndex];
+	Texture2D MetalMap		= ResourceDescriptorHeap[cbObject.metalnessIndex];
+	
 	// Clean up un-normalized normals
 	input.normal = normalize(input.normal);
 	input.tangent = normalize(input.tangent);
 	
 	// Scale and offset uv as necessary
-	input.uv = input.uv * uvScale + uvOffset;
+	input.uv = input.uv * cbObject.uvScale + cbObject.uvOffset;
 
 	// Normal mapping
 	input.normal = NormalMapping(NormalMap, BasicSampler, input.uv, input.normal, input.tangent);
@@ -61,25 +80,25 @@ float4 main(VertexToPixel input) : SV_TARGET
 	float3 totalLight = float3(0,0,0);
 
 	// Loop and handle all lights
-	for (int i = 0; i < lightCount; i++)
+	for (int i = 0; i < cbFrame.lightCount; i++)
 	{
 		// Grab this light and normalize the direction (just in case)
-		Light light = lights[i];
+		Light light = cbFrame.lights[i];
 		light.Direction = normalize(light.Direction);
 
 		// Run the correct lighting calculation based on the light's type
-		switch (lights[i].Type)
+		switch (light.Type)
 		{
 		case LIGHT_TYPE_DIRECTIONAL:
-			totalLight += DirLightPBR(light, input.normal, input.worldPos, cameraPosition, roughness, metal, surfaceColor.rgb, specColor, 0);
+			totalLight += DirLightPBR(light, input.normal, input.worldPos, cbFrame.cameraPosition, roughness, metal, surfaceColor.rgb, specColor, 0);
 			break;
 
 		case LIGHT_TYPE_POINT:
-			totalLight += PointLightPBR(light, input.normal, input.worldPos, cameraPosition, roughness, metal, surfaceColor.rgb, specColor, 0);
+			totalLight += PointLightPBR(light, input.normal, input.worldPos, cbFrame.cameraPosition, roughness, metal, surfaceColor.rgb, specColor, 0);
 			break;
 
 		case LIGHT_TYPE_SPOT:
-			totalLight += SpotLightPBR(light, input.normal, input.worldPos, cameraPosition, roughness, metal, surfaceColor.rgb, specColor, 0);
+			totalLight += SpotLightPBR(light, input.normal, input.worldPos, cbFrame.cameraPosition, roughness, metal, surfaceColor.rgb, specColor, 0);
 			break;
 		}
 	}

@@ -43,7 +43,6 @@ void Game::Initialize()
 	ImGui::StyleColorsDark();
 	ImGui_ImplWin32_Init(Window::Handle());
 	{
-		// Note: Recent change in how we feed ImGui initial D3D12 details!
 		ImGui_ImplDX12_InitInfo info{};
 		info.CommandQueue = Graphics::CommandQueue.Get();
 		info.Device = Graphics::Device.Get();
@@ -56,8 +55,6 @@ void Game::Initialize()
 
 		ImGui_ImplDX12_Init(&info);
 	}
-	
-
 
 	// Seed random
 	srand((unsigned int)time(0));
@@ -117,86 +114,17 @@ void Game::CreateRootSigAndPipelineState()
 		D3DReadFileToBlob(FixPath(L"PixelShader.cso").c_str(), pixelShaderByteCode.GetAddressOf());
 	}
 
-	// Input layout
-	const unsigned int inputElementCount = 4;
-	D3D12_INPUT_ELEMENT_DESC inputElements[inputElementCount] = {};
-	{
-		// Create an input layout that describes the vertex format
-		// used by the vertex shader we're using
-		//  - This is used by the pipeline to know how to interpret the raw data
-		//     sitting inside a vertex buffer
-
-		// Set up the first element - a position, which is 3 float values
-		inputElements[0].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT; // How far into the vertex is this?  Assume it's after the previous element
-		inputElements[0].Format = DXGI_FORMAT_R32G32B32_FLOAT;		// Most formats are described as color channels, really it just means "Three 32-bit floats"
-		inputElements[0].SemanticName = "POSITION";					// This is "POSITION" - needs to match the semantics in our vertex shader input!
-		inputElements[0].SemanticIndex = 0;							// This is the 0th position (there could be more)
-
-		// Set up the second element - a UV, which is 2 more float values
-		inputElements[1].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;	// After the previous element
-		inputElements[1].Format = DXGI_FORMAT_R32G32_FLOAT;			// 2x 32-bit floats
-		inputElements[1].SemanticName = "TEXCOORD";					// Match our vertex shader input!
-		inputElements[1].SemanticIndex = 0;							// This is the 0th uv (there could be more)
-
-		// Set up the third element - a normal, which is 3 more float values
-		inputElements[2].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;	// After the previous element
-		inputElements[2].Format = DXGI_FORMAT_R32G32B32_FLOAT;		// 3x 32-bit floats
-		inputElements[2].SemanticName = "NORMAL";					// Match our vertex shader input!
-		inputElements[2].SemanticIndex = 0;							// This is the 0th normal (there could be more)
-
-		// Set up the fourth element - a tangent, which is 2 more float values
-		inputElements[3].AlignedByteOffset = D3D12_APPEND_ALIGNED_ELEMENT;	// After the previous element
-		inputElements[3].Format = DXGI_FORMAT_R32G32B32_FLOAT;		// 3x 32-bit floats
-		inputElements[3].SemanticName = "TANGENT";					// Match our vertex shader input!
-		inputElements[3].SemanticIndex = 0;							// This is the 0th tangent (there could be more)
-	}
-
 	// Root Signature
 	{
-		// Describe the range of CBVs needed for the vertex shader
-		D3D12_DESCRIPTOR_RANGE cbvRangeVS = {};
-		cbvRangeVS.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
-		cbvRangeVS.NumDescriptors = 1;
-		cbvRangeVS.BaseShaderRegister = 0;
-		cbvRangeVS.RegisterSpace = 0;
-		cbvRangeVS.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-
-		// Describe the range of CBVs needed for the pixel shader
-		D3D12_DESCRIPTOR_RANGE cbvRangePS = {};
-		cbvRangePS.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
-		cbvRangePS.NumDescriptors = 1;
-		cbvRangePS.BaseShaderRegister = 0;
-		cbvRangePS.RegisterSpace = 0;
-		cbvRangePS.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-
-		// Create a range of SRV's for textures
-		D3D12_DESCRIPTOR_RANGE srvRange = {};
-		srvRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-		srvRange.NumDescriptors = 4;		// Set to max number of textures at once (match pixel shader!)
-		srvRange.BaseShaderRegister = 0;	// Starts at t0 (match pixel shader!)
-		srvRange.RegisterSpace = 0;
-		srvRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-
 		// Create the root parameters
-		D3D12_ROOT_PARAMETER rootParams[3] = {};
+		D3D12_ROOT_PARAMETER rootParams[1] = {};
 
-		// CBV table param for vertex shader
-		rootParams[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-		rootParams[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_VERTEX;
-		rootParams[0].DescriptorTable.NumDescriptorRanges = 1;
-		rootParams[0].DescriptorTable.pDescriptorRanges = &cbvRangeVS;
-
-		// CBV table param for pixel shader
-		rootParams[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-		rootParams[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-		rootParams[1].DescriptorTable.NumDescriptorRanges = 1;
-		rootParams[1].DescriptorTable.pDescriptorRanges = &cbvRangePS;
-
-		// SRV table param
-		rootParams[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-		rootParams[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
-		rootParams[2].DescriptorTable.NumDescriptorRanges = 1;
-		rootParams[2].DescriptorTable.pDescriptorRanges = &srvRange;
+		// Root params for descriptor indices
+		rootParams[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+		rootParams[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+		rootParams[0].Constants.Num32BitValues = sizeof(DrawDescriptorIndices) / sizeof(unsigned int);
+		rootParams[0].Constants.RegisterSpace = 0;
+		rootParams[0].Constants.ShaderRegister = 0;
 
 		// Create a single static sampler (available to all pixel shaders at the same slot)
 		// Note: This is in lieu of having materials have their own samplers for this demo
@@ -214,7 +142,7 @@ void Game::CreateRootSigAndPipelineState()
 
 		// Describe and serialize the root signature
 		D3D12_ROOT_SIGNATURE_DESC rootSig = {};
-		rootSig.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+		rootSig.Flags = D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED;
 		rootSig.NumParameters = ARRAYSIZE(rootParams);
 		rootSig.pParameters = rootParams;
 		rootSig.NumStaticSamplers = ARRAYSIZE(samplers);
@@ -249,8 +177,6 @@ void Game::CreateRootSigAndPipelineState()
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
 
 		// -- Input assembler related ---
-		psoDesc.InputLayout.NumElements = inputElementCount;
-		psoDesc.InputLayout.pInputElementDescs = inputElements;
 		psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 		// Overall primitive topology type (triangle, line, etc.) is set here 
 		// IASetPrimTop() is still used to set list/strip/adj options
@@ -325,44 +251,41 @@ void Game::CreateRootSigAndPipelineState()
 void Game::CreateGeometry()
 {
 	// Load textures
-	D3D12_CPU_DESCRIPTOR_HANDLE cobblestoneAlbedo = Graphics::LoadTexture(FixPath(AssetPath + L"Textures/PBR/cobblestone_albedo.png").c_str());
-	D3D12_CPU_DESCRIPTOR_HANDLE cobblestoneNormals = Graphics::LoadTexture(FixPath(AssetPath + L"Textures/PBR/cobblestone_normals.png").c_str());
-	D3D12_CPU_DESCRIPTOR_HANDLE cobblestoneRoughness = Graphics::LoadTexture(FixPath(AssetPath + L"Textures/PBR/cobblestone_roughness.png").c_str());
-	D3D12_CPU_DESCRIPTOR_HANDLE cobblestoneMetal = Graphics::LoadTexture(FixPath(AssetPath + L"Textures/PBR/cobblestone_metal.png").c_str());
+	unsigned int cobblestoneAlbedo = Graphics::LoadTexture(FixPath(AssetPath + L"Textures/PBR/cobblestone_albedo.png").c_str());
+	unsigned int cobblestoneNormals = Graphics::LoadTexture(FixPath(AssetPath + L"Textures/PBR/cobblestone_normals.png").c_str());
+	unsigned int cobblestoneRoughness = Graphics::LoadTexture(FixPath(AssetPath + L"Textures/PBR/cobblestone_roughness.png").c_str());
+	unsigned int cobblestoneMetal = Graphics::LoadTexture(FixPath(AssetPath + L"Textures/PBR/cobblestone_metal.png").c_str());
 
-	D3D12_CPU_DESCRIPTOR_HANDLE bronzeAlbedo = Graphics::LoadTexture(FixPath(AssetPath + L"Textures/PBR/bronze_albedo.png").c_str());
-	D3D12_CPU_DESCRIPTOR_HANDLE bronzeNormals = Graphics::LoadTexture(FixPath(AssetPath + L"Textures/PBR/bronze_normals.png").c_str());
-	D3D12_CPU_DESCRIPTOR_HANDLE bronzeRoughness = Graphics::LoadTexture(FixPath(AssetPath + L"Textures/PBR/bronze_roughness.png").c_str());
-	D3D12_CPU_DESCRIPTOR_HANDLE bronzeMetal = Graphics::LoadTexture(FixPath(AssetPath + L"Textures/PBR/bronze_metal.png").c_str());
+	unsigned int bronzeAlbedo = Graphics::LoadTexture(FixPath(AssetPath + L"Textures/PBR/bronze_albedo.png").c_str());
+	unsigned int bronzeNormals = Graphics::LoadTexture(FixPath(AssetPath + L"Textures/PBR/bronze_normals.png").c_str());
+	unsigned int bronzeRoughness = Graphics::LoadTexture(FixPath(AssetPath + L"Textures/PBR/bronze_roughness.png").c_str());
+	unsigned int bronzeMetal = Graphics::LoadTexture(FixPath(AssetPath + L"Textures/PBR/bronze_metal.png").c_str());
 
-	D3D12_CPU_DESCRIPTOR_HANDLE scratchedAlbedo = Graphics::LoadTexture(FixPath(AssetPath + L"Textures/PBR/scratched_albedo.png").c_str());
-	D3D12_CPU_DESCRIPTOR_HANDLE scratchedNormals = Graphics::LoadTexture(FixPath(AssetPath + L"Textures/PBR/scratched_normals.png").c_str());
-	D3D12_CPU_DESCRIPTOR_HANDLE scratchedRoughness = Graphics::LoadTexture(FixPath(AssetPath + L"Textures/PBR/scratched_roughness.png").c_str());
-	D3D12_CPU_DESCRIPTOR_HANDLE scratchedMetal = Graphics::LoadTexture(FixPath(AssetPath + L"Textures/PBR/scratched_metal.png").c_str());
+	unsigned int scratchedAlbedo = Graphics::LoadTexture(FixPath(AssetPath + L"Textures/PBR/scratched_albedo.png").c_str());
+	unsigned int scratchedNormals = Graphics::LoadTexture(FixPath(AssetPath + L"Textures/PBR/scratched_normals.png").c_str());
+	unsigned int scratchedRoughness = Graphics::LoadTexture(FixPath(AssetPath + L"Textures/PBR/scratched_roughness.png").c_str());
+	unsigned int scratchedMetal = Graphics::LoadTexture(FixPath(AssetPath + L"Textures/PBR/scratched_metal.png").c_str());
 
 	// Create materials
 	// Note: Samplers are handled by a single static sampler in the
 	// root signature for this demo, rather than per-material
 	std::shared_ptr<Material> cobbleMat = std::make_shared<Material>(pipelineState, XMFLOAT3(1, 1, 1));
-	cobbleMat->AddTexture(cobblestoneAlbedo, 0);
-	cobbleMat->AddTexture(cobblestoneNormals, 1);
-	cobbleMat->AddTexture(cobblestoneRoughness, 2);
-	cobbleMat->AddTexture(cobblestoneMetal, 3);
-	cobbleMat->FinalizeTextures();
+	cobbleMat->SetAlbedoIndex(bronzeAlbedo);
+	cobbleMat->SetNormalMapIndex(bronzeNormals);
+	cobbleMat->SetRoughnessIndex(bronzeRoughness);
+	cobbleMat->SetMetalnessIndex(bronzeMetal);
 
 	std::shared_ptr<Material> bronzeMat = std::make_shared<Material>(pipelineState, XMFLOAT3(1, 1, 1));
-	bronzeMat->AddTexture(bronzeAlbedo, 0);
-	bronzeMat->AddTexture(bronzeNormals, 1);
-	bronzeMat->AddTexture(bronzeRoughness, 2);
-	bronzeMat->AddTexture(bronzeMetal, 3);
-	bronzeMat->FinalizeTextures();
+	bronzeMat->SetAlbedoIndex(cobblestoneAlbedo);
+	bronzeMat->SetNormalMapIndex(cobblestoneNormals);
+	bronzeMat->SetRoughnessIndex(cobblestoneRoughness);
+	bronzeMat->SetMetalnessIndex(cobblestoneMetal);
 
 	std::shared_ptr<Material> scratchedMat = std::make_shared<Material>(pipelineState, XMFLOAT3(1, 1, 1));
-	scratchedMat->AddTexture(scratchedAlbedo, 0);
-	scratchedMat->AddTexture(scratchedNormals, 1);
-	scratchedMat->AddTexture(scratchedRoughness, 2);
-	scratchedMat->AddTexture(scratchedMetal, 3);
-	scratchedMat->FinalizeTextures();
+	scratchedMat->SetAlbedoIndex(scratchedAlbedo);
+	scratchedMat->SetNormalMapIndex(scratchedNormals);
+	scratchedMat->SetRoughnessIndex(scratchedRoughness);
+	scratchedMat->SetMetalnessIndex(scratchedMetal);
 
 	// Load meshes
 	std::shared_ptr<Mesh> cube = std::make_shared<Mesh>("Cube", FixPath(AssetPath + L"Meshes/cube.obj").c_str());
@@ -540,18 +463,47 @@ void Game::Draw(float deltaTime, float totalTime)
 		// Set overall pipeline state
 		Graphics::CommandList->SetPipelineState(pipelineState.Get());
 
-		// Root sig (must happen before root descriptor table)
+		// Set constant buffer descriptor heap
+		Graphics::CommandList->SetDescriptorHeaps(1, Graphics::CBVSRVDescriptorHeap.GetAddressOf());
+
+		// Root sig
 		Graphics::CommandList->SetGraphicsRootSignature(rootSignature.Get());
 
 
-		// Set constant buffer descriptor heap
-		Graphics::CommandList->SetDescriptorHeaps(1, Graphics::CBVSRVDescriptorHeap.GetAddressOf());
 
 		// Set up other commands for rendering
 		Graphics::CommandList->OMSetRenderTargets(1, &Graphics::RTVHandles[Graphics::SwapChainIndex()], true, &Graphics::DSVHandle);
 		Graphics::CommandList->RSSetViewports(1, &viewport);
 		Graphics::CommandList->RSSetScissorRects(1, &scissorRect);
 		Graphics::CommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+		// Set up per-frame data
+		DrawDescriptorIndices drawData{};
+		
+		// Per-frame vertex data
+		{
+			VertexShaderPerFrameData vsFrame{};
+			vsFrame.view = camera->GetView();
+			vsFrame.projection = camera->GetProjection();
+
+			D3D12_GPU_DESCRIPTOR_HANDLE cbHandleVS = Graphics::FillNextConstantBufferAndGetGPUDescriptorHandle(
+				(void*)(&vsFrame), sizeof(VertexShaderPerFrameData));
+
+			drawData.vsPerFrameCBIndex = Graphics::GetDescriptorIndex(cbHandleVS);
+		}
+
+		// Per-frame pixel data
+		{
+			PixelShaderPerFrameData psFrame{};
+			psFrame.cameraPosition = camera->GetTransform()->GetPosition();
+			psFrame.lightCount = lightCount;
+			memcpy(psFrame.lights, &lights[0], sizeof(Light) * lightCount);
+
+			D3D12_GPU_DESCRIPTOR_HANDLE cbHandlePS = Graphics::FillNextConstantBufferAndGetGPUDescriptorHandle(
+				(void*)(&psFrame), sizeof(PixelShaderPerFrameData));
+
+			drawData.psPerFrameCBIndex = Graphics::GetDescriptorIndex(cbHandlePS);
+		}
 
 		// Loop through the entities
 		for (auto& e : entities)
@@ -562,60 +514,53 @@ void Game::Draw(float deltaTime, float totalTime)
 			// Set the pipeline state for this material
 			{
 				Graphics::CommandList->SetPipelineState(mat->GetPipelineState().Get());
-
-				// Set the SRV descriptor handle for this material's textures
-				// Note: This assumes that descriptor table 2 is for textures (as per our root sig)
-				Graphics::CommandList->SetGraphicsRootDescriptorTable(2, mat->GetFinalGPUHandleForTextures());
 			}
+
+			drawData.vsVertexBufferIndex = Graphics::GetDescriptorIndex(e->GetMesh()->GetVertexBufferDescriptorHandle());
 
 			// Set up the data we intend to use for drawing this entity
 			{
-				VertexShaderExternalData vsData = {};
+				VertexShaderPerObjectData vsData = {};
 				vsData.world = e->GetTransform()->GetWorldMatrix();
 				vsData.worldInverseTranspose = e->GetTransform()->GetWorldInverseTransposeMatrix();
-				vsData.view = camera->GetView();
-				vsData.projection = camera->GetProjection();
 
 				// Send this to a chunk of the constant buffer heap
 				// and grab the GPU handle for it so we can set it for this draw
-				D3D12_GPU_DESCRIPTOR_HANDLE cbHandle = Graphics::FillNextConstantBufferAndGetGPUDescriptorHandle(
-					(void*)(&vsData), sizeof(VertexShaderExternalData));
+				D3D12_GPU_DESCRIPTOR_HANDLE cbHandleVS = Graphics::FillNextConstantBufferAndGetGPUDescriptorHandle(
+					(void*)(&vsData), sizeof(VertexShaderPerObjectData));
 
-				// Set this constant buffer handle
-				// Note: This assumes that descriptor table 0 is the
-				//       place to put this particular descriptor.  This
-				//       is based on how we set up our root signature.
-				Graphics::CommandList->SetGraphicsRootDescriptorTable(0, cbHandle);
+				drawData.vsPerObjectCBIndex = Graphics::GetDescriptorIndex(cbHandleVS);
 			}
 
 			// Pixel shader data and cbuffer setup
 			{
-				PixelShaderExternalData psData = {};
+				PixelShaderPerObjectData psData = {};
 				psData.uvScale = mat->GetUVScale();
 				psData.uvOffset = mat->GetUVOffset();
-				psData.cameraPosition = camera->GetTransform()->GetPosition();
-				psData.lightCount = lightCount;
-				memcpy(psData.lights, &lights[0], sizeof(Light) * MAX_LIGHTS);
+				psData.albedoIndex = mat->GetAlbedoIndex();
+				psData.normalMapIndex = mat->GetNormalMapIndex();
+				psData.roughnessIndex = mat->GetRoughnessIndex();
+				psData.metalnessIndex = mat->GetMetalnessIndex();
 
 				// Send this to a chunk of the constant buffer heap
 				// and grab the GPU handle for it so we can set it for this draw
 				D3D12_GPU_DESCRIPTOR_HANDLE cbHandlePS = Graphics::FillNextConstantBufferAndGetGPUDescriptorHandle(
-					(void*)(&psData), sizeof(PixelShaderExternalData));
+					(void*)(&psData), sizeof(PixelShaderPerObjectData));
 
-				// Set this constant buffer handle
-				// Note: This assumes that descriptor table 1 is the
-				//       place to put this particular descriptor.  This
-				//       is based on how we set up our root signature.
-				Graphics::CommandList->SetGraphicsRootDescriptorTable(1, cbHandlePS);
+				drawData.psPerObjectCBIndex = Graphics::GetDescriptorIndex(cbHandlePS);
 			}
+
+			Graphics::CommandList->SetGraphicsRoot32BitConstants(
+				0, 
+				sizeof(DrawDescriptorIndices) / sizeof(unsigned int), 
+				&drawData,
+				0);
 
 			// Grab the mesh and its buffer views
 			std::shared_ptr<Mesh> mesh = e->GetMesh();
-			D3D12_VERTEX_BUFFER_VIEW vbv = mesh->GetVertexBufferView();
 			D3D12_INDEX_BUFFER_VIEW  ibv = mesh->GetIndexBufferView();
 
 			// Set the geometry
-			Graphics::CommandList->IASetVertexBuffers(0, 1, &vbv);
 			Graphics::CommandList->IASetIndexBuffer(&ibv);
 
 			// Draw
@@ -651,11 +596,9 @@ void Game::Draw(float deltaTime, float totalTime)
 			vsync ? 0 : DXGI_PRESENT_ALLOW_TEARING);
 		Graphics::AdvanceSwapChainIndex();
 
-		// No longer need to explicitly wait for all GPU work to be done!
-		//Graphics::WaitForGPU();
-
-		// Reset the command list & allocator for the upcoming frame
-		Graphics::ResetAllocatorAndCommandList(Graphics::SwapChainIndex());
+		// Wait for the GPU to be done and then reset the command list & allocator
+		Graphics::WaitForGPU();
+		Graphics::ResetAllocatorAndCommandList();
 	}
 }
 
@@ -719,5 +662,8 @@ void Game::BuildUI()
 	}
 	ImGui::End();
 }
+
+
+
 
 

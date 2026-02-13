@@ -22,15 +22,20 @@ public:
 	DirectX::XMFLOAT2 GetUVScale();
 	DirectX::XMFLOAT2 GetUVOffset();
 	DirectX::XMFLOAT3 GetColorTint();
-	D3D12_GPU_DESCRIPTOR_HANDLE GetFinalGPUHandleForSRVs();
+	unsigned int GetAlbedoIndex();
+	unsigned int GetNormalMapIndex();
+	unsigned int GetRoughnessIndex();
+	unsigned int GetMetalnessIndex();
 
 	void SetPipelineState(Microsoft::WRL::ComPtr<ID3D12PipelineState> pipelineState);
 	void SetUVScale(DirectX::XMFLOAT2 scale);
 	void SetUVOffset(DirectX::XMFLOAT2 offset);
 	void SetColorTint(DirectX::XMFLOAT3 tint);
 
-	void AddTexture(D3D12_CPU_DESCRIPTOR_HANDLE srvDescriptorHandle, int slot);
-	void FinalizeTextures();
+	void SetAlbedoIndex(unsigned int index);
+	void SetNormalMapIndex(unsigned int index);
+	void SetRoughnessIndex(unsigned int index);
+	void SetMetalnessIndex(unsigned int index);
 
 private:
 
@@ -44,9 +49,9 @@ private:
 	DirectX::XMFLOAT2 uvScale;
 
 	// Texture-related GPU tracking
-	bool materialTexturesFinalized;
-	int highestSRVSlot;
-	D3D12_CPU_DESCRIPTOR_HANDLE textureSRVsBySlot[128]; // Up to 128 textures can be bound per shader stage (we'll never get near that amount)
-	D3D12_GPU_DESCRIPTOR_HANDLE finalGPUHandleForSRVs;
+	unsigned int albedoIndex;
+	unsigned int normalMapIndex;
+	unsigned int roughnessIndex;
+	unsigned int metalnessIndex;
 };
 

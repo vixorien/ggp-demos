@@ -160,6 +160,13 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\Common\Camera.cpp" />
+    <ClCompile Include="..\Common\ImGui\imgui.cpp" />
+    <ClCompile Include="..\Common\ImGui\imgui_demo.cpp" />
+    <ClCompile Include="..\Common\ImGui\imgui_draw.cpp" />
+    <ClCompile Include="..\Common\ImGui\imgui_impl_dx12.cpp" />
+    <ClCompile Include="..\Common\ImGui\imgui_impl_win32.cpp" />
+    <ClCompile Include="..\Common\ImGui\imgui_tables.cpp" />
+    <ClCompile Include="..\Common\ImGui\imgui_widgets.cpp" />
     <ClCompile Include="..\Common\Input.cpp" />
     <ClCompile Include="..\Common\Main.cpp" />
     <ClCompile Include="..\Common\PathHelpers.cpp" />
@@ -174,6 +181,14 @@
   <ItemGroup>
     <ClInclude Include="..\Common\AssetPath.h" />
     <ClInclude Include="..\Common\Camera.h" />
+    <ClInclude Include="..\Common\ImGui\imconfig.h" />
+    <ClInclude Include="..\Common\ImGui\imgui.h" />
+    <ClInclude Include="..\Common\ImGui\imgui_impl_dx12.h" />
+    <ClInclude Include="..\Common\ImGui\imgui_impl_win32.h" />
+    <ClInclude Include="..\Common\ImGui\imgui_internal.h" />
+    <ClInclude Include="..\Common\ImGui\imstb_rectpack.h" />
+    <ClInclude Include="..\Common\ImGui\imstb_textedit.h" />
+    <ClInclude Include="..\Common\ImGui\imstb_truetype.h" />
     <ClInclude Include="..\Common\Input.h" />
     <ClInclude Include="..\Common\PathHelpers.h" />
     <ClInclude Include="..\Common\Transform.h" />
@@ -190,23 +205,23 @@
   <ItemGroup>
     <FxCompile Include="PixelShader.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">5.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">6.6</ShaderModel>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">5.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">6.6</ShaderModel>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.6</ShaderModel>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">6.6</ShaderModel>
     </FxCompile>
     <FxCompile Include="VertexShader.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">5.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">6.6</ShaderModel>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">5.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">6.6</ShaderModel>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">6.6</ShaderModel>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">6.6</ShaderModel>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>

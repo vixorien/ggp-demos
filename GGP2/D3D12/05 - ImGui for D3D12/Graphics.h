@@ -73,7 +73,7 @@ namespace Graphics
 	void AdvanceSwapChainIndex();
 
 	// Resource creation
-	D3D12_CPU_DESCRIPTOR_HANDLE LoadTexture(const wchar_t* file, bool generateMips = true);
+	unsigned int LoadTexture(const wchar_t* file, bool generateMips = true);
 	Microsoft::WRL::ComPtr<ID3D12Resource> CreateStaticBuffer(size_t dataStride, size_t dataCount, void* data);
 
 	// Resource usage
@@ -81,9 +81,11 @@ namespace Graphics
 		void* data,
 		unsigned int dataSizeInBytes);
 
-	D3D12_GPU_DESCRIPTOR_HANDLE CopySRVsToDescriptorHeapAndGetGPUDescriptorHandle(
-		D3D12_CPU_DESCRIPTOR_HANDLE firstDescriptorToCopy, 
-		unsigned int numDescriptorsToCopy);
+	void ReserveDescriptorHeapSlot(
+		D3D12_CPU_DESCRIPTOR_HANDLE* reservedCPUHandle, 
+		D3D12_GPU_DESCRIPTOR_HANDLE* reservedGPUHandle);
+
+	unsigned int GetDescriptorIndex(D3D12_GPU_DESCRIPTOR_HANDLE handle);
 
 	// Command list & synchronization
 	void ResetAllocatorAndCommandList();
