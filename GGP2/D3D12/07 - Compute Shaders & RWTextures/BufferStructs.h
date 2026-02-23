@@ -14,11 +14,11 @@ struct DrawDescriptorIndices
 
 struct ComputeDescriptorIndices
 {
+	unsigned int noiseTextureIndex;
 	unsigned int albedoTextureIndex;
 	unsigned int normalTextureIndex;
 	unsigned int roughTextureIndex;
 	unsigned int metalTextureIndex;
-	unsigned int noiseTextureIndex;
 	float time;
 };
 

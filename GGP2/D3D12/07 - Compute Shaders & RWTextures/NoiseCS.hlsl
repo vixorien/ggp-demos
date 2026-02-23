@@ -143,11 +143,11 @@ float layeredPerlin3D(float3 uv, uint layers)
 
 cbuffer DrawIndices : register(b0)
 {
+	uint noiseIndex;
 	uint albedoIndex;
 	uint normalIndex;
 	uint roughIndex;
 	uint metalIndex;
-	uint noiseIndex;
 	float time;
 }
 
@@ -170,8 +170,26 @@ void main(uint3 threadID : SV_DispatchThreadID)
 	
 	// Run noise calculations
 	float noise = layeredPerlin3D(uvAndTime, layers);
-	float noiseR = layeredPerlin3D(uvRight, layers);
-	float noiseD = layeredPerlin3D(uvDown, layers);
+	float noiseX = layeredPerlin3D(uvRight, layers);
+	float noiseY = layeredPerlin3D(uvDown, layers);
+	float xDiff = noiseX - noise;
+	float yDiff = noiseY - noise;
+	
+	// Metal is either 0 or 1, with a slight gradient between
+	float metal = 1 - saturate(noise * 100 - 50);
+	
+	// Roughness is either inverted noise or very smooth depending on metalness
+	float rough = lerp(1 - (noise * 0.5f + 0.5f), 0.1f, metal);
+	
+	// Albedo is dark red for non-metal, and brighter red for metal
+	float3 albedo = lerp(float3(1, 0.1f, 0.1f) * noise, float3(1,0.75f,0.75f), metal);
+
+	// Normal is based on the difference of noise at this pixel and its X/Y neighbors
+	float normalScale = 50.0f * ((noise * 5.0f - 2.5f));
+	float normX = lerp(xDiff * normalScale, 0, metal);
+	float normY = lerp(yDiff * normalScale, 0, metal);
+	float3 normal = normalize(float3(normX, normY, 1)) * 0.5f + 0.5f; // Packed
+	
 	
 	// Place the result in the output textures
 	RWTexture2D<unorm float4> AlbedoTexture = ResourceDescriptorHeap[albedoIndex];
@@ -179,15 +197,6 @@ void main(uint3 threadID : SV_DispatchThreadID)
 	RWTexture2D<unorm float4> RoughTexture = ResourceDescriptorHeap[roughIndex];
 	RWTexture2D<unorm float4> MetalTexture = ResourceDescriptorHeap[metalIndex];
 	RWTexture2D<unorm float4> NoiseTexture = ResourceDescriptorHeap[noiseIndex];
-	
-	float metal = 1 - round(noise);
-	float rough = metal == 0.0f ? 1 - (noise * 5.0f - 2.5f) : 0.1f;
-	float3 albedo = metal == 0.0f ? float3(0.75f, 0.75f, 0.75f) : 1;//float3(0.2f, 0.4f, 0.9f);
-
-	float normalScale = 50.0f * (1 - (noise * 5.0f - 2.5f));
-	float normX = metal == 0.0f ? noiseR - noise : round(noiseR) - round(noise);
-	float normY = metal == 0.0f ? noiseD - noise : round(noiseD) - round(noise);
-	float3 normal = normalize(float3(normX * normalScale, normY * normalScale, 1)) * 0.5f + 0.5f; // Packed
 	
 	AlbedoTexture[threadID.xy] = float4(albedo, 1);
 	NormalTexture[threadID.xy] = float4(normal, 1);
