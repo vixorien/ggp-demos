@@ -27,8 +27,9 @@ struct DrawData
 	matrix invVP;
 	float3 cameraPosition;
 	uint sphereCount;
-	float3 skyColor;
+	float3 skyColorTop;
 	uint windowWidth;
+	float3 skyColorBottom;
 	uint windowHeight;
 	uint maxRecursion;
 	uint raysPerPixel;
@@ -134,6 +135,13 @@ bool TraceRay(Ray r, Sphere spheres[MAX_SPHERES], out HitDetails details)
 	return details.Hit;
 }
 
+float3 GetSkyColor(float3 topColor, float3 bottomColor, float3 direction)
+{
+	float gradient = dot(direction, float3(0,1,0));
+	gradient = gradient * 0.5f + 0.5f;
+	return lerp(bottomColor, topColor, gradient);
+}
+
 
 [numthreads(8, 8, 1)]
 void main(uint3 threadID : SV_DispatchThreadID)
@@ -154,7 +162,7 @@ void main(uint3 threadID : SV_DispatchThreadID)
 			HitDetails details;
 			if(!TraceRay(ray, cb.spheres, details))
 			{
-				color *= cb.skyColor;
+				color *= GetSkyColor(cb.skyColorTop, cb.skyColorBottom, ray.Direction);
 				break;
 			}
 			else
@@ -187,6 +195,7 @@ void main(uint3 threadID : SV_DispatchThreadID)
 	}
 	
 	totalColor /= cb.raysPerPixel;
+	
 	
 	// Write final color to RW Texture
 	RWTexture2D<unorm float4> Output = ResourceDescriptorHeap[outputTextureIndex];
