@@ -1,26 +1,8 @@
 
-// 2D value to 1D "random" value
-float random(float2 uv)
-{
-	return frac(sin(dot(uv, float2(12.3456, 67.8912))) * 12346.6789);
-}
-
-// 2D value to 2D "random" vector
-float2 random2D(float2 uv)
-{
-	return frac(sin(mul(uv, float2x2(0.129898, 0.78233, 0.81314, 0.15926))) * 12346.6789);
-}
-
 // 3D value to 3D "random" vector
 float3 random3D(float3 uv)
 {
 	return frac(sin(mul(uv, float3x3(0.129898, 0.78233, 0.11314, 0.15926, 0.54321, 0.98765, 0.90210, 0.1675309, 0.6789))) * 12346.6789);
-}
-
-// 2D value to 2D "random" unit vector
-float2 randomUnitVector2D(float2 uv)
-{
-	return normalize(random2D(uv) - 0.5f);	
 }
 
 // 3D value to 3D "random" unit vector
@@ -28,8 +10,6 @@ float3 randomUnitVector3D(float3 uv)
 {
 	return normalize(random3D(uv) - 0.5f);	
 }
-
-// === Shader itself starts here ===
 
 #define MAX_SPHERES 32
 
@@ -46,10 +26,12 @@ struct DrawData
 	Sphere spheres[MAX_SPHERES];
 	matrix invVP;
 	float3 cameraPosition;
-	float time;
+	uint sphereCount;
+	float3 skyColor;
 	uint windowWidth;
 	uint windowHeight;
-	uint sphereCount;
+	uint maxRecursion;
+	uint raysPerPixel;
 };
 
 struct Ray
@@ -124,7 +106,7 @@ bool RaySphereIntersect(Ray r, Sphere s, out float dist)
 	return true;
 }
 
-bool GetClosestHit(Ray r, Sphere spheres[MAX_SPHERES], out HitDetails details)
+bool TraceRay(Ray r, Sphere spheres[MAX_SPHERES], out HitDetails details)
 {
 	details.Hit = false;
 	details.HitDistance = 999999.0f;
@@ -152,39 +134,34 @@ bool GetClosestHit(Ray r, Sphere spheres[MAX_SPHERES], out HitDetails details)
 	return details.Hit;
 }
 
-float3 TraceRay(Ray ray, Sphere s[MAX_SPHERES], out HitDetails details)
-{
-	if(!GetClosestHit(ray, s, details))
-	{
-		return float3(1,1,1);	
-	}
-	
-	return details.HitSphere.Color;
-}
 
 [numthreads(8, 8, 1)]
 void main(uint3 threadID : SV_DispatchThreadID)
 {
 	// Grab draw data buffer
 	ConstantBuffer<DrawData> cb = ResourceDescriptorHeap[cbIndex];
-	
-	#define MAX_DEPTH 10
-	#define RAYS_PER_PIXEL 25
+
 	
 	// Set up the ray and trace
 	float3 totalColor = float3(0,0,0);
-	for(int r = 0; r < RAYS_PER_PIXEL; r++)
+	for(int r = 0; r < cb.raysPerPixel; r++)
 	{
 		Ray ray = GetRayThroughPixel(cb.cameraPosition, threadID.x, threadID.y, cb.windowWidth, cb.windowHeight, cb.invVP);
 		
 		float3 color = float3(1,1,1);
-		for (int depth = 0; depth < MAX_DEPTH; depth++)
+		for (int depth = 0; depth < cb.maxRecursion; depth++)
 		{
 			HitDetails details;
-			color *= TraceRay(ray, cb.spheres, details);
-		
-			if (!details.Hit)
+			if(!TraceRay(ray, cb.spheres, details))
+			{
+				color *= cb.skyColor;
 				break;
+			}
+			else
+			{
+				color *= details.HitSphere.Color;	
+			}
+			
 		
 			// Origin for next trace
 			ray.Origin = details.HitPosition + details.HitNormal * 0.001f;
@@ -197,10 +174,9 @@ void main(uint3 threadID : SV_DispatchThreadID)
 			}
 			else
 			{
-				
+				// Diffuse
 				float3 rand = randomUnitVector3D(details.HitPosition + r);
-				
-				if (dot(rand, details.HitNormal) < 0)
+				if (dot(rand, details.HitNormal) < 0) 
 					rand *= -1;
 				
 				ray.Direction = rand;
@@ -210,7 +186,7 @@ void main(uint3 threadID : SV_DispatchThreadID)
 		totalColor += color;
 	}
 	
-	totalColor /= RAYS_PER_PIXEL;
+	totalColor /= cb.raysPerPixel;
 	
 	// Write final color to RW Texture
 	RWTexture2D<unorm float4> Output = ResourceDescriptorHeap[outputTextureIndex];

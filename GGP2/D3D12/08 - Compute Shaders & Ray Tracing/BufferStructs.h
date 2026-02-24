@@ -29,10 +29,12 @@ struct DrawData
 	Sphere spheres[MAX_SPHERES];
 	DirectX::XMFLOAT4X4 invVP;
 	DirectX::XMFLOAT3 cameraPosition;
-	float time;
+	unsigned int sphereCount;
+	DirectX::XMFLOAT3 skyColor;
 	unsigned int windowWidth;
 	unsigned int windowHeight;
-	unsigned int sphereCount;
+	unsigned int maxRecursion;
+	unsigned int raysPerPixel;
 };
 
 struct ComputeDescriptorIndices

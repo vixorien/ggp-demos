@@ -80,6 +80,7 @@ void Game::Initialize()
 	floor.Color = XMFLOAT3(0.25f, 0.25f, 0.25f);
 	floor.Radius = 1000.0f;
 	floor.Position = XMFLOAT3(0, -1000, 0);
+	floor.Roughness = 1;
 	spheres.push_back(floor);
 
 	for (int i = 1; i < MAX_SPHERES; i++)
@@ -91,6 +92,11 @@ void Game::Initialize()
 		s.Roughness = roundf(RandomRange(0, 1));
 		spheres.push_back(s);
 	}
+
+	drawData = {};
+	drawData.raysPerPixel = 25;
+	drawData.maxRecursion = 10;
+	drawData.skyColor = XMFLOAT3(1, 1, 1);
 }
 
 
@@ -487,9 +493,7 @@ void Game::Draw(float deltaTime, float totalTime)
 		Graphics::CommandList->SetDescriptorHeaps(1, Graphics::CBVSRVDescriptorHeap.GetAddressOf());
 		Graphics::CommandList->SetComputeRootSignature(computeRootSig.Get());
 
-		DrawData drawData{};
 		drawData.cameraPosition = camera->GetTransform()->GetPosition();
-		drawData.time = totalTime;
 		drawData.windowWidth = Window::Width();
 		drawData.windowHeight = Window::Height();
 		memcpy(&drawData.spheres, &spheres[0], sizeof(Sphere) * MAX_SPHERES);
@@ -549,6 +553,14 @@ void Game::Draw(float deltaTime, float totalTime)
 		rb.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
 		rb.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
 		Graphics::CommandList->ResourceBarrier(1, &rb);
+	}
+
+	// Set necessary render states for standard drawing (ImGui!)
+	{
+		Graphics::CommandList->OMSetRenderTargets(1, &Graphics::RTVHandles[Graphics::SwapChainIndex()], true, &Graphics::DSVHandle);
+		Graphics::CommandList->RSSetViewports(1, &viewport);
+		Graphics::CommandList->RSSetScissorRects(1, &scissorRect);
+		Graphics::CommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	}
 
 
@@ -644,7 +656,16 @@ void Game::BuildUI()
 			ImGui::TreePop();
 		}
 
-		
+		// === Overall details ===
+		if (ImGui::TreeNode("Ray Tracing"))
+		{
+			ImGui::SliderInt("Rays Per Pixel", reinterpret_cast<int*>(&drawData.raysPerPixel), 1, 50);
+			ImGui::SliderInt("Max Recursion", reinterpret_cast<int*>(&drawData.maxRecursion), 1, 10);
+			ImGui::ColorEdit3("Sky Color", &drawData.skyColor.x);
+
+			// Finalize the tree node
+			ImGui::TreePop();
+		}
 	}
 	ImGui::End();
 }

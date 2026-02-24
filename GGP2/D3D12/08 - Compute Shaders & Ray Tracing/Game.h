@@ -50,6 +50,7 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12Resource> ComputeOutputTexture;
 	D3D12_GPU_DESCRIPTOR_HANDLE ComputeOutputGPUHandle;
 	unsigned int ComputeOutputHeapIndex;
+	DrawData drawData;
 
 	// Scene
 	std::shared_ptr<FPSCamera> camera;
