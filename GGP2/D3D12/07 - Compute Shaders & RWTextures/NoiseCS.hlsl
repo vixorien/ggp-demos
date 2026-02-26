@@ -139,8 +139,6 @@ float layeredPerlin3D(float3 uv, uint layers)
 	return noise / totalAmplitude;
 }
 
-// === Shader itself starts here ===
-
 cbuffer DrawIndices : register(b0)
 {
 	uint noiseIndex;
@@ -160,48 +158,9 @@ void main(uint3 threadID : SV_DispatchThreadID)
 	
 	// Calculate proper uv, using time as Z value
 	float3 uvAndTime = float3(threadID.xy / 512.0f, time * speed);
-	
-	// Calculate neighbor uvs, too
-	float neighbor = 1.0f / 512.0f;
-	float3 uvRight = uvAndTime;
-	float3 uvDown = uvAndTime;
-	uvRight.x += neighbor;
-	uvDown.y += neighbor;
-	
-	// Run noise calculations
 	float noise = layeredPerlin3D(uvAndTime, layers);
-	float noiseX = layeredPerlin3D(uvRight, layers);
-	float noiseY = layeredPerlin3D(uvDown, layers);
-	float xDiff = noiseX - noise;
-	float yDiff = noiseY - noise;
 	
-	// Metal is either 0 or 1, with a slight gradient between
-	float metal = 1 - saturate(noise * 100 - 50);
-	
-	// Roughness is either inverted noise or very smooth depending on metalness
-	float rough = lerp(1 - (noise * 0.5f + 0.5f), 0.1f, metal);
-	
-	// Albedo is dark red for non-metal, and brighter red for metal
-	float3 albedo = lerp(float3(1, 0.1f, 0.1f) * noise, float3(1,0.75f,0.75f), metal);
-
-	// Normal is based on the difference of noise at this pixel and its X/Y neighbors
-	float normalScale = 50.0f * ((noise * 5.0f - 2.5f));
-	float normX = lerp(xDiff * normalScale, 0, metal);
-	float normY = lerp(yDiff * normalScale, 0, metal);
-	float3 normal = normalize(float3(normX, normY, 1)) * 0.5f + 0.5f; // Packed
-	
-	
-	// Place the result in the output textures
-	RWTexture2D<unorm float4> AlbedoTexture = ResourceDescriptorHeap[albedoIndex];
-	RWTexture2D<unorm float4> NormalTexture = ResourceDescriptorHeap[normalIndex];
-	RWTexture2D<unorm float4> RoughTexture = ResourceDescriptorHeap[roughIndex];
-	RWTexture2D<unorm float4> MetalTexture = ResourceDescriptorHeap[metalIndex];
+	// Write results
 	RWTexture2D<unorm float4> NoiseTexture = ResourceDescriptorHeap[noiseIndex];
-	
-	AlbedoTexture[threadID.xy] = float4(albedo, 1);
-	NormalTexture[threadID.xy] = float4(normal, 1);
-	RoughTexture[threadID.xy] = float4(rough.rrr, 1);
-	MetalTexture[threadID.xy] = float4(metal.rrr, 1);
 	NoiseTexture[threadID.xy] = float4(noise.rrr, 1);
-	
 }

@@ -56,7 +56,8 @@ private:
 
 	// Compute pipeline
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> computeRootSig;
-	Microsoft::WRL::ComPtr<ID3D12PipelineState> computePSO;
+	Microsoft::WRL::ComPtr<ID3D12PipelineState> noiseGenPSO;
+	Microsoft::WRL::ComPtr<ID3D12PipelineState> textureGenPSO;
 	std::vector<RWTextureDetails> RWTextures;
 
 	// Scene

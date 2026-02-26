@@ -112,7 +112,8 @@ void Game::CreateRootSigAndPipelineState()
 	// Blobs to hold raw shader byte code used in several steps below
 	Microsoft::WRL::ComPtr<ID3DBlob> vertexShaderByteCode;
 	Microsoft::WRL::ComPtr<ID3DBlob> pixelShaderByteCode;
-	Microsoft::WRL::ComPtr<ID3DBlob> computeShaderByteCode;
+	Microsoft::WRL::ComPtr<ID3DBlob> noiseShaderByteCode;
+	Microsoft::WRL::ComPtr<ID3DBlob> textureGenShaderByteCode;
 
 	// Load shaders
 	{
@@ -120,7 +121,8 @@ void Game::CreateRootSigAndPipelineState()
 		// - Essentially just "open the file and plop its contents here"
 		D3DReadFileToBlob(FixPath(L"VertexShader.cso").c_str(), vertexShaderByteCode.GetAddressOf());
 		D3DReadFileToBlob(FixPath(L"PixelShader.cso").c_str(), pixelShaderByteCode.GetAddressOf());
-		D3DReadFileToBlob(FixPath(L"NoiseCS.cso").c_str(), computeShaderByteCode.GetAddressOf());
+		D3DReadFileToBlob(FixPath(L"NoiseCS.cso").c_str(), noiseShaderByteCode.GetAddressOf());
+		D3DReadFileToBlob(FixPath(L"TextureGenCS.cso").c_str(), textureGenShaderByteCode.GetAddressOf());
 	}
 
 	// Root Signature
@@ -240,11 +242,25 @@ void Game::CreateRootSigAndPipelineState()
 		rootParams[0].Constants.RegisterSpace = 0;
 		rootParams[0].Constants.ShaderRegister = 0;
 
+		D3D12_STATIC_SAMPLER_DESC anisoWrap = {};
+		anisoWrap.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+		anisoWrap.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+		anisoWrap.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+		anisoWrap.Filter = D3D12_FILTER_ANISOTROPIC;
+		anisoWrap.MaxAnisotropy = 16;
+		anisoWrap.MaxLOD = D3D12_FLOAT32_MAX;
+		anisoWrap.ShaderRegister = 0;  // register(s0)
+		anisoWrap.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
+		D3D12_STATIC_SAMPLER_DESC samplers[] = { anisoWrap };
+
 		// Describe and serialize the root signature
 		D3D12_ROOT_SIGNATURE_DESC rootSig = {};
 		rootSig.Flags = D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED;
 		rootSig.NumParameters = ARRAYSIZE(rootParams);
 		rootSig.pParameters = rootParams;
+		rootSig.NumStaticSamplers = ARRAYSIZE(samplers);
+		rootSig.pStaticSamplers = samplers;
 
 		ID3DBlob* serializedRootSig = 0;
 		ID3DBlob* errors = 0;
@@ -268,12 +284,18 @@ void Game::CreateRootSigAndPipelineState()
 			serializedRootSig->GetBufferSize(),
 			IID_PPV_ARGS(computeRootSig.GetAddressOf()));
 
+		// Set up noise pipeline
 		D3D12_COMPUTE_PIPELINE_STATE_DESC cPSO{};
-		cPSO.CS.BytecodeLength = computeShaderByteCode->GetBufferSize();
-		cPSO.CS.pShaderBytecode = computeShaderByteCode->GetBufferPointer();
+		cPSO.CS.BytecodeLength = noiseShaderByteCode->GetBufferSize();
+		cPSO.CS.pShaderBytecode = noiseShaderByteCode->GetBufferPointer();
 		cPSO.pRootSignature = computeRootSig.Get();
 
-		Graphics::Device->CreateComputePipelineState(&cPSO, IID_PPV_ARGS(computePSO.GetAddressOf()));
+		Graphics::Device->CreateComputePipelineState(&cPSO, IID_PPV_ARGS(noiseGenPSO.GetAddressOf()));
+
+		// Set up texture gen pipeline
+		cPSO.CS.BytecodeLength = textureGenShaderByteCode->GetBufferSize();
+		cPSO.CS.pShaderBytecode = textureGenShaderByteCode->GetBufferPointer();
+		Graphics::Device->CreateComputePipelineState(&cPSO, IID_PPV_ARGS(textureGenPSO.GetAddressOf()));
 	}
 
 	// Set up the viewport and scissor rectangle
@@ -587,9 +609,8 @@ void Game::Draw(float deltaTime, float totalTime)
 			0, 0);	// No scissor rects
 	}
 
-	// Run compute shader
+	// Prepare compute pipeline and run shaders
 	{
-		Graphics::CommandList->SetPipelineState(computePSO.Get());
 		Graphics::CommandList->SetDescriptorHeaps(1, Graphics::CBVSRVDescriptorHeap.GetAddressOf());
 		Graphics::CommandList->SetComputeRootSignature(computeRootSig.Get());
 
@@ -607,6 +628,12 @@ void Game::Draw(float deltaTime, float totalTime)
 			&computeData,
 			0);
 
+		// Run noise gen compute shader
+		Graphics::CommandList->SetPipelineState(noiseGenPSO.Get());
+		Graphics::CommandList->Dispatch(RWTextures[0].Width / 8, RWTextures[0].Height / 8, 1);
+
+		// Run texture gen shader compute shader
+		Graphics::CommandList->SetPipelineState(textureGenPSO.Get());
 		Graphics::CommandList->Dispatch(RWTextures[0].Width / 8, RWTextures[0].Height / 8, 1);
 	}
 
