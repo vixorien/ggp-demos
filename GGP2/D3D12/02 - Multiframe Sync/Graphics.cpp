@@ -402,11 +402,20 @@ void Graphics::ResizeBuffers(unsigned int width, unsigned int height)
 			DSVHandle);
 	}
 
+	// Are we in a fullscreen state?
+	SwapChain->GetFullscreenState(&isFullscreen, 0);
+
 	// Reset back to the first buffer
 	currentBackBufferIndex = 0;
 
-	// Are we in a fullscreen state?
-	SwapChain->GetFullscreenState(&isFullscreen, 0);
+	// Close the command list (just in case), reset all allocators and 
+	// set the command list back to the first allocator.  This is 
+	// necessary to handle occasional 1-frame allocator errors after
+	// a resize.
+	CommandList->Close();
+	for(unsigned int i = 0; i < NumBackBuffers; i++)
+		CommandAllocator[i]->Reset();
+	CommandList->Reset(CommandAllocator[0].Get(), 0);
 }
 
 
@@ -436,9 +445,8 @@ void Graphics::AdvanceSwapChainIndex()
 		// GPU has caught up one frame
 		GPUCounter++;
 	}
-
-	// Return the new buffer index, which the caller can
-	// use to track which buffer to use for the next frame
+	
+	// Update the current back buffer index
 	currentBackBufferIndex++;
 	currentBackBufferIndex %= NumBackBuffers;
 }
