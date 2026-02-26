@@ -56,6 +56,8 @@ private:
 	std::shared_ptr<FPSCamera> camera;
 	std::vector<Sphere> spheres;
 	std::shared_ptr<Sky> sky;
+	float moveTime;
+	bool moveSpheres;
 
 	// Other graphics data
 	D3D12_VIEWPORT viewport{};

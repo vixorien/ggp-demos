@@ -30,8 +30,9 @@ struct DrawData
 	DirectX::XMFLOAT4X4 invVP;
 	DirectX::XMFLOAT3 cameraPosition;
 	unsigned int sphereCount;
-	DirectX::XMFLOAT3 skyColor;
+	DirectX::XMFLOAT3 skyColorTop;
 	unsigned int windowWidth;
+	DirectX::XMFLOAT3 skyColorBottom;
 	unsigned int windowHeight;
 	unsigned int maxRecursion;
 	unsigned int raysPerPixel;

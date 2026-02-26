@@ -75,6 +75,9 @@ void Game::Initialize()
 		100.0f,					// Far clip
 		CameraProjectionType::Perspective);
 
+	moveTime = 0;
+	moveSpheres = true;
+
 	// Create spheres
 	Sphere floor{};
 	floor.Color = XMFLOAT3(0.25f, 0.25f, 0.25f);
@@ -96,7 +99,8 @@ void Game::Initialize()
 	drawData = {};
 	drawData.raysPerPixel = 25;
 	drawData.maxRecursion = 10;
-	drawData.skyColor = XMFLOAT3(1, 1, 1);
+	drawData.skyColorTop = XMFLOAT3(1, 1, 1);
+	drawData.skyColorBottom = XMFLOAT3(0.15f, 0.35f, 1);
 }
 
 
@@ -445,6 +449,14 @@ void Game::Update(float deltaTime, float totalTime)
 	if (Input::KeyDown(VK_ESCAPE))
 		Window::Quit();
 
+	// Should spheres animate?
+	if(moveSpheres)
+		moveTime += deltaTime;
+
+	// Update positions of all spheres but the floor
+	for (int i = 1; i < MAX_SPHERES; i++)
+		spheres[i].Position.y = sinf(moveTime + spheres[i].Position.x + spheres[i].Position.z) * spheres[i].Radius * 2 + 10;
+
 	camera->Update(deltaTime);
 }
 
@@ -659,9 +671,11 @@ void Game::BuildUI()
 		// === Overall details ===
 		if (ImGui::TreeNode("Ray Tracing"))
 		{
+			ImGui::Checkbox("Move Spheres", &moveSpheres);
 			ImGui::SliderInt("Rays Per Pixel", reinterpret_cast<int*>(&drawData.raysPerPixel), 1, 50);
 			ImGui::SliderInt("Max Recursion", reinterpret_cast<int*>(&drawData.maxRecursion), 1, 10);
-			ImGui::ColorEdit3("Sky Color", &drawData.skyColor.x);
+			ImGui::ColorEdit3("Sky Color Top", &drawData.skyColorTop.x);
+			ImGui::ColorEdit3("Sky Color Bottom", &drawData.skyColorBottom.x);
 
 			// Finalize the tree node
 			ImGui::TreePop();
