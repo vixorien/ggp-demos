@@ -183,16 +183,13 @@ HRESULT Graphics::Initialize(unsigned int windowWidth, unsigned int windowHeight
 			return swapResult;
 	}
 
-	// Create the fences for basic synchronization
+	// Create the fence for basic synchronization
 	{
 		// Our basic "wait for GPU" hard stop
 		Device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(WaitFence.GetAddressOf()));
 		WaitFenceEvent = CreateEventEx(0, 0, 0, EVENT_ALL_ACCESS);
-		WaitFenceCounter = 0;
-
-		// Fence for syncing frames "in flight"
-		Device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(FrameSyncFence.GetAddressOf()));
-		FrameSyncFenceEvent = CreateEventEx(0, 0, 0, EVENT_ALL_ACCESS);
+		CPUCounter = 0;
+		GPUCounter = 0;
 	}
 
 	// Overall API has been initialized
@@ -410,9 +407,6 @@ void Graphics::ResizeBuffers(unsigned int width, unsigned int height)
 
 	// Are we in a fullscreen state?
 	SwapChain->GetFullscreenState(&isFullscreen, 0);
-
-	// Wait for the GPU before we proceed
-	WaitForGPU();
 }
 
 
@@ -423,30 +417,30 @@ void Graphics::ResizeBuffers(unsigned int width, unsigned int height)
 // --------------------------------------------------------
 void Graphics::AdvanceSwapChainIndex()
 {
-	// Grab the current fence value so we can adjust it for the next frame,
-	// but first use it to signal into the command queue (so we can check for this frame later)
-	UINT64 currentFenceCounter = FrameSyncFenceCounters[currentBackBufferIndex];
-	CommandQueue->Signal(FrameSyncFence.Get(), currentFenceCounter);
+	// Increment our CPU-side counter and place "this frame" into the queue
+	CPUCounter++;
+	CommandQueue->Signal(WaitFence.Get(), CPUCounter);
 
-	// Calculate the next index
-	unsigned int nextBuffer = currentBackBufferIndex + 1;
-	nextBuffer %= NumBackBuffers;
-
-	// Do we need to wait for the next frame?  We do this by checking the counter
-	// associated with that frame's buffer and waiting if it's not complete
-	if (FrameSyncFence->GetCompletedValue() < FrameSyncFenceCounters[nextBuffer])
+	// How far "ahead" are we?
+	UINT64 frames = CPUCounter - GPUCounter;
+	if (frames >= NumBackBuffers)
 	{
-		// Not completed, so we wait
-		FrameSyncFence->SetEventOnCompletion(FrameSyncFenceCounters[nextBuffer], FrameSyncFenceEvent);
-		WaitForSingleObject(FrameSyncFenceEvent, INFINITE);
-	}
+		// Too far ahead, so wait for the next GPU counter (current + 1)
+		if (WaitFence->GetCompletedValue() < GPUCounter + 1)
+		{
+			// Not completed, so we wait
+			WaitFence->SetEventOnCompletion(GPUCounter + 1, WaitFenceEvent);
+			WaitForSingleObject(WaitFenceEvent, INFINITE);
+		}
 
-	// Frame is done, so update the next frame's counter
-	FrameSyncFenceCounters[nextBuffer] = currentFenceCounter + 1;
+		// GPU has caught up one frame
+		GPUCounter++;
+	}
 
 	// Return the new buffer index, which the caller can
 	// use to track which buffer to use for the next frame
-	currentBackBufferIndex = nextBuffer;
+	currentBackBufferIndex++;
+	currentBackBufferIndex %= NumBackBuffers;
 }
 
 
@@ -678,18 +672,21 @@ void Graphics::WaitForGPU()
 {
 	// Update our ongoing fence value (a unique index for each "stop sign")
 	// and then place that value into the GPU's command queue
-	WaitFenceCounter++;
-	CommandQueue->Signal(WaitFence.Get(), WaitFenceCounter);
+	CPUCounter++;
+	CommandQueue->Signal(WaitFence.Get(), CPUCounter);
 
 	// Check to see if the most recently completed fence value
 	// is less than the one we just set.
-	if (WaitFence->GetCompletedValue() < WaitFenceCounter)
+	if (WaitFence->GetCompletedValue() < CPUCounter)
 	{
 		// Tell the fence to let us know when it's hit, and then
 		// sit and wait until that fence is hit.
-		WaitFence->SetEventOnCompletion(WaitFenceCounter, WaitFenceEvent);
+		WaitFence->SetEventOnCompletion(CPUCounter, WaitFenceEvent);
 		WaitForSingleObject(WaitFenceEvent, INFINITE);
 	}
+
+	// We're fully caught up
+	GPUCounter = CPUCounter;
 }
 
 
