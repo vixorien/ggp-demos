@@ -211,7 +211,7 @@ Mesh::Mesh(const char* name, const std::wstring& objFile) :
 		}
 	}
 
-	// We'll use hash table (unordered_map) to determine
+	// We'll use a hash table (unordered_map) to determine
 	// if any of the vertices are duplicates
 	std::unordered_map<std::string, unsigned int> vertMap;
 	for (auto& v : vertsFromFile)

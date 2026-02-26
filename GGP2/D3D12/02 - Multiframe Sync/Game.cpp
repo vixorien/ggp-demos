@@ -244,7 +244,8 @@ void Game::CreateGeometry()
 
 	// Create a critical mass of entity to tax the frame rate a bit
 	int meshCount = 0;
-	int dimensionSize = 8;
+	int dimensionSize = 12;
+	int halfSize = dimensionSize / 2;
 	for (float x = 0; x < dimensionSize; x++)
 	{
 		for (float y = 0; y < dimensionSize; y++)
@@ -253,7 +254,7 @@ void Game::CreateGeometry()
 			{
 				// Create a single entity
 				std::shared_ptr<GameEntity> e = std::make_shared<GameEntity>(meshes[meshCount % 5]);
-				e->GetTransform()->SetPosition(x, y, z);
+				e->GetTransform()->SetPosition(x - halfSize, y - halfSize, z);
 				e->GetTransform()->SetScale(0.25f);
 				entities.push_back(e);
 
@@ -428,12 +429,9 @@ void Game::Draw(float deltaTime, float totalTime)
 		Graphics::SwapChain->Present(
 			vsync ? 1 : 0,
 			vsync ? 0 : DXGI_PRESENT_ALLOW_TEARING);
-		Graphics::AdvanceSwapChainIndex();
-
-		// No longer need to explicitly wait for all GPU work to be done!
-		//Graphics::WaitForGPU();
 
 		// Reset the command list & allocator for the upcoming frame
+		Graphics::AdvanceSwapChainIndex();
 		Graphics::ResetAllocatorAndCommandList(Graphics::SwapChainIndex());
 	}
 }

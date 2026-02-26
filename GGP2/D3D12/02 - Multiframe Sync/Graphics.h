@@ -17,7 +17,7 @@ namespace Graphics
 	// Maximum number of constant buffers, assuming each buffer
 	// is 256 bytes or less.  Larger buffers are fine, but will
 	// result in fewer buffers in use at any time
-	const unsigned int MaxConstantBuffers = 1000;
+	const unsigned int MaxConstantBuffers = 5000;
 
 	// --- GLOBAL VARS ---
 
@@ -45,12 +45,13 @@ namespace Graphics
 	// Basic CPU/GPU synchronization
 	inline Microsoft::WRL::ComPtr<ID3D12Fence>	WaitFence;
 	inline HANDLE								WaitFenceEvent = 0;
-	inline UINT64								WaitFenceCounter = 0;
+	inline UINT64								CPUCounter = 0;
+	inline UINT64								GPUCounter = 0;
 
-	// Frame sync'ing
-	inline Microsoft::WRL::ComPtr<ID3D12Fence>	FrameSyncFence;
-	inline HANDLE								FrameSyncFenceEvent = 0;
-	inline UINT64								FrameSyncFenceCounters[NumBackBuffers]{};
+	//// Frame sync'ing
+	//inline Microsoft::WRL::ComPtr<ID3D12Fence>	FrameSyncFence;
+	//inline HANDLE								FrameSyncFenceEvent = 0;
+	//inline UINT64								FrameSyncFenceCounters[NumBackBuffers]{};
 
 	// Debug Layer
 	inline Microsoft::WRL::ComPtr<ID3D12InfoQueue> InfoQueue;
