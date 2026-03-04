@@ -48,11 +48,6 @@ namespace Graphics
 	inline UINT64								CPUCounter = 0;
 	inline UINT64								GPUCounter = 0;
 
-	//// Frame sync'ing
-	//inline Microsoft::WRL::ComPtr<ID3D12Fence>	FrameSyncFence;
-	//inline HANDLE								FrameSyncFenceEvent = 0;
-	//inline UINT64								FrameSyncFenceCounters[NumBackBuffers]{};
-
 	// Debug Layer
 	inline Microsoft::WRL::ComPtr<ID3D12InfoQueue> InfoQueue;
 
