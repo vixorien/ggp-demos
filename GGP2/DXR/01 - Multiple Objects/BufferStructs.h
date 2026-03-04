@@ -36,3 +36,31 @@ struct RaytracingEntityData
 {
 	DirectX::XMFLOAT4 color[MAX_INSTANCES_PER_BLAS];
 };
+
+// NEW
+
+// Put in global root sig as root constants
+struct RayTracingDrawData
+{
+	unsigned int SceneDataCBIndex;
+	unsigned int MaterialDataDescriptorIndex;
+	unsigned int SceneTLASDescriptorIndex;
+	unsigned int OutputUAVDescriptorIndex;
+};
+
+// Constant buffer details
+struct RayTracingSceneDataNEW
+{
+	DirectX::XMFLOAT4X4 InverseViewProjection;
+	DirectX::XMFLOAT3 CameraPosition;
+	float pad;
+};
+
+// Structured buffer of all entity data (geom, material, etc.)
+struct RayTracingEntityDataNEW
+{
+	DirectX::XMFLOAT4 Color;
+	unsigned int VertexBufferDescriptorIndex;
+	unsigned int IndexBufferDescriptorIndex;
+	float pad[2];
+};

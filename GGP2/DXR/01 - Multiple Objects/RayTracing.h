@@ -42,6 +42,10 @@ namespace RayTracing
 	inline D3D12_CPU_DESCRIPTOR_HANDLE RaytracingOutputUAV_CPU;
 	inline D3D12_GPU_DESCRIPTOR_HANDLE RaytracingOutputUAV_GPU;
 
+	// Buffer for bindless resources
+	inline unsigned int EntityDataDescriptorIndex;
+	inline Microsoft::WRL::ComPtr<ID3D12Resource> EntityDataStructuredBuffer;
+
 	// --- FUNCTIONS ---
 	HRESULT Initialize();
 	HRESULT CreateRequiredResources(

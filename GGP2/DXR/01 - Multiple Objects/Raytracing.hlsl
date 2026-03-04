@@ -14,6 +14,20 @@ struct Vertex
 // 11 floats total per vertex * 4 bytes each
 static const uint VertexSizeInBytes = 11 * 4; 
 
+struct SceneData
+{
+	matrix InverseViewProjection;
+	float3 CameraPosition;
+	float pad;
+};
+
+struct EntityData
+{
+	float4 Color;
+	uint VertexBufferDescriptorIndex;
+	uint IndexBufferDescriptorIndex;
+	float pad[2];
+};
 
 // Payload for rays (data that is "sent along" with each ray during raytrace)
 // Note: This should be as small as possible, and must match our C++ size definition
@@ -29,7 +43,15 @@ struct RayPayload
 
 // === Constant buffers ===
 
-cbuffer SceneData : register(b0)
+//cbuffer DrawData
+//{
+//	uint SceneDataCBIndex;
+//	uint MaterialDataDescriptorIndex;
+//	uint SceneTLASDescriptorIndex;
+//	uint OutputUAVDescriptorIndex;
+//};
+
+cbuffer SceneDataCB : register(b0)
 {
 	matrix inverseViewProjection;
 	float3 cameraPosition;

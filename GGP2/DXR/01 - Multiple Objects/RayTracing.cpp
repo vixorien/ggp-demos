@@ -81,6 +81,60 @@ HRESULT RayTracing::CreateRequiredResources(
 	CreateRaytracingOutputUAV(outputWidth, outputHeight);
 	CreateShaderTable(scene);
 
+	// Set up entity data array
+	std::vector<RayTracingEntityDataNEW> entityData;
+	for (int i = 0; i < scene.size(); i++)
+	{
+		// Set up this entity's data
+		RayTracingEntityDataNEW data{};
+		XMFLOAT3 c = scene[i]->GetMaterial()->GetColorTint();
+		data.Color = XMFLOAT4(c.x, c.y, c.z, 1);
+		data.IndexBufferDescriptorIndex = Graphics::GetDescriptorIndex(scene[i]->GetMesh()->GetRayTracingData().IndexBufferSRV);
+		data.VertexBufferDescriptorIndex = Graphics::GetDescriptorIndex(scene[i]->GetMesh()->GetRayTracingData().VertexBufferSRV);
+		
+		// Add to the vector
+		entityData.push_back(data);
+	}
+
+	// How big will the buffer actually need to be?
+	UINT64 bufferSize = sizeof(RayTracingEntityDataNEW) * entityData.size();
+
+	// Create a temp upload buffer holding the initial data
+	Microsoft::WRL::ComPtr<ID3D12Resource> uploadBuffer = Graphics::CreateBuffer(bufferSize, D3D12_HEAP_TYPE_UPLOAD);
+	void* uploadAddr;
+	uploadBuffer->Map(0, 0, &uploadAddr);
+	memcpy(uploadAddr, &entityData[0], bufferSize);
+
+	// Create final buffer and copy into it
+	EntityDataStructuredBuffer = Graphics::CreateBuffer(
+		bufferSize,
+		D3D12_HEAP_TYPE_DEFAULT,
+		D3D12_RESOURCE_STATE_COMMON, 
+		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+	Graphics::CommandList->CopyResource(EntityDataStructuredBuffer.Get(), uploadBuffer.Get());
+
+	// Start and wait for work
+	Graphics::CloseAndExecuteCommandList();
+	Graphics::WaitForGPU();
+	Graphics::ResetAllocatorAndCommandList(0);
+
+	// Create SRV
+	D3D12_CPU_DESCRIPTOR_HANDLE cpu;
+	D3D12_GPU_DESCRIPTOR_HANDLE gpu;
+	Graphics::ReserveDescriptorHeapSlot(&cpu, &gpu);
+
+	D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc{};
+	uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
+	uavDesc.Buffer.NumElements = (unsigned int)entityData.size();
+	uavDesc.Buffer.StructureByteStride = sizeof(RayTracingEntityDataNEW);
+
+	Graphics::Device->CreateUnorderedAccessView(
+		EntityDataStructuredBuffer.Get(),
+		0,
+		&uavDesc,
+		cpu);
+	EntityDataDescriptorIndex = Graphics::GetDescriptorIndex(gpu);
+
 	// All set
 	dxrResourcesInitialized = true;
 	return S_OK;
