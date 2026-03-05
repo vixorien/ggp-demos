@@ -43,7 +43,7 @@ struct RaytracingEntityData
 struct RayTracingDrawData
 {
 	unsigned int SceneDataCBIndex;
-	unsigned int MaterialDataDescriptorIndex;
+	unsigned int EntityDataDescriptorIndex;
 	unsigned int SceneTLASDescriptorIndex;
 	unsigned int OutputUAVDescriptorIndex;
 };

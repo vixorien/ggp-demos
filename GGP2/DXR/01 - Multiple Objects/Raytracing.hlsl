@@ -43,37 +43,37 @@ struct RayPayload
 
 // === Constant buffers ===
 
-//cbuffer DrawData
-//{
-//	uint SceneDataCBIndex;
-//	uint MaterialDataDescriptorIndex;
-//	uint SceneTLASDescriptorIndex;
-//	uint OutputUAVDescriptorIndex;
-//};
-
-cbuffer SceneDataCB : register(b0)
+cbuffer DrawData : register(b0)
 {
-	matrix inverseViewProjection;
-	float3 cameraPosition;
+	uint SceneDataCBIndex;
+	uint EntityDataDescriptorIndex;
+	uint SceneTLASDescriptorIndex;
+	uint OutputUAVDescriptorIndex;
 };
 
-cbuffer ObjectData : register(b1)
-{
-	float4 entityColor;	
-}
+//cbuffer SceneDataCB : register(b0)
+//{
+//	matrix inverseViewProjection;
+//	float3 cameraPosition;
+//};
+
+//cbuffer ObjectData : register(b1)
+//{
+//	float4 entityColor;	
+//}
 
 
 // === Resources ===
 
-// Output UAV 
-RWTexture2D<float4> OutputColor				: register(u0);
+//// Output UAV 
+//RWTexture2D<float4> OutputColor				: register(u0);
 
-// The actual scene we want to trace through (a TLAS)
-RaytracingAccelerationStructure SceneTLAS	: register(t0);
+//// The actual scene we want to trace through (a TLAS)
+//RaytracingAccelerationStructure SceneTLAS	: register(t0);
 
-// Geometry buffers
-ByteAddressBuffer IndexBuffer        		: register(t1);
-ByteAddressBuffer VertexBuffer				: register(t2);
+//// Geometry buffers
+//ByteAddressBuffer IndexBuffer        		: register(t1);
+//ByteAddressBuffer VertexBuffer				: register(t2);
 
 
 // === Helpers ===
@@ -85,6 +85,8 @@ uint3 LoadIndices(uint triangleIndex)
 	uint indicesStart = triangleIndex * 3;
 
 	// Adjust by the byte size before loading
+	StructuredBuffer<EntityData> dataBuffer = ResourceDescriptorHeap[EntityDataDescriptorIndex];
+	ByteAddressBuffer IndexBuffer = ResourceDescriptorHeap[dataBuffer[InstanceIndex()].IndexBufferDescriptorIndex];
 	return IndexBuffer.Load3(indicesStart * 4); // 4 bytes per index
 }
 
@@ -103,6 +105,9 @@ Vertex InterpolateVertices(uint triangleIndex, float2 barycentrics)
 
 	// Set up the final vertex
     Vertex vert = (Vertex)0;
+	
+	StructuredBuffer<EntityData> dataBuffer = ResourceDescriptorHeap[EntityDataDescriptorIndex];
+	ByteAddressBuffer VertexBuffer = ResourceDescriptorHeap[dataBuffer[InstanceIndex()].VertexBufferDescriptorIndex];
 
 	// Loop through the barycentric data and interpolate
 	for (uint i = 0; i < 3; i++)
@@ -134,18 +139,20 @@ Vertex InterpolateVertices(uint triangleIndex, float2 barycentrics)
 // Calculates an origin and direction from the camera for specific pixel indices
 RayDesc CalcRayFromCamera(float2 rayIndices)
 {
+	ConstantBuffer<SceneData> cb = ResourceDescriptorHeap[SceneDataCBIndex];
+	
 	// Offset to the middle of the pixel
 	float2 pixel = rayIndices + 0.5f;
 	float2 screenPos = pixel / DispatchRaysDimensions().xy * 2.0f - 1.0f;
 	screenPos.y = -screenPos.y;
 
 	// Unproject the coords
-	float4 worldPos = mul(inverseViewProjection, float4(screenPos, 0, 1));
+	float4 worldPos = mul(cb.InverseViewProjection, float4(screenPos, 0, 1));
 	worldPos.xyz /= worldPos.w;
 
 	// Set up the ray
 	RayDesc ray;
-	ray.Origin = cameraPosition.xyz;
+	ray.Origin = cb.CameraPosition.xyz;
 	ray.Direction = normalize(worldPos.xyz - ray.Origin);
 	ray.TMin = 0.01f;
 	ray.TMax = 1000.0f;
@@ -172,6 +179,7 @@ void RayGen()
 	RayPayload payload = (RayPayload)0;
 
 	// Perform the ray trace for this ray
+	RaytracingAccelerationStructure SceneTLAS = ResourceDescriptorHeap[SceneTLASDescriptorIndex];
 	TraceRay(
 		SceneTLAS,
 		RAY_FLAG_NONE,
@@ -183,6 +191,7 @@ void RayGen()
 		payload);
 
 	// Set the final color of the buffer (gamma corrected)
+	RWTexture2D<float4> OutputColor = ResourceDescriptorHeap[OutputUAVDescriptorIndex];
 	OutputColor[rayIndices] = float4(pow(payload.color, 1.0f / 2.2f), 1);
 }
 
@@ -211,5 +220,6 @@ void ClosestHit(inout RayPayload payload, BuiltInTriangleIntersectionAttributes 
 	//payload.color = interpolatedVert.normal;
 	
 	// Get the data for this entity
-	payload.color = entityColor.rgb;
+	StructuredBuffer<EntityData> dataBuffer = ResourceDescriptorHeap[EntityDataDescriptorIndex];
+	payload.color = dataBuffer[InstanceIndex()].Color.rgb;
 }
