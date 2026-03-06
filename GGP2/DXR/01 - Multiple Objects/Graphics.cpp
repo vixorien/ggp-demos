@@ -583,21 +583,30 @@ D3D12_CPU_DESCRIPTOR_HANDLE Graphics::LoadTexture(const wchar_t* file, bool gene
 
 
 // --------------------------------------------------------
-// Helper for creating a basic buffer
+// Helper for creating a buffer.  Optionally,
+// initial data may be provided for the buffer.
+// A temporary upload buffer will be created to
+// receive the data, which is then copied to
+// the final GPU buffer.
 // 
-// size      - How big should the buffer be in bytes
-// heapType  - What kind of D3D12 heap?  Default is D3D12_HEAP_TYPE_DEFAULT
-// state     - What state should the resulting resource be in?  Default is D3D12_RESOURCE_STATE_COMMON
-// flags     - Any special flags?  Default is D3D12_RESOURCE_FLAG_NONE
-// alignment - What's the buffer alignment?  Default is 0
+// bufferSize - How big should the buffer be in bytes
+// heapType   - What kind of D3D12 heap?  Default is D3D12_HEAP_TYPE_DEFAULT
+// state      - What state should the resulting resource be in?  Default is D3D12_RESOURCE_STATE_COMMON
+// flags      - Any special flags?  Default is D3D12_RESOURCE_FLAG_NONE
+// alignment  - What's the buffer alignment?  Default is 0
+// data       - Pointer to the data to copy to the buffer.  Default is 0 (nullptr)
+// dataSize   - Size in bytes of data to copy.  If this is larger than bufferSize, no data is copied
 // --------------------------------------------------------
 Microsoft::WRL::ComPtr<ID3D12Resource> Graphics::CreateBuffer(
-	UINT64 size,
+	UINT64 bufferSize,
 	D3D12_HEAP_TYPE heapType,
 	D3D12_RESOURCE_STATES state,
 	D3D12_RESOURCE_FLAGS flags,
-	UINT64 alignment)
+	UINT64 alignment,
+	void* data,
+	size_t dataSize)
 {
+	// The final buffer
 	Microsoft::WRL::ComPtr<ID3D12Resource> buffer;
 
 	// Describe the heap
@@ -620,10 +629,79 @@ Microsoft::WRL::ComPtr<ID3D12Resource> Graphics::CreateBuffer(
 	desc.MipLevels = 1;
 	desc.SampleDesc.Count = 1;
 	desc.SampleDesc.Quality = 0;
-	desc.Width = size; // Size of the buffer
+	desc.Width = bufferSize; // Size of the buffer
 
 	// Create the buffer
 	Device->CreateCommittedResource(&heapDesc, D3D12_HEAP_FLAG_NONE, &desc, state, 0, IID_PPV_ARGS(buffer.GetAddressOf()));
+
+	// Do we need to copy data to the buffer?
+	if (data && dataSize > 0 && dataSize <= bufferSize)
+	{
+		// We need to copy data into the final buffer, so create
+		// an upload buffer to initially get the data
+		D3D12_HEAP_PROPERTIES uploadProps = {};
+		uploadProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+		uploadProps.CreationNodeMask = 1;
+		uploadProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+		uploadProps.Type = D3D12_HEAP_TYPE_UPLOAD;
+		uploadProps.VisibleNodeMask = 1;
+
+		// Remove any special flags on the initial description
+		desc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+		Microsoft::WRL::ComPtr<ID3D12Resource> uploadHeap;
+		Device->CreateCommittedResource(
+			&uploadProps,
+			D3D12_HEAP_FLAG_NONE,
+			&desc,
+			D3D12_RESOURCE_STATE_COMMON,
+			0,
+			IID_PPV_ARGS(uploadHeap.GetAddressOf()));
+
+		// Do a straight map/memcpy/unmap
+		void* gpuAddress = 0;
+		uploadHeap->Map(0, 0, &gpuAddress);
+		memcpy(gpuAddress, data, dataSize);
+		uploadHeap->Unmap(0, 0);
+
+		// Create a local command list + allocator
+		Microsoft::WRL::ComPtr<ID3D12CommandAllocator> localAllocator;
+		Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> localList;
+
+		Device->CreateCommandAllocator(
+			D3D12_COMMAND_LIST_TYPE_DIRECT,
+			IID_PPV_ARGS(localAllocator.GetAddressOf()));
+
+		Device->CreateCommandList(
+			0,
+			D3D12_COMMAND_LIST_TYPE_DIRECT,
+			localAllocator.Get(),
+			0,
+			IID_PPV_ARGS(localList.GetAddressOf()));
+
+		// Copy the whole buffer from uploadheap to vert buffer
+		localList->CopyResource(buffer.Get(), uploadHeap.Get());
+
+		// Transition the buffer to generic read for the rest of the app lifetime (presumably)
+		D3D12_RESOURCE_BARRIER rb = {};
+		rb.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+		rb.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+		rb.Transition.pResource = buffer.Get();
+		rb.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
+		rb.Transition.StateAfter = D3D12_RESOURCE_STATE_GENERIC_READ;
+		rb.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+		localList->ResourceBarrier(1, &rb);
+
+		// Execute the local command list and wait for it to complete
+		// before returning the final buffer
+		localList->Close();
+		ID3D12CommandList* list[] = { localList.Get() };
+		CommandQueue->ExecuteCommandLists(1, list);
+
+		WaitForGPU();
+	}
+
+	// Return the final buffer
 	return buffer;
 }
 
@@ -717,7 +795,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> Graphics::CreateStaticBuffer(size_t dataS
 	// Copy the whole buffer from uploadheap to vert buffer
 	localList->CopyResource(buffer.Get(), uploadHeap.Get());
 
-	// Transition the buffer to generic read for the rest of the app lifetime (presumable)
+	// Transition the buffer to generic read for the rest of the app lifetime (presumably)
 	D3D12_RESOURCE_BARRIER rb = {};
 	rb.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
 	rb.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
