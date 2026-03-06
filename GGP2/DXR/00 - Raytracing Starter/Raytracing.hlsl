@@ -11,10 +11,6 @@ struct Vertex
     float3 tangent;
 };
 
-// 11 floats total per vertex * 4 bytes each
-static const uint VertexSizeInBytes = 11 * 4; 
-
-
 // Payload for rays (data that is "sent along" with each ray during raytrace)
 // Note: This should be as small as possible, and must match our C++ size definition
 struct RayPayload
