@@ -15,6 +15,14 @@ namespace RayTracing
 		bool dxrAvailable = false;
 		bool dxrResourcesInitialized = false;
 
+		// Shader table size tracking
+		UINT64 missTableSize = 0;
+		UINT64 missRecordSize = 0;
+		UINT64 rayGenTableSize = 0;
+		UINT64 rayGenRecordSize = 0;
+		UINT64 hitGroupTableSize = 0;
+		UINT64 hitGroupRecordSize = 0;
+
 		// Error messages
 		const char* errorRaytracingNotSupported = "\nERROR: Raytracing not supported by the current graphics device.\n(On laptops, this may be due to battery saver mode.)\n";
 		const char* errorDXRDeviceQueryFailed = "\nERROR: DXR Device query failed - DirectX Raytracing unavailable.\n";
@@ -104,7 +112,7 @@ void RayTracing::CreateRaytracingRootSignatures()
 		cbufferRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
 		cbufferRange.RegisterSpace = 0;
 
-		// Set up the root parameters for the global signature (of which there are four)
+		// Set up the root parameters for the global signature
 		// These need to match the shader(s) we'll be using
 		D3D12_ROOT_PARAMETER rootParams[3] = {};
 		{
@@ -201,6 +209,9 @@ void RayTracing::CreateRaytracingPipelineState(std::wstring raytracingShaderLibr
 	// - Association of local root sig to shader
 	// - Global root signature
 	// - Overall pipeline config
+	// Note: Be sure to reserve() space when using a vector, since some objects
+	//       need to refer to others by address, and a vector resizing causes
+	//       the underlying array to be recreated (so addresses are invalidated)
 	std::vector<D3D12_STATE_SUBOBJECT> subobjects;
 	subobjects.reserve(10);
 
@@ -360,14 +371,15 @@ void RayTracing::CreateShaderTable()
 
 	// Ray Gen Table setup
 	{
-		// Calculate the overall size
+		// Calculate the overall sizes
 		UINT64 rayGenCount = 1;
-		UINT64 recordSize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES; // Just the shader ID itself
-		recordSize = ALIGN(recordSize, D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT); // Aligned properly
+		rayGenRecordSize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES; // Just the shader ID itself
+		rayGenRecordSize = ALIGN(rayGenRecordSize, D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT); // Aligned properly
+		rayGenTableSize = rayGenRecordSize * rayGenCount;
 
 		// Create a buffer large enough to hold all shader records
 		RayGenTable = Graphics::CreateBuffer(
-			recordSize * rayGenCount,
+			rayGenTableSize,
 			D3D12_HEAP_TYPE_UPLOAD, 
 			D3D12_RESOURCE_STATE_GENERIC_READ);
 
@@ -379,22 +391,19 @@ void RayTracing::CreateShaderTable()
 			RaytracingPipelineProperties->GetShaderIdentifier(L"RayGen"), 
 			D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
 		RayGenTable->Unmap(0, 0);
-
-		// Finalize details
-		RayGenTableDetails.SizeInBytes = recordSize * rayGenCount; // Just one
-		RayGenTableDetails.StartAddress = RayGenTable->GetGPUVirtualAddress();
 	}
 
 	// Miss Table setup
 	{
-		// Calculate the overall size
+		// Calculate the overall sizes
 		UINT64 missCount = 1;
-		UINT64 recordSize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES; // Just the shader ID itself
-		recordSize = ALIGN(recordSize, D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT); // Aligned properly
+		missRecordSize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES; // Just the shader ID itself
+		missRecordSize = ALIGN(missRecordSize, D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT); // Aligned properly
+		missTableSize = missRecordSize * missCount;
 
 		// Create a buffer large enough to hold all shader records
 		MissTable = Graphics::CreateBuffer(
-			recordSize * missCount,
+			missTableSize,
 			D3D12_HEAP_TYPE_UPLOAD,
 			D3D12_RESOURCE_STATE_GENERIC_READ);
 
@@ -406,25 +415,21 @@ void RayTracing::CreateShaderTable()
 			RaytracingPipelineProperties->GetShaderIdentifier(L"Miss"), 
 			D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
 		MissTable->Unmap(0, 0);
-
-		// Store details
-		MissTableDetails.StartAddress = MissTable->GetGPUVirtualAddress();
-		MissTableDetails.SizeInBytes = recordSize * missCount;
-		MissTableDetails.StrideInBytes = recordSize;
 	}
 
 	// Hit Group Table
 	{
 		// Calculate the overall size
 		UINT64 hitGroupCount = 1;
-		UINT64 recordSize = 
+		hitGroupRecordSize = 
 			D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES +  // Shader ID
 			sizeof(D3D12_GPU_DESCRIPTOR_HANDLE);     // Plus descriptor for local root sig
-		recordSize = ALIGN(recordSize, D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT); // Aligned properly
+		hitGroupRecordSize = ALIGN(hitGroupRecordSize, D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT); // Aligned properly
+		hitGroupTableSize = hitGroupRecordSize * hitGroupCount;
 
 		// Create a buffer large enough to hold all shader records
 		HitGroupTable = Graphics::CreateBuffer(
-			recordSize * hitGroupCount,
+			hitGroupTableSize,
 			D3D12_HEAP_TYPE_UPLOAD,
 			D3D12_RESOURCE_STATE_GENERIC_READ);
 
@@ -436,11 +441,6 @@ void RayTracing::CreateShaderTable()
 			RaytracingPipelineProperties->GetShaderIdentifier(L"HitGroup"), 
 			D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
 		HitGroupTable->Unmap(0, 0);
-
-		// Store details
-		HitGroupTableDetails.StartAddress = HitGroupTable->GetGPUVirtualAddress();
-		HitGroupTableDetails.SizeInBytes = recordSize * hitGroupCount;
-		HitGroupTableDetails.StrideInBytes = recordSize;
 	}
 }
 
@@ -797,9 +797,21 @@ void RayTracing::Raytrace(std::shared_ptr<Camera> camera, Microsoft::WRL::ComPtr
 		D3D12_DISPATCH_RAYS_DESC dispatchDesc = {};
 
 		// Set up dispatch shader table details
-		dispatchDesc.RayGenerationShaderRecord = RayGenTableDetails;
-		dispatchDesc.MissShaderTable = MissTableDetails;
-		dispatchDesc.HitGroupTable = HitGroupTableDetails;
+		{
+			// Choose a specific ray gen shader (offset address to proper record)
+			dispatchDesc.RayGenerationShaderRecord.StartAddress = RayGenTable->GetGPUVirtualAddress();
+			dispatchDesc.RayGenerationShaderRecord.SizeInBytes = rayGenRecordSize;
+
+			// Describe entire miss shader table
+			dispatchDesc.MissShaderTable.StartAddress = MissTable->GetGPUVirtualAddress();
+			dispatchDesc.MissShaderTable.SizeInBytes = missTableSize;
+			dispatchDesc.MissShaderTable.StrideInBytes = missRecordSize;
+
+			// Descrive entire hit group table
+			dispatchDesc.HitGroupTable.StartAddress = HitGroupTable->GetGPUVirtualAddress();
+			dispatchDesc.HitGroupTable.SizeInBytes = hitGroupTableSize;
+			dispatchDesc.HitGroupTable.StrideInBytes = hitGroupRecordSize;
+		}
 
 		// Set number of rays to match screen size
 		dispatchDesc.Width = Window::Width();

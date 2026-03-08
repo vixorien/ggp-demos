@@ -30,9 +30,6 @@ namespace RayTracing
 	inline Microsoft::WRL::ComPtr<ID3D12Resource> RayGenTable;
 	inline Microsoft::WRL::ComPtr<ID3D12Resource> MissTable;
 	inline Microsoft::WRL::ComPtr<ID3D12Resource> HitGroupTable;
-	inline D3D12_GPU_VIRTUAL_ADDRESS_RANGE RayGenTableDetails{};
-	inline D3D12_GPU_VIRTUAL_ADDRESS_RANGE_AND_STRIDE MissTableDetails{};
-	inline D3D12_GPU_VIRTUAL_ADDRESS_RANGE_AND_STRIDE HitGroupTableDetails{};
 
 	// Accel structure requirements
 	inline Microsoft::WRL::ComPtr<ID3D12Resource> TLASScratchBuffer;
