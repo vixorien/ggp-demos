@@ -82,11 +82,11 @@ HRESULT RayTracing::CreateRequiredResources(
 	CreateShaderTable(scene);
 
 	// Set up entity data array
-	std::vector<RayTracingEntityDataNEW> entityData;
+	std::vector<RayTracingEntityData> entityData;
 	for (int i = 0; i < scene.size(); i++)
 	{
 		// Set up this entity's data
-		RayTracingEntityDataNEW data{};
+		RayTracingEntityData data{};
 		XMFLOAT3 c = scene[i]->GetMaterial()->GetColorTint();
 		data.Color = XMFLOAT4(c.x, c.y, c.z, 1);
 		data.IndexBufferDescriptorIndex = Graphics::GetDescriptorIndex(scene[i]->GetMesh()->GetRayTracingData().IndexBufferSRV);
@@ -97,27 +97,18 @@ HRESULT RayTracing::CreateRequiredResources(
 	}
 
 	// How big will the buffer actually need to be?
-	UINT64 bufferSize = sizeof(RayTracingEntityDataNEW) * entityData.size();
-
-	// Create a temp upload buffer holding the initial data
-	Microsoft::WRL::ComPtr<ID3D12Resource> uploadBuffer = Graphics::CreateBuffer(bufferSize, D3D12_HEAP_TYPE_UPLOAD);
-	void* uploadAddr;
-	uploadBuffer->Map(0, 0, &uploadAddr);
-	memcpy(uploadAddr, &entityData[0], bufferSize);
+	UINT64 bufferSize = sizeof(RayTracingEntityData) * entityData.size();
 
 	// Create final buffer and copy into it
 	EntityDataStructuredBuffer = Graphics::CreateBuffer(
 		bufferSize,
 		D3D12_HEAP_TYPE_DEFAULT,
 		D3D12_RESOURCE_STATE_COMMON, 
-		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
-	Graphics::CommandList->CopyResource(EntityDataStructuredBuffer.Get(), uploadBuffer.Get());
-
-	// Start and wait for work
-	Graphics::CloseAndExecuteCommandList();
-	Graphics::WaitForGPU();
-	Graphics::ResetAllocatorAndCommandList(0);
-
+		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
+		0,
+		&entityData[0],
+		bufferSize);
+	
 	// Create SRV
 	D3D12_CPU_DESCRIPTOR_HANDLE cpu;
 	D3D12_GPU_DESCRIPTOR_HANDLE gpu;
@@ -126,7 +117,7 @@ HRESULT RayTracing::CreateRequiredResources(
 	D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc{};
 	uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
 	uavDesc.Buffer.NumElements = (unsigned int)entityData.size();
-	uavDesc.Buffer.StructureByteStride = sizeof(RayTracingEntityDataNEW);
+	uavDesc.Buffer.StructureByteStride = sizeof(RayTracingEntityData);
 
 	Graphics::Device->CreateUnorderedAccessView(
 		EntityDataStructuredBuffer.Get(),
@@ -157,7 +148,7 @@ void RayTracing::CreateRaytracingRootSignatures()
 		// Two descriptor ranges
 		// 1: The output texture, which is an unordered access view (UAV)
 		// 2: Two separate SRVs, which are the index and vertex data of the geometry
-		D3D12_DESCRIPTOR_RANGE outputUAVRange = {};
+		/*D3D12_DESCRIPTOR_RANGE outputUAVRange = {};
 		outputUAVRange.BaseShaderRegister = 0;
 		outputUAVRange.NumDescriptors = 1;
 		outputUAVRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
@@ -169,29 +160,30 @@ void RayTracing::CreateRaytracingRootSignatures()
 		cbufferRange.NumDescriptors = 1;
 		cbufferRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
 		cbufferRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_CBV;
-		cbufferRange.RegisterSpace = 0;
+		cbufferRange.RegisterSpace = 0;*/
 
 		// Set up the root parameters for the global signature (of which there are four)
 		// These need to match the shader(s) we'll be using
-		D3D12_ROOT_PARAMETER rootParams[3] = {};
+		D3D12_ROOT_PARAMETER rootParams[1] = {};
 		{
 			// First param is the UAV range for the output texture
-			rootParams[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+			rootParams[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
 			rootParams[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-			rootParams[0].DescriptorTable.NumDescriptorRanges = 1;
-			rootParams[0].DescriptorTable.pDescriptorRanges = &outputUAVRange;
+			rootParams[0].Constants.Num32BitValues = sizeof(RayTracingDrawData) / sizeof(unsigned int);
+			rootParams[0].Constants.RegisterSpace = 0;
+			rootParams[0].Constants.ShaderRegister = 0;
 
-			// Second param is an SRV for the acceleration structure
-			rootParams[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
-			rootParams[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-			rootParams[1].Descriptor.ShaderRegister = 0;
-			rootParams[1].Descriptor.RegisterSpace = 0;
+			//// Second param is an SRV for the acceleration structure
+			//rootParams[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_SRV;
+			//rootParams[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+			//rootParams[1].Descriptor.ShaderRegister = 0;
+			//rootParams[1].Descriptor.RegisterSpace = 0;
 
-			// Third is constant buffer for the overall scene (camera matrices, lights, etc.)
-			rootParams[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-			rootParams[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-			rootParams[2].DescriptorTable.NumDescriptorRanges = 1;
-			rootParams[2].DescriptorTable.pDescriptorRanges = &cbufferRange;
+			//// Third is constant buffer for the overall scene (camera matrices, lights, etc.)
+			//rootParams[2].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
+			//rootParams[2].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+			//rootParams[2].DescriptorTable.NumDescriptorRanges = 1;
+			//rootParams[2].DescriptorTable.pDescriptorRanges = &cbufferRange;
 		}
 
 		// Create the global root signature
@@ -202,51 +194,10 @@ void RayTracing::CreateRaytracingRootSignatures()
 		globalRootSigDesc.pParameters = rootParams;
 		globalRootSigDesc.NumStaticSamplers = 0;
 		globalRootSigDesc.pStaticSamplers = 0;
-		globalRootSigDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_NONE;
+		globalRootSigDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED;
 
 		D3D12SerializeRootSignature(&globalRootSigDesc, D3D_ROOT_SIGNATURE_VERSION_1, blob.GetAddressOf(), errors.GetAddressOf());
 		DXRDevice->CreateRootSignature(1, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(GlobalRaytracingRootSig.GetAddressOf()));
-	}
-
-	// Create a local root signature enabling shaders to have unique data from shader tables
-	{
-		// Table of 2 starting at register(t1)
-		D3D12_DESCRIPTOR_RANGE geometrySRVRange = {};
-		geometrySRVRange.BaseShaderRegister = 1;
-		geometrySRVRange.NumDescriptors = 2;
-		geometrySRVRange.OffsetInDescriptorsFromTableStart = D3D12_DESCRIPTOR_RANGE_OFFSET_APPEND;
-		geometrySRVRange.RangeType = D3D12_DESCRIPTOR_RANGE_TYPE_SRV;
-		geometrySRVRange.RegisterSpace = 0;
-
-		// Two params: Tables for geometry and cbuffer
-		D3D12_ROOT_PARAMETER rootParams[2] = {};
-
-		// Range of SRVs for geometry (verts & indices)
-		rootParams[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE;
-		rootParams[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-		rootParams[0].DescriptorTable.NumDescriptorRanges = 1;
-		rootParams[0].DescriptorTable.pDescriptorRanges = &geometrySRVRange;
-
-		// Float4 root constant (for entity color)
-		rootParams[1].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
-		rootParams[1].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-		rootParams[1].Constants.Num32BitValues = 4;
-		rootParams[1].Constants.RegisterSpace = 0;
-		rootParams[1].Constants.ShaderRegister = 1;
-
-
-		// Create the local root sig (ensure we denote it as a local sig)
-		Microsoft::WRL::ComPtr<ID3DBlob> blob;
-		Microsoft::WRL::ComPtr<ID3DBlob> errors;
-		D3D12_ROOT_SIGNATURE_DESC localRootSigDesc = {};
-		localRootSigDesc.NumParameters = ARRAYSIZE(rootParams);
-		localRootSigDesc.pParameters = rootParams;
-		localRootSigDesc.NumStaticSamplers = 0;
-		localRootSigDesc.pStaticSamplers = 0;
-		localRootSigDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE; // DENOTE AS LOCAL!
-
-		D3D12SerializeRootSignature(&localRootSigDesc, D3D_ROOT_SIGNATURE_VERSION_1, blob.GetAddressOf(), errors.GetAddressOf());
-		DXRDevice->CreateRootSignature(1, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(LocalRaytracingRootSig.GetAddressOf()));
 	}
 }
 
@@ -276,7 +227,7 @@ void RayTracing::CreateRaytracingPipelineState(std::wstring raytracingShaderLibr
 	// - Association of local root sig to shader
 	// - Global root signature
 	// - Overall pipeline config
-	D3D12_STATE_SUBOBJECT subobjects[10] = {};
+	D3D12_STATE_SUBOBJECT subobjects[8] = {};
 
 	// === Ray generation shader ===
 	D3D12_EXPORT_DESC rayGenExportDesc = {};
@@ -368,34 +319,34 @@ void RayTracing::CreateRaytracingPipelineState(std::wstring raytracingShaderLibr
 	subobjects[5] = shaderPayloadAssociationObject;
 
 	// === Local root signature ===
-	D3D12_STATE_SUBOBJECT localRootSigSubObj = {};
-	localRootSigSubObj.Type = D3D12_STATE_SUBOBJECT_TYPE_LOCAL_ROOT_SIGNATURE;
-	localRootSigSubObj.pDesc = LocalRaytracingRootSig.GetAddressOf();
+	//D3D12_STATE_SUBOBJECT localRootSigSubObj = {};
+	//localRootSigSubObj.Type = D3D12_STATE_SUBOBJECT_TYPE_LOCAL_ROOT_SIGNATURE;
+	//localRootSigSubObj.pDesc = LocalRaytracingRootSig.GetAddressOf();
 
-	subobjects[6] = localRootSigSubObj;
+	//subobjects[6] = localRootSigSubObj;
 
-	// === Association - Shaders and local root sig ===
-	// Names of shaders that use the root sig
-	const wchar_t* rootSigShaderNames[] = { L"RayGen", L"Miss", L"HitGroup" };
+	//// === Association - Shaders and local root sig ===
+	//// Names of shaders that use the root sig
+	//const wchar_t* rootSigShaderNames[] = { L"RayGen", L"Miss", L"HitGroup" };
 
-	// Add a state subobject for the association between the RayGen shader and the local root signature
-	D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION rootSigAssociation = {};
-	rootSigAssociation.NumExports = ARRAYSIZE(rootSigShaderNames);
-	rootSigAssociation.pExports = rootSigShaderNames;
-	rootSigAssociation.pSubobjectToAssociate = &subobjects[6]; // Root sig above
+	//// Add a state subobject for the association between the RayGen shader and the local root signature
+	//D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION rootSigAssociation = {};
+	//rootSigAssociation.NumExports = ARRAYSIZE(rootSigShaderNames);
+	//rootSigAssociation.pExports = rootSigShaderNames;
+	//rootSigAssociation.pSubobjectToAssociate = &subobjects[6]; // Root sig above
 
-	D3D12_STATE_SUBOBJECT rootSigAssociationSubObj = {};
-	rootSigAssociationSubObj.Type = D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION;
-	rootSigAssociationSubObj.pDesc = &rootSigAssociation;
+	//D3D12_STATE_SUBOBJECT rootSigAssociationSubObj = {};
+	//rootSigAssociationSubObj.Type = D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION;
+	//rootSigAssociationSubObj.pDesc = &rootSigAssociation;
 
-	subobjects[7] = rootSigAssociationSubObj;
+	//subobjects[7] = rootSigAssociationSubObj;
 
 	// === Global root sig ===
 	D3D12_STATE_SUBOBJECT globalRootSigSubObj = {};
 	globalRootSigSubObj.Type = D3D12_STATE_SUBOBJECT_TYPE_GLOBAL_ROOT_SIGNATURE;
 	globalRootSigSubObj.pDesc = GlobalRaytracingRootSig.GetAddressOf();
 
-	subobjects[8] = globalRootSigSubObj;
+	subobjects[6] = globalRootSigSubObj;
 
 	// === Pipeline config ===
 	// Add a state subobject for the ray tracing pipeline config
@@ -406,7 +357,7 @@ void RayTracing::CreateRaytracingPipelineState(std::wstring raytracingShaderLibr
 	pipelineConfigSubObj.Type = D3D12_STATE_SUBOBJECT_TYPE_RAYTRACING_PIPELINE_CONFIG;
 	pipelineConfigSubObj.pDesc = &pipelineConfig;
 
-	subobjects[9] = pipelineConfigSubObj;
+	subobjects[7] = pipelineConfigSubObj;
 
 	// === Finalize state ===
 	D3D12_STATE_OBJECT_DESC raytracingPipelineDesc = {};
@@ -444,7 +395,7 @@ void RayTracing::CreateShaderTable(std::vector<std::shared_ptr<GameEntity>> scen
 	//       - This also must be aligned up to D3D12_RAYTRACING_SHADER_BINDING_TABLE_RECORD_BYTE_ALIGNMENT
 	UINT64 shaderTableRayGenRecordSize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
 	UINT64 shaderTableMissRecordSize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
-	UINT64 shaderTableHitGroupRecordSize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES + sizeof(D3D12_GPU_DESCRIPTOR_HANDLE) + sizeof(XMFLOAT4); // SRV for geom, float4 for color (root constant)
+	UINT64 shaderTableHitGroupRecordSize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;// +sizeof(D3D12_GPU_DESCRIPTOR_HANDLE) + sizeof(XMFLOAT4); // SRV for geom, float4 for color (root constant)
 
 	// Align them
 	shaderTableRayGenRecordSize = ALIGN(shaderTableRayGenRecordSize, D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT);
@@ -455,11 +406,13 @@ void RayTracing::CreateShaderTable(std::vector<std::shared_ptr<GameEntity>> scen
 	ShaderTableRecordSize = max(shaderTableRayGenRecordSize, max(shaderTableMissRecordSize, shaderTableHitGroupRecordSize));
 
 	// How big should the table be?
+	// NOTE: Records are aligned to 32, but sub-tables (raygen, miss, hit-group) must be aligned to 64
+	UINT64 subTableAlignment = ALIGN(ShaderTableRecordSize, D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT);
 	UINT64 shaderTableSize = 0;
-	shaderTableSize += ShaderTableRecordSize; // One ray gen shader
-	shaderTableSize += ShaderTableRecordSize; // One miss shader
-	shaderTableSize += ShaderTableRecordSize * scene.size(); // One record per entity
-	shaderTableSize = ALIGN(shaderTableSize, D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT);
+	shaderTableSize += ALIGN(ShaderTableRecordSize, D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT); // One ray gen shader
+	shaderTableSize += ALIGN(ShaderTableRecordSize, D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT); // One miss shader
+	shaderTableSize += ALIGN(ShaderTableRecordSize, D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT); // One closest hit
+	//shaderTableSize = ALIGN(shaderTableSize, D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT);
 
 	// Create the shader table buffer and map it so we can write to it
 	ShaderTable = Graphics::CreateBuffer(shaderTableSize, D3D12_HEAP_TYPE_UPLOAD, D3D12_RESOURCE_STATE_GENERIC_READ);
@@ -468,32 +421,35 @@ void RayTracing::CreateShaderTable(std::vector<std::shared_ptr<GameEntity>> scen
 
 	// Mem copy each record in: ray gen, miss and the overall hit group (from CreateRaytracingPipelineState() above)
 	memcpy(shaderTableData, RaytracingPipelineProperties->GetShaderIdentifier(L"RayGen"), D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
-	shaderTableData += ShaderTableRecordSize;
+	shaderTableData += subTableAlignment;// ShaderTableRecordSize;
 
 	memcpy(shaderTableData, RaytracingPipelineProperties->GetShaderIdentifier(L"Miss"), D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
-	shaderTableData += ShaderTableRecordSize;
+	shaderTableData += subTableAlignment;// ShaderTableRecordSize;
 
-	// Make sure each hit group also has the proper identifier
-	for (unsigned int i = 0; i < scene.size(); i++)
-	{
-		// Get to the start of this record
-		unsigned char* hitGroupPointer = shaderTableData + ShaderTableRecordSize * i;
+	memcpy(shaderTableData, RaytracingPipelineProperties->GetShaderIdentifier(L"HitGroup"), D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
+	shaderTableData += subTableAlignment;// ShaderTableRecordSize;
 
-		// Copy the shader ID
-		memcpy(hitGroupPointer, RaytracingPipelineProperties->GetShaderIdentifier(L"HitGroup"), D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
-		hitGroupPointer += D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
+	//// Make sure each hit group also has the proper identifier
+	//for (unsigned int i = 0; i < scene.size(); i++)
+	//{
+	//	// Get to the start of this record
+	//	unsigned char* hitGroupPointer = shaderTableData + ShaderTableRecordSize * i;
 
-		// Copy the geometry SRV
-		D3D12_GPU_DESCRIPTOR_HANDLE srvHandle = scene[i]->GetMesh()->GetRayTracingData().IndexBufferSRV;
-		memcpy(hitGroupPointer, &srvHandle, sizeof(D3D12_GPU_DESCRIPTOR_HANDLE));
-		hitGroupPointer += sizeof(D3D12_GPU_DESCRIPTOR_HANDLE);
+	//	// Copy the shader ID
+	//	memcpy(hitGroupPointer, RaytracingPipelineProperties->GetShaderIdentifier(L"HitGroup"), D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
+	//	hitGroupPointer += D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
 
-		// Copy entity's color data
-		XMFLOAT3 c3 = scene[i]->GetMaterial()->GetColorTint();
-		XMFLOAT4 c4(c3.x, c3.y, c3.z, 1);
-		memcpy(hitGroupPointer, &c4, sizeof(XMFLOAT4));
-		hitGroupPointer += sizeof(XMFLOAT4);
-	}
+	//	// Copy the geometry SRV
+	//	D3D12_GPU_DESCRIPTOR_HANDLE srvHandle = scene[i]->GetMesh()->GetRayTracingData().IndexBufferSRV;
+	//	memcpy(hitGroupPointer, &srvHandle, sizeof(D3D12_GPU_DESCRIPTOR_HANDLE));
+	//	hitGroupPointer += sizeof(D3D12_GPU_DESCRIPTOR_HANDLE);
+
+	//	// Copy entity's color data
+	//	XMFLOAT3 c3 = scene[i]->GetMaterial()->GetColorTint();
+	//	XMFLOAT4 c4(c3.x, c3.y, c3.z, 1);
+	//	memcpy(hitGroupPointer, &c4, sizeof(XMFLOAT4));
+	//	hitGroupPointer += sizeof(XMFLOAT4);
+	//}
 
 	// Unmap
 	ShaderTable->Unmap(0, 0);
@@ -713,8 +669,8 @@ void RayTracing::CreateTopLevelAccelerationStructureForScene(std::vector<std::sh
 
 		// Create this description and add to our overall set of descriptions
 		D3D12_RAYTRACING_INSTANCE_DESC instDesc = {};
-		instDesc.InstanceContributionToHitGroupIndex = i;
-		instDesc.InstanceID = i;
+		instDesc.InstanceID = 0;
+		instDesc.InstanceContributionToHitGroupIndex = 0;
 		instDesc.InstanceMask = 0xFF;
 		memcpy(&instDesc.Transform, &transform, sizeof(float) * 3 * 4); // Copy first [3][4] elements
 		instDesc.AccelerationStructure = scene[i]->GetMesh()->GetRayTracingData().BLAS->GetGPUVirtualAddress();
@@ -805,6 +761,16 @@ void RayTracing::CreateTopLevelAccelerationStructureForScene(std::vector<std::sh
 	tlasBarrier.UAV.pResource = TLAS.Get();
 	tlasBarrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
 	DXRCommandList->ResourceBarrier(1, &tlasBarrier);
+
+	// Create an SRV for the TLAS
+	if(!TLAS_CPU.ptr)
+		Graphics::ReserveDescriptorHeapSlot(&TLAS_CPU, &TLAS_GPU);
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_RAYTRACING_ACCELERATION_STRUCTURE;
+	srvDesc.RaytracingAccelerationStructure.Location = TLAS->GetGPUVirtualAddress();
+	Graphics::Device->CreateShaderResourceView(0, &srvDesc, TLAS_CPU);
 }
 
 
@@ -835,17 +801,17 @@ void RayTracing::Raytrace(std::shared_ptr<Camera> camera, Microsoft::WRL::ComPtr
 	}
 
 	// Grab and fill a constant buffer
-	RaytracingSceneData sceneData = {};
-	sceneData.cameraPosition = camera->GetTransform()->GetPosition();
+	RayTracingSceneData sceneData = {};
+	sceneData.CameraPosition = camera->GetTransform()->GetPosition();
 
 	DirectX::XMFLOAT4X4 view = camera->GetView();
 	DirectX::XMFLOAT4X4 proj = camera->GetProjection();
 	DirectX::XMMATRIX v = DirectX::XMLoadFloat4x4(&view);
 	DirectX::XMMATRIX p = DirectX::XMLoadFloat4x4(&proj);
 	DirectX::XMMATRIX vp = DirectX::XMMatrixMultiply(v, p);
-	DirectX::XMStoreFloat4x4(&sceneData.inverseViewProjection, XMMatrixInverse(0, vp));
+	DirectX::XMStoreFloat4x4(&sceneData.InverseViewProjection, XMMatrixInverse(0, vp));
 
-	D3D12_GPU_DESCRIPTOR_HANDLE cbuffer = Graphics::FillNextConstantBufferAndGetGPUDescriptorHandle(&sceneData, sizeof(RaytracingSceneData));
+	D3D12_GPU_DESCRIPTOR_HANDLE cbuffer = Graphics::FillNextConstantBufferAndGetGPUDescriptorHandle(&sceneData, sizeof(RayTracingSceneData));
 
 	// ACTUAL RAYTRACING HERE
 	{
@@ -859,11 +825,20 @@ void RayTracing::Raytrace(std::shared_ptr<Camera> camera, Microsoft::WRL::ComPtr
 
 		// Set the global root sig so we can also set descriptor tables
 		DXRCommandList->SetComputeRootSignature(GlobalRaytracingRootSig.Get());
-		DXRCommandList->SetComputeRootDescriptorTable(0,			// First table is just output UAV
-			RaytracingOutputUAV_GPU);
-		DXRCommandList->SetComputeRootShaderResourceView(1,			// Second is SRV for accel structure (as root SRV, no table needed)
-			TLAS->GetGPUVirtualAddress());
-		DXRCommandList->SetComputeRootDescriptorTable(2, cbuffer);	// Third is CBV
+
+		RayTracingDrawData data{};
+		data.SceneDataCBIndex = Graphics::GetDescriptorIndex(cbuffer);
+		data.OutputUAVDescriptorIndex = Graphics::GetDescriptorIndex(RaytracingOutputUAV_GPU);
+		data.EntityDataDescriptorIndex = EntityDataDescriptorIndex;
+		data.SceneTLASDescriptorIndex = Graphics::GetDescriptorIndex(TLAS_GPU);
+
+		DXRCommandList->SetComputeRoot32BitConstants(0, sizeof(RayTracingDrawData) / sizeof(unsigned int), &data, 0);
+
+		//DXRCommandList->SetComputeRootDescriptorTable(0,			// First table is just output UAV
+		//	RaytracingOutputUAV_GPU);
+		//DXRCommandList->SetComputeRootShaderResourceView(1,			// Second is SRV for accel structure (as root SRV, no table needed)
+		//	TLAS->GetGPUVirtualAddress());
+		//DXRCommandList->SetComputeRootDescriptorTable(2, cbuffer);	// Third is CBV
 
 		// Dispatch rays
 		D3D12_DISPATCH_RAYS_DESC dispatchDesc = {};
@@ -873,12 +848,12 @@ void RayTracing::Raytrace(std::shared_ptr<Camera> camera, Microsoft::WRL::ComPtr
 		dispatchDesc.RayGenerationShaderRecord.SizeInBytes = ShaderTableRecordSize;
 
 		// Miss shader location in shader table (we could have a whole sub-table of just these, but only 1 for this demo)
-		dispatchDesc.MissShaderTable.StartAddress = ShaderTable->GetGPUVirtualAddress() + ShaderTableRecordSize; // Offset by 1 record
+		dispatchDesc.MissShaderTable.StartAddress = ShaderTable->GetGPUVirtualAddress() + ALIGN(ShaderTableRecordSize, D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT); // Offset by 1 record
 		dispatchDesc.MissShaderTable.SizeInBytes = ShaderTableRecordSize; // Assuming sizes here (might want to verify later)
 		dispatchDesc.MissShaderTable.StrideInBytes = ShaderTableRecordSize;
 
 		// Hit group location in shader table (we could have multiple types of hit shaders, but only 1 for this demo)
-		dispatchDesc.HitGroupTable.StartAddress = ShaderTable->GetGPUVirtualAddress() + ShaderTableRecordSize * 2; // Offset by 2 records
+		dispatchDesc.HitGroupTable.StartAddress = ShaderTable->GetGPUVirtualAddress() + ALIGN(ShaderTableRecordSize, D3D12_RAYTRACING_SHADER_TABLE_BYTE_ALIGNMENT) * 2; // Offset by 2 records
 		dispatchDesc.HitGroupTable.SizeInBytes = ShaderTableRecordSize; // Assuming sizes here (might want to verify later)
 		dispatchDesc.HitGroupTable.StrideInBytes = ShaderTableRecordSize;
 

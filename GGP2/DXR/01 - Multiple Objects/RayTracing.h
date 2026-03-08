@@ -19,7 +19,6 @@ namespace RayTracing
 
 	// Root signatures for basic raytracing
 	inline Microsoft::WRL::ComPtr<ID3D12RootSignature> GlobalRaytracingRootSig;
-	inline Microsoft::WRL::ComPtr<ID3D12RootSignature> LocalRaytracingRootSig;
 
 	// Overall raytracing pipeline state object
 	// This is similar to a regular PSO, but without the standard
@@ -36,6 +35,8 @@ namespace RayTracing
 	inline Microsoft::WRL::ComPtr<ID3D12Resource> TLASScratchBuffer;
 	inline Microsoft::WRL::ComPtr<ID3D12Resource> TLASInstanceDescBuffer[Graphics::NumBackBuffers];
 	inline Microsoft::WRL::ComPtr<ID3D12Resource> TLAS;
+	inline D3D12_CPU_DESCRIPTOR_HANDLE TLAS_CPU{};
+	inline D3D12_GPU_DESCRIPTOR_HANDLE TLAS_GPU{};
 
 	// Actual output resource
 	inline Microsoft::WRL::ComPtr<ID3D12Resource> RaytracingOutput;
