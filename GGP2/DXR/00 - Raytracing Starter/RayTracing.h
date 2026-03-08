@@ -27,8 +27,12 @@ namespace RayTracing
 	inline Microsoft::WRL::ComPtr<ID3D12StateObjectProperties> RaytracingPipelineProperties;
 
 	// Shader table holding shaders for use during raytracing
-	inline Microsoft::WRL::ComPtr<ID3D12Resource> ShaderTable;
-	inline UINT64 ShaderTableRecordSize;
+	inline Microsoft::WRL::ComPtr<ID3D12Resource> RayGenTable;
+	inline Microsoft::WRL::ComPtr<ID3D12Resource> MissTable;
+	inline Microsoft::WRL::ComPtr<ID3D12Resource> HitGroupTable;
+	inline D3D12_GPU_VIRTUAL_ADDRESS_RANGE RayGenTableDetails{};
+	inline D3D12_GPU_VIRTUAL_ADDRESS_RANGE_AND_STRIDE MissTableDetails{};
+	inline D3D12_GPU_VIRTUAL_ADDRESS_RANGE_AND_STRIDE HitGroupTableDetails{};
 
 	// Accel structure requirements
 	inline Microsoft::WRL::ComPtr<ID3D12Resource> TLASScratchBuffer;
