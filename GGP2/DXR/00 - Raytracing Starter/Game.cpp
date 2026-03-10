@@ -143,7 +143,9 @@ void Game::Update(float deltaTime, float totalTime)
 	if (Input::KeyDown(VK_ESCAPE))
 		Window::Quit();
 
+	// Update scene elements
 	camera->Update(deltaTime);
+	sphereEntity->GetTransform()->Rotate(0, deltaTime, 0);
 }
 
 
@@ -162,8 +164,11 @@ void Game::Draw(float deltaTime, float totalTime)
 	rb.Transition.pResource = currentBackBuffer.Get();
 	rb.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
 
-	// Raytracing
+	// Raytracing - Recreate the TLAS and then trace it
+	// Note: Recreating the TLAS isn't strictly necessary for this demo,
+	//       as the entity's transform isn't being used.
 	{
+		RayTracing::CreateTopLevelAccelerationStructureForScene(sphereEntity);
 		RayTracing::Raytrace(camera, currentBackBuffer);
 	}
 

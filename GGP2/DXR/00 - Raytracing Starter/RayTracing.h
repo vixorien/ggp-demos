@@ -8,6 +8,7 @@
 #include "Mesh.h"
 #include "Camera.h"
 #include "GameEntity.h"
+#include "Graphics.h"
 
 namespace RayTracing
 {
@@ -34,8 +35,7 @@ namespace RayTracing
 
 	// Accel structure requirements
 	inline Microsoft::WRL::ComPtr<ID3D12Resource> TLASScratchBuffer;
-	inline Microsoft::WRL::ComPtr<ID3D12Resource> BLASScratchBuffer;
-	inline Microsoft::WRL::ComPtr<ID3D12Resource> TLASInstanceDescBuffer;
+	inline Microsoft::WRL::ComPtr<ID3D12Resource> TLASInstanceDescBuffer[Graphics::NumBackBuffers];
 	inline Microsoft::WRL::ComPtr<ID3D12Resource> TLAS;
 	inline D3D12_CPU_DESCRIPTOR_HANDLE TLASDescriptor_CPU{};
 	inline D3D12_GPU_DESCRIPTOR_HANDLE TLASDescriptor_GPU{};
@@ -44,11 +44,6 @@ namespace RayTracing
 	inline Microsoft::WRL::ComPtr<ID3D12Resource> RaytracingOutput;
 	inline D3D12_CPU_DESCRIPTOR_HANDLE RaytracingOutputUAV_CPU;
 	inline D3D12_GPU_DESCRIPTOR_HANDLE RaytracingOutputUAV_GPU;
-
-	// Other SRVs for geometry
-	// - Larger application will need these FOR EACH MESH
-	inline D3D12_GPU_DESCRIPTOR_HANDLE indexBufferSRV;
-	inline D3D12_GPU_DESCRIPTOR_HANDLE vertexBufferSRV;
 
 	// --- FUNCTIONS ---
 	HRESULT Initialize();

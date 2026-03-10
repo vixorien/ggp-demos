@@ -23,6 +23,12 @@ namespace RayTracing
 		UINT64 hitGroupTableSize = 0;
 		UINT64 hitGroupRecordSize = 0;
 
+		// Track the size of various TLAS-related buffers
+		// in the event they need to be resized later
+		UINT64 tlasBufferSizeInBytes = 0;
+		UINT64 tlasScratchSizeInBytes = 0;
+		UINT64 tlasInstanceDataSizeInBytes[Graphics::NumBackBuffers]{};
+
 		// Error messages
 		const char* errorRaytracingNotSupported = "\nERROR: Raytracing not supported by the current graphics device.\n(On laptops, this may be due to battery saver mode.)\n";
 		const char* errorDXRDeviceQueryFailed = "\nERROR: DXR Device query failed - DirectX Raytracing unavailable.\n";
@@ -574,7 +580,7 @@ MeshRayTracingData RayTracing::CreateBottomLevelAccelerationStructureForMesh(Mes
 	accelStructPrebuildInfo.ResultDataMaxSizeInBytes = ALIGN(accelStructPrebuildInfo.ResultDataMaxSizeInBytes, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT);
 
 	// Create a scratch buffer so the device has a place to temporarily store data
-	BLASScratchBuffer = Graphics::CreateBuffer(
+	Microsoft::WRL::ComPtr<ID3D12Resource> BLASScratchBuffer = Graphics::CreateBuffer(
 		accelStructPrebuildInfo.ScratchDataSizeInBytes,
 		D3D12_HEAP_TYPE_DEFAULT,
 		D3D12_RESOURCE_STATE_COMMON,
@@ -673,37 +679,51 @@ void RayTracing::CreateTopLevelAccelerationStructureForScene(std::shared_ptr<Gam
 	}
 	HitGroupTable->Unmap(0, 0);
 
+	// Grab the entity's transform and transpose to column major
+	DirectX::XMFLOAT4X4 transform = entity->GetTransform()->GetWorldMatrix();
+	XMStoreFloat4x4(&transform, XMMatrixTranspose(XMLoadFloat4x4(&transform)));
 
 	// Describe the BLAS instance(s) that make up the TLAS
 	D3D12_RAYTRACING_INSTANCE_DESC instanceDesc{};
 	instanceDesc.InstanceID = 0;
 	instanceDesc.InstanceContributionToHitGroupIndex = 0;
 	instanceDesc.InstanceMask = 0xFF; 
-	instanceDesc.Transform[0][0] = 1; // Identity matrix (could be entity's world transform)
-	instanceDesc.Transform[1][1] = 1;
-	instanceDesc.Transform[2][2] = 1;
+	memcpy(&instanceDesc.Transform, &transform, sizeof(float) * 3 * 4); // Copy first [3][4] elements
 	instanceDesc.AccelerationStructure = entity->GetMesh()->GetRayTracingData().BLAS->GetGPUVirtualAddress();
 	instanceDesc.Flags = D3D12_RAYTRACING_INSTANCE_FLAG_NONE;
+
+	// Grab the frame (back buffer) index.  Any CPU->GPU data
+	// copies should be placed into a buffer that corresponds 
+	// to the current back buffer index for sync purposes.
+	unsigned int frameIndex = Graphics::SwapChainIndex();
 
 	// The instance description actually needs to be in a buffer
 	// on the GPU, so we need to make that buffer and toss it in
 	// there ourselves (and keep the pointer long enough to finish the work)
-	TLASInstanceDescBuffer = Graphics::CreateBuffer(
-		sizeof(D3D12_RAYTRACING_INSTANCE_DESC),
-		D3D12_HEAP_TYPE_UPLOAD,
-		D3D12_RESOURCE_STATE_GENERIC_READ);
+	if (sizeof(D3D12_RAYTRACING_INSTANCE_DESC) > tlasInstanceDataSizeInBytes[frameIndex])
+	{
+		// Reset and save the new size
+		TLASInstanceDescBuffer[frameIndex].Reset();
+		tlasInstanceDataSizeInBytes[frameIndex] = sizeof(D3D12_RAYTRACING_INSTANCE_DESC);
 
-	// Copy the description into the new buffer
+		// Create a new buffer to hold instance descriptions on the GPU
+		TLASInstanceDescBuffer[frameIndex] = Graphics::CreateBuffer(
+			tlasInstanceDataSizeInBytes[frameIndex],
+			D3D12_HEAP_TYPE_UPLOAD,
+			D3D12_RESOURCE_STATE_GENERIC_READ);
+	}
+
+	// Copy the description(s) into the new buffer
 	unsigned char* mapped = 0;
-	TLASInstanceDescBuffer->Map(0, 0, (void**)&mapped);
+	TLASInstanceDescBuffer[frameIndex]->Map(0, 0, (void**)&mapped);
 	memcpy(mapped, &instanceDesc, sizeof(D3D12_RAYTRACING_INSTANCE_DESC));
-	TLASInstanceDescBuffer->Unmap(0, 0);
+	TLASInstanceDescBuffer[frameIndex]->Unmap(0, 0);
 
 	// Describe our overall input so we can get sizing info
 	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS accelStructInputs = {};
 	accelStructInputs.Type = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_TYPE_TOP_LEVEL;
 	accelStructInputs.DescsLayout = D3D12_ELEMENTS_LAYOUT_ARRAY;
-	accelStructInputs.InstanceDescs = TLASInstanceDescBuffer->GetGPUVirtualAddress();
+	accelStructInputs.InstanceDescs = TLASInstanceDescBuffer[frameIndex]->GetGPUVirtualAddress();
 	accelStructInputs.NumDescs = 1;
 	accelStructInputs.Flags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE;
 
@@ -715,20 +735,33 @@ void RayTracing::CreateTopLevelAccelerationStructureForScene(std::shared_ptr<Gam
 	accelStructPrebuildInfo.ResultDataMaxSizeInBytes = ALIGN(accelStructPrebuildInfo.ResultDataMaxSizeInBytes, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT);
 
 	// Create a scratch buffer so the device has a place to temporarily store data
-	TLASScratchBuffer = Graphics::CreateBuffer(
-		accelStructPrebuildInfo.ScratchDataSizeInBytes,
-		D3D12_HEAP_TYPE_DEFAULT,
-		D3D12_RESOURCE_STATE_COMMON,
-		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-		max(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT, D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT));
+	if (accelStructPrebuildInfo.ScratchDataSizeInBytes > tlasScratchSizeInBytes)
+	{
+		// Reset and save current size
+		TLASScratchBuffer.Reset();
+		tlasScratchSizeInBytes = accelStructPrebuildInfo.ScratchDataSizeInBytes;
 
-	// Create the final buffer for the TLAS
-	TLAS = Graphics::CreateBuffer(
-		accelStructPrebuildInfo.ResultDataMaxSizeInBytes,
-		D3D12_HEAP_TYPE_DEFAULT,
-		D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE,
-		D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS,
-		max(D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT, D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT));
+		// Create the new buffer
+		TLASScratchBuffer = Graphics::CreateBuffer(
+			tlasScratchSizeInBytes,
+			D3D12_HEAP_TYPE_DEFAULT,
+			D3D12_RESOURCE_STATE_COMMON,
+			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+	}
+
+	// Is our current tlas too small?
+	if (accelStructPrebuildInfo.ResultDataMaxSizeInBytes > tlasBufferSizeInBytes)
+	{
+		// Create a new tlas buffer
+		TLAS.Reset();
+		tlasBufferSizeInBytes = accelStructPrebuildInfo.ResultDataMaxSizeInBytes;
+
+		TLAS = Graphics::CreateBuffer(
+			accelStructPrebuildInfo.ResultDataMaxSizeInBytes,
+			D3D12_HEAP_TYPE_DEFAULT,
+			D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE,
+			D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+	}
 
 	// Describe the final TLAS and set up the build
 	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_DESC buildDesc = {};
