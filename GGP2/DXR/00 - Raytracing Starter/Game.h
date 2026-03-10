@@ -36,5 +36,6 @@ private:
 	// Scene
 	std::shared_ptr<FPSCamera> camera;
 	std::shared_ptr<Mesh> sphereMesh;
+	std::shared_ptr<GameEntity> sphereEntity;
 };
 

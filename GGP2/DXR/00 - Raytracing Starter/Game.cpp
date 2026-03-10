@@ -30,6 +30,10 @@ void Game::Initialize()
 {
 	// Check for DXR support and setup required API objects
 	RayTracing::Initialize();
+	RayTracing::CreateRequiredResources(
+		Window::Width(),
+		Window::Height(),
+		FixPath(L"RayTracing.cso"));
 
 	// Reserve a descriptor slot for ImGui's font texture
 	D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle;
@@ -68,20 +72,22 @@ void Game::Initialize()
 		CameraProjectionType::Perspective);
 
 	// Load mesh(es)
+	// Note: The Mesh constructor will call RayTracing::CreateBottomLevelAccelerationStructureForMesh(),
+	//       ensuring each mesh has its own BLAS as it is loaded.
 	sphereMesh = std::make_shared<Mesh>("Sphere", FixPath(AssetPath + L"Meshes/sphere.obj").c_str());
 
-	// Initialize raytracing
-	RayTracing::CreateRequiredResources(
-		Window::Width(),
-		Window::Height(),
-		FixPath(L"RayTracing.cso"));
+	// Materials
+	std::shared_ptr<Material> matWhite = std::make_shared<Material>(nullptr, XMFLOAT3(1, 1, 1)); // No per-material PSO for raytracing
+
+	// Create entities for scene
+	sphereEntity = std::make_shared<GameEntity>(sphereMesh, matWhite);
 
 	// Last step in raytracing setup is to create the accel structures,
 	// which require mesh data.  Currently just a single mesh is handled!
-	RayTracing::CreateBottomLevelAccelerationStructureForMesh(sphereMesh.get());
+	//RayTracing::CreateBottomLevelAccelerationStructureForMesh(sphereMesh.get());
 
 	// Once we have all of the BLASs ready, we can make a TLAS
-	RayTracing::CreateTopLevelAccelerationStructureForScene();
+	RayTracing::CreateTopLevelAccelerationStructureForScene(sphereEntity);
 
 	// Finalize any initialization and wait for the GPU
 	// before proceeding to the game loop

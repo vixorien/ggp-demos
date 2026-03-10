@@ -6,6 +6,12 @@
 
 #include "Vertex.h"
 
+struct MeshRayTracingData
+{
+	D3D12_GPU_DESCRIPTOR_HANDLE IndexBufferSRV {};
+	D3D12_GPU_DESCRIPTOR_HANDLE VertexBufferSRV {};
+	Microsoft::WRL::ComPtr<ID3D12Resource> BLAS;
+};
 
 class Mesh
 {
@@ -22,6 +28,7 @@ public:
 	const char* GetName();
 	size_t GetIndexCount();
 	size_t GetVertexCount();
+	const MeshRayTracingData& GetRayTracingData();
 
 private:
 	// D3D buffers
@@ -34,6 +41,9 @@ private:
 	// Total indices & vertices in this mesh
 	size_t numIndices;
 	size_t numVertices;
+
+	// Data specifically for ray tracing
+	MeshRayTracingData rayTracingData;
 
 	// Name (mostly for UI purposes)
 	const char* name;

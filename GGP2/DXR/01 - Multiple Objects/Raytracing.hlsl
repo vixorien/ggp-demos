@@ -51,18 +51,6 @@ cbuffer DrawData : register(b0)
 
 // === Helpers ===
 
-// Loads the indices of the specified triangle from the index buffer
-uint3 LoadIndices(uint triangleIndex)
-{
-	// What is the start index of this triangle's indices?
-	uint indicesStart = triangleIndex * 3;
-
-	// Adjust by the byte size before loading
-	StructuredBuffer<EntityData> dataBuffer = ResourceDescriptorHeap[EntityDataDescriptorIndex];
-	ByteAddressBuffer IndexBuffer = ResourceDescriptorHeap[dataBuffer[InstanceIndex()].IndexBufferDescriptorIndex];
-	return IndexBuffer.Load3(indicesStart * 4); // 4 bytes per index
-}
-
 
 // Barycentric interpolation of data from the triangle's vertices
 Vertex InterpolateVertices(uint triangleIndex, float2 barycentrics)
