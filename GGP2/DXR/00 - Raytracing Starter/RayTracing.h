@@ -37,6 +37,8 @@ namespace RayTracing
 	inline Microsoft::WRL::ComPtr<ID3D12Resource> BLASScratchBuffer;
 	inline Microsoft::WRL::ComPtr<ID3D12Resource> TLASInstanceDescBuffer;
 	inline Microsoft::WRL::ComPtr<ID3D12Resource> TLAS;
+	inline D3D12_CPU_DESCRIPTOR_HANDLE TLASDescriptor_CPU{};
+	inline D3D12_GPU_DESCRIPTOR_HANDLE TLASDescriptor_GPU{};
 
 	// Actual output resource
 	inline Microsoft::WRL::ComPtr<ID3D12Resource> RaytracingOutput;
