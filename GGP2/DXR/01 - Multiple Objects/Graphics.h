@@ -54,12 +54,8 @@ namespace Graphics
 	// Basic CPU/GPU synchronization
 	inline Microsoft::WRL::ComPtr<ID3D12Fence>	WaitFence;
 	inline HANDLE								WaitFenceEvent = 0;
-	inline UINT64								WaitFenceCounter = 0;
-
-	// Frame sync'ing
-	inline Microsoft::WRL::ComPtr<ID3D12Fence>	FrameSyncFence;
-	inline HANDLE								FrameSyncFenceEvent = 0;
-	inline UINT64								FrameSyncFenceCounters[NumBackBuffers]{};
+	inline UINT64								CPUCounter = 0;
+	inline UINT64								GPUCounter = 0;
 
 	// Debug Layer
 	inline Microsoft::WRL::ComPtr<ID3D12InfoQueue> InfoQueue;

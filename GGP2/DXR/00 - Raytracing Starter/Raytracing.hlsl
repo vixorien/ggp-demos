@@ -27,8 +27,8 @@ struct RayPayload
 
 cbuffer SceneData : register(b0)
 {
-	matrix inverseViewProjection;
-	float3 cameraPosition;
+	matrix InverseViewProjection;
+	float3 CameraPosition;
 };
 
 
@@ -118,8 +118,8 @@ void RayGen()
 	// pixel of the output buffer using this shader's indices
 	RayDesc ray = CalcRayFromCamera(
 		rayIndices, 
-		cameraPosition, 
-		inverseViewProjection);
+		CameraPosition, 
+		InverseViewProjection);
 
 	// Set up the payload for the ray
 	// This initializes the struct to all zeros

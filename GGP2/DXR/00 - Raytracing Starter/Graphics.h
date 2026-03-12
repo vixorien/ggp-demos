@@ -92,7 +92,9 @@ namespace Graphics
 		D3D12_CPU_DESCRIPTOR_HANDLE firstDescriptorToCopy, 
 		unsigned int numDescriptorsToCopy);
 
-	void ReserveDescriptorHeapSlot(D3D12_CPU_DESCRIPTOR_HANDLE* reservedCPUHandle, D3D12_GPU_DESCRIPTOR_HANDLE* reservedGPUHandle);
+	void ReserveDescriptorHeapSlot(
+		D3D12_CPU_DESCRIPTOR_HANDLE* reservedCPUHandle, 
+		D3D12_GPU_DESCRIPTOR_HANDLE* reservedGPUHandle);
 
 
 	// Command list & synchronization

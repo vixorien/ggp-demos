@@ -42,7 +42,7 @@ struct RayPayload
 
 cbuffer DrawData : register(b0)
 {
-	uint SceneDataCBIndex;
+	uint SceneDataConstantBufferIndex;
 	uint EntityDataDescriptorIndex;
 	uint SceneTLASDescriptorIndex;
 	uint OutputUAVDescriptorIndex;
@@ -125,7 +125,7 @@ RayDesc CalcRayFromCamera(float2 rayIndices, float3 camPos, float4x4 invVP)
 void RayGen()
 {
 	// Grab the constant buffer
-	ConstantBuffer<SceneData> cb = ResourceDescriptorHeap[SceneDataCBIndex];
+	ConstantBuffer<SceneData> cb = ResourceDescriptorHeap[SceneDataConstantBufferIndex];
 	
 	// Get the ray indices
 	uint2 rayIndices = DispatchRaysIndex().xy;

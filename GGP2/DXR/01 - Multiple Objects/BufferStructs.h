@@ -5,7 +5,7 @@
 // Root constants for bindless resources
 struct RayTracingDrawData
 {
-	unsigned int SceneDataCBIndex;
+	unsigned int SceneDataConstantBufferIndex;
 	unsigned int EntityDataDescriptorIndex;
 	unsigned int SceneTLASDescriptorIndex;
 	unsigned int OutputUAVDescriptorIndex;

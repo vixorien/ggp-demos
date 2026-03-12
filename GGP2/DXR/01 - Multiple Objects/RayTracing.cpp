@@ -822,7 +822,7 @@ void RayTracing::Raytrace(std::shared_ptr<Camera> camera, Microsoft::WRL::ComPtr
 		DXRCommandList->SetComputeRootSignature(GlobalRaytracingRootSig.Get());
 
 		RayTracingDrawData data{};
-		data.SceneDataCBIndex = Graphics::GetDescriptorIndex(cbuffer);
+		data.SceneDataConstantBufferIndex = Graphics::GetDescriptorIndex(cbuffer);
 		data.OutputUAVDescriptorIndex = Graphics::GetDescriptorIndex(RaytracingOutputUAV_GPU);
 		data.EntityDataDescriptorIndex = Graphics::GetDescriptorIndex(EntityDataUAV_GPU);
 		data.SceneTLASDescriptorIndex = Graphics::GetDescriptorIndex(TLAS_GPU);
