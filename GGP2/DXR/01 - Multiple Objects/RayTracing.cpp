@@ -38,10 +38,15 @@ namespace RayTracing
 // Makes use of integer division to ensure we are aligned to the proper multiple of "alignment"
 #define ALIGN(value, alignment) (((value + alignment - 1) / alignment) * alignment)
 
+
 // --------------------------------------------------------
-// Check for raytracing support and prepare main API objects
+// Check for raytracing support, prepare main API objects
+// and create all necessary resources
 // --------------------------------------------------------
-HRESULT RayTracing::Initialize()
+HRESULT RayTracing::Initialize(
+	unsigned int outputWidth,
+	unsigned int outputHeight,
+	std::wstring raytracingShaderLibraryFile)
 {
 	// Use CheckFeatureSupport to determine if ray tracing is supported
 	D3D12_FEATURE_DATA_D3D12_OPTIONS5 rtSupport = {};
@@ -62,25 +67,21 @@ HRESULT RayTracing::Initialize()
 	// We have DXR support
 	dxrAvailable = true;
 	printf("\nDXR initialization success!\n");
-	return S_OK;
-}
 
-// --------------------------------------------------------
-// Create all necessary ray tracing 
-// resources, pipeline states, etc.
-// --------------------------------------------------------
-HRESULT RayTracing::CreateRequiredResources(
-	unsigned int outputWidth, 
-	unsigned int outputHeight, 
-	std::wstring raytracingShaderLibraryFile,
-	std::vector<std::shared_ptr<GameEntity>> scene)
-{
 	// Proceed with setup
 	CreateRaytracingRootSignatures();
 	CreateRaytracingPipelineState(raytracingShaderLibraryFile);
 	CreateRaytracingOutputUAV(outputWidth, outputHeight);
-	CreateShaderTable(scene);
+	CreateShaderTable();
+	dxrResourcesInitialized = true;
+	return S_OK;
+}
 
+// --------------------------------------------------------
+// Creates the buffer for entity data read when ray tracing
+// --------------------------------------------------------
+void RayTracing::CreateEntityDataBuffer(std::vector<std::shared_ptr<GameEntity>> scene)
+{
 	// Set up entity data array
 	std::vector<RayTracingEntityData> entityData;
 	for (int i = 0; i < scene.size(); i++)
@@ -92,14 +93,15 @@ HRESULT RayTracing::CreateRequiredResources(
 		data.IndexBufferDescriptorIndex = Graphics::GetDescriptorIndex(scene[i]->GetMesh()->GetRayTracingData().IndexBufferSRV);
 		data.VertexBufferDescriptorIndex = Graphics::GetDescriptorIndex(scene[i]->GetMesh()->GetRayTracingData().VertexBufferSRV);
 		
-		// Add to the vector
 		entityData.push_back(data);
 	}
 
 	// How big will the buffer actually need to be?
 	UINT64 bufferSize = sizeof(RayTracingEntityData) * entityData.size();
 
-	// Create final buffer and copy into it
+	// Reset the buffer if necessary, then create 
+	// the new one and copy into it
+	EntityDataStructuredBuffer.Reset();
 	EntityDataStructuredBuffer = Graphics::CreateBuffer(
 		bufferSize,
 		D3D12_HEAP_TYPE_DEFAULT,
@@ -109,10 +111,9 @@ HRESULT RayTracing::CreateRequiredResources(
 		&entityData[0],
 		bufferSize);
 	
-	// Create SRV
-	D3D12_CPU_DESCRIPTOR_HANDLE cpu;
-	D3D12_GPU_DESCRIPTOR_HANDLE gpu;
-	Graphics::ReserveDescriptorHeapSlot(&cpu, &gpu);
+	// Reserve slot in heap if necessary
+	if(!EntityDataUAV_CPU.ptr)
+		Graphics::ReserveDescriptorHeapSlot(&EntityDataUAV_CPU, &EntityDataUAV_GPU);
 
 	D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc{};
 	uavDesc.ViewDimension = D3D12_UAV_DIMENSION_BUFFER;
@@ -123,12 +124,7 @@ HRESULT RayTracing::CreateRequiredResources(
 		EntityDataStructuredBuffer.Get(),
 		0,
 		&uavDesc,
-		cpu);
-	EntityDataDescriptorIndex = Graphics::GetDescriptorIndex(gpu);
-
-	// All set
-	dxrResourcesInitialized = true;
-	return S_OK;
+		EntityDataUAV_CPU);
 }
 
 
@@ -377,7 +373,7 @@ void RayTracing::CreateRaytracingPipelineState(std::wstring raytracingShaderLibr
 // used during raytracing.  Note that this is just a big
 // chunk of GPU memory we need to manage ourselves.
 // --------------------------------------------------------
-void RayTracing::CreateShaderTable(std::vector<std::shared_ptr<GameEntity>> scene)
+void RayTracing::CreateShaderTable()
 {
 	// Don't bother if DXR isn't available
 	if (dxrResourcesInitialized || !dxrAvailable)
@@ -828,7 +824,7 @@ void RayTracing::Raytrace(std::shared_ptr<Camera> camera, Microsoft::WRL::ComPtr
 		RayTracingDrawData data{};
 		data.SceneDataCBIndex = Graphics::GetDescriptorIndex(cbuffer);
 		data.OutputUAVDescriptorIndex = Graphics::GetDescriptorIndex(RaytracingOutputUAV_GPU);
-		data.EntityDataDescriptorIndex = EntityDataDescriptorIndex;
+		data.EntityDataDescriptorIndex = Graphics::GetDescriptorIndex(EntityDataUAV_GPU);
 		data.SceneTLASDescriptorIndex = Graphics::GetDescriptorIndex(TLAS_GPU);
 
 		DXRCommandList->SetComputeRoot32BitConstants(0, sizeof(RayTracingDrawData) / sizeof(unsigned int), &data, 0);

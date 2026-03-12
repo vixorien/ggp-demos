@@ -46,8 +46,7 @@ namespace RayTracing
 	inline D3D12_GPU_DESCRIPTOR_HANDLE RaytracingOutputUAV_GPU;
 
 	// --- FUNCTIONS ---
-	HRESULT Initialize();
-	HRESULT CreateRequiredResources(
+	HRESULT Initialize(
 		unsigned int outputWidth,
 		unsigned int outputHeight,
 		std::wstring raytracingShaderLibraryFile);

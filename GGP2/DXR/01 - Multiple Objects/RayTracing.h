@@ -44,15 +44,16 @@ namespace RayTracing
 	inline D3D12_GPU_DESCRIPTOR_HANDLE RaytracingOutputUAV_GPU;
 
 	// Buffer for bindless resources
-	inline unsigned int EntityDataDescriptorIndex;
 	inline Microsoft::WRL::ComPtr<ID3D12Resource> EntityDataStructuredBuffer;
+	inline D3D12_CPU_DESCRIPTOR_HANDLE EntityDataUAV_CPU{};
+	inline D3D12_GPU_DESCRIPTOR_HANDLE EntityDataUAV_GPU{};
 
 	// --- FUNCTIONS ---
-	HRESULT Initialize();
-	HRESULT CreateRequiredResources(
+	HRESULT Initialize(
 		unsigned int outputWidth,
 		unsigned int outputHeight,
-		std::wstring raytracingShaderLibraryFile,
+		std::wstring raytracingShaderLibraryFile);
+	void CreateEntityDataBuffer(
 		std::vector<std::shared_ptr<GameEntity>> scene);
 	void ResizeOutputUAV(
 		unsigned int outputWidth,
@@ -68,6 +69,6 @@ namespace RayTracing
 	// Helper functions for each initalization step
 	void CreateRaytracingRootSignatures();
 	void CreateRaytracingPipelineState(std::wstring raytracingShaderLibraryFile);
-	void CreateShaderTable(std::vector<std::shared_ptr<GameEntity>> scene);
+	void CreateShaderTable();
 	void CreateRaytracingOutputUAV(unsigned int width, unsigned int height);
 }

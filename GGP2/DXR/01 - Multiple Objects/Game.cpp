@@ -33,7 +33,10 @@ using namespace DirectX;
 void Game::Initialize()
 {
 	// Check for DXR support and setup required API objects
-	RayTracing::Initialize();
+	RayTracing::Initialize(
+		Window::Width(),
+		Window::Height(),
+		FixPath(L"RayTracing.cso"));
 
 	// Seed random
 	srand((unsigned int)time(0));
@@ -115,16 +118,17 @@ void Game::Initialize()
 		entities.push_back(sphereEnt);
 	}
 
-	// Initialize raytracing
-	RayTracing::CreateRequiredResources(
-		Window::Width(),
-		Window::Height(),
-		FixPath(L"RayTracing.cso"),
-		entities);
+	// Create the ray tracing entity data buffer now that we have a scene
+	RayTracing::CreateEntityDataBuffer(entities);
 
+	// Once we have all of the BLASs ready, we can make a TLAS
+	RayTracing::CreateTopLevelAccelerationStructureForScene(entities);
 
-	// Note: Waiting until the first Draw() to build the
-	// initial ray tracing top level accel structure
+	// Finalize any initialization and wait for the GPU
+	// before proceeding to the game loop
+	Graphics::CloseAndExecuteCommandList();
+	Graphics::WaitForGPU();
+	Graphics::ResetAllocatorAndCommandList(0);
 }
 
 

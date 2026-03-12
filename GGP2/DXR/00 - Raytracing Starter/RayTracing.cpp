@@ -41,9 +41,13 @@ namespace RayTracing
 
 
 // --------------------------------------------------------
-// Check for raytracing support and prepare main API objects
+// Check for raytracing support, prepare main API objects
+// and create all necessary resources
 // --------------------------------------------------------
-HRESULT RayTracing::Initialize()
+HRESULT RayTracing::Initialize(
+	unsigned int outputWidth,
+	unsigned int outputHeight,
+	std::wstring raytracingShaderLibraryFile)
 {
 	// Use CheckFeatureSupport to determine if ray tracing is supported
 	D3D12_FEATURE_DATA_D3D12_OPTIONS5 rtSupport = {};
@@ -64,25 +68,12 @@ HRESULT RayTracing::Initialize()
 	// We have DXR support
 	dxrAvailable = true;
 	printf("\nDXR initialization success!\n");
-	return S_OK;
-}
 
-// --------------------------------------------------------
-// Create all necessary ray tracing 
-// resources, pipeline states, etc.
-// --------------------------------------------------------
-HRESULT RayTracing::CreateRequiredResources(
-	unsigned int outputWidth,
-	unsigned int outputHeight,
-	std::wstring raytracingShaderLibraryFile)
-{
 	// Proceed with setup
 	CreateRaytracingRootSignatures();
 	CreateRaytracingPipelineState(raytracingShaderLibraryFile);
 	CreateRaytracingOutputUAV(outputWidth, outputHeight);
 	CreateShaderTable();
-
-	// All set
 	dxrResourcesInitialized = true;
 	return S_OK;
 }

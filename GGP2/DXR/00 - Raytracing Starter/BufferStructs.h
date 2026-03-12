@@ -2,7 +2,7 @@
 
 #include <DirectXMath.h>
 
-// Overall scene data for raytracing
+// Overall scene data for ray tracing
 struct RaytracingSceneData
 {
 	DirectX::XMFLOAT4X4 InverseViewProjection;
