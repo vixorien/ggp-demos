@@ -73,7 +73,7 @@ HRESULT RayTracing::Initialize(
 	CreateRaytracingRootSignatures();
 	CreateRaytracingPipelineState(raytracingShaderLibraryFile);
 	CreateRaytracingOutputUAV(outputWidth, outputHeight);
-	CreateShaderTable();
+	CreateShaderTables();
 	dxrResourcesInitialized = true;
 	return S_OK;
 }
@@ -368,16 +368,20 @@ void RayTracing::CreateRaytracingPipelineState(std::wstring raytracingShaderLibr
 // used during raytracing.  Note that this is just a big
 // chunk of GPU memory we need to manage ourselves.
 // --------------------------------------------------------
-void RayTracing::CreateShaderTable()
+void RayTracing::CreateShaderTables()
 {
 	// Don't bother if DXR isn't available
 	if (dxrResourcesInitialized || !dxrAvailable)
 		return;
 
+	// How many of each type of shader?
+	UINT64 rayGenCount = 1;
+	UINT64 missCount = 1;
+	UINT64 hitGroupCount = 1;
+
 	// Ray Gen Table setup
 	{
 		// Calculate the overall sizes
-		UINT64 rayGenCount = 1;
 		rayGenRecordSize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES; // Just the shader ID itself
 		rayGenRecordSize = ALIGN(rayGenRecordSize, D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT); // Aligned properly
 		rayGenTableSize = rayGenRecordSize * rayGenCount;
@@ -388,7 +392,7 @@ void RayTracing::CreateShaderTable()
 			D3D12_HEAP_TYPE_UPLOAD, 
 			D3D12_RESOURCE_STATE_GENERIC_READ);
 
-		// Map and memcpy the shader ID into the table
+		// Map and memcpy the shader ID into the table (assuming just 1 entry)
 		unsigned char* addr = 0;
 		RayGenTable->Map(0, 0, (void**)&addr);
 		memcpy(
@@ -401,7 +405,6 @@ void RayTracing::CreateShaderTable()
 	// Miss Table setup
 	{
 		// Calculate the overall sizes
-		UINT64 missCount = 1;
 		missRecordSize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES; // Just the shader ID itself
 		missRecordSize = ALIGN(missRecordSize, D3D12_RAYTRACING_SHADER_RECORD_BYTE_ALIGNMENT); // Aligned properly
 		missTableSize = missRecordSize * missCount;
@@ -412,7 +415,7 @@ void RayTracing::CreateShaderTable()
 			D3D12_HEAP_TYPE_UPLOAD,
 			D3D12_RESOURCE_STATE_GENERIC_READ);
 
-		// Map and memcpy the shader ID into the table
+		// Map and memcpy the shader ID into the table (assuming just 1 entry)
 		unsigned char* addr = 0;
 		MissTable->Map(0, 0, (void**)&addr);
 		memcpy(
@@ -425,7 +428,6 @@ void RayTracing::CreateShaderTable()
 	// Hit Group Table
 	{
 		// Calculate the overall size
-		UINT64 hitGroupCount = 1;
 		hitGroupRecordSize = 
 			D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES +  // Shader ID
 			sizeof(D3D12_GPU_DESCRIPTOR_HANDLE);     // Plus descriptor for local root sig
@@ -438,7 +440,7 @@ void RayTracing::CreateShaderTable()
 			D3D12_HEAP_TYPE_UPLOAD,
 			D3D12_RESOURCE_STATE_GENERIC_READ);
 
-		// Map and memcpy the shader ID into the table
+		// Map and memcpy the shader ID into the table (assuming just 1 entry)
 		unsigned char* addr = 0;
 		HitGroupTable->Map(0, 0, (void**)&addr);
 		memcpy(

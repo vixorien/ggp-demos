@@ -27,16 +27,17 @@ namespace RayTracing
 	inline Microsoft::WRL::ComPtr<ID3D12StateObject> RaytracingPipelineStateObject;
 	inline Microsoft::WRL::ComPtr<ID3D12StateObjectProperties> RaytracingPipelineProperties;
 
-	// Shader table holding shaders for use during raytracing
-	inline Microsoft::WRL::ComPtr<ID3D12Resource> ShaderTable;
-	inline UINT64 ShaderTableRecordSize;
+	// Shader tables holding shaders for use during raytracing
+	inline Microsoft::WRL::ComPtr<ID3D12Resource> RayGenTable;
+	inline Microsoft::WRL::ComPtr<ID3D12Resource> MissTable;
+	inline Microsoft::WRL::ComPtr<ID3D12Resource> HitGroupTable;
 
 	// Accel structure requirements
 	inline Microsoft::WRL::ComPtr<ID3D12Resource> TLASScratchBuffer;
 	inline Microsoft::WRL::ComPtr<ID3D12Resource> TLASInstanceDescBuffer[Graphics::NumBackBuffers];
 	inline Microsoft::WRL::ComPtr<ID3D12Resource> TLAS;
-	inline D3D12_CPU_DESCRIPTOR_HANDLE TLAS_CPU{};
-	inline D3D12_GPU_DESCRIPTOR_HANDLE TLAS_GPU{};
+	inline D3D12_CPU_DESCRIPTOR_HANDLE TLASDescriptor_CPU{};
+	inline D3D12_GPU_DESCRIPTOR_HANDLE TLASDescriptor_GPU{};
 
 	// Actual output resource
 	inline Microsoft::WRL::ComPtr<ID3D12Resource> RaytracingOutput;
@@ -69,6 +70,6 @@ namespace RayTracing
 	// Helper functions for each initalization step
 	void CreateRaytracingRootSignatures();
 	void CreateRaytracingPipelineState(std::wstring raytracingShaderLibraryFile);
-	void CreateShaderTable();
+	void CreateShaderTables();
 	void CreateRaytracingOutputUAV(unsigned int width, unsigned int height);
 }
