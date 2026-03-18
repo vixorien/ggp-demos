@@ -33,7 +33,10 @@ using namespace DirectX;
 void Game::Initialize()
 {
 	// Check for DXR support and setup required API objects
-	RayTracing::Initialize();
+	RayTracing::Initialize(
+		Window::Width(),
+		Window::Height(),
+		FixPath(L"RayTracing.cso"));
 
 	// Seed random
 	srand((unsigned int)time(0));
@@ -77,7 +80,7 @@ void Game::Initialize()
 	// Create materials
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> pipelineState{};
 	std::shared_ptr<Material> greyMat = std::make_shared<Material>(pipelineState, XMFLOAT3(0.5f, 0.5f, 0.5f));
-	std::shared_ptr<Material> lightGreyMat = std::make_shared<Material>(pipelineState, XMFLOAT3(0.9f, 0.9f, 1), 0.0f);
+	std::shared_ptr<Material> lightGreyMat = std::make_shared<Material>(pipelineState, XMFLOAT3(0.9f, 0.9f, 1));
 
 	// Load mesh(es)
 	std::shared_ptr<Mesh> cubeMesh = std::make_shared<Mesh>("Cube", FixPath(AssetPath + L"Meshes/cube.obj").c_str());
@@ -101,8 +104,7 @@ void Game::Initialize()
 		std::shared_ptr<Material> mat = std::make_shared<Material>(pipelineState, XMFLOAT3(
 			RandomRange(0.0f, 1.0f),
 			RandomRange(0.0f, 1.0f),
-			RandomRange(0.0f, 1.0f)),
-			(float)(i % 2)); // Roughness
+			RandomRange(0.0f, 1.0f)));
 
 		float scale = RandomRange(0.25f, 1.0f);
 
@@ -116,15 +118,17 @@ void Game::Initialize()
 		entities.push_back(sphereEnt);
 	}
 
-	// Initialize raytracing
-	RayTracing::CreateRequiredResources(
-		Window::Width(),
-		Window::Height(),
-		FixPath(L"RayTracing.cso"),
-		entities);
+	// Create the ray tracing entity data buffer now that we have a scene
+	RayTracing::CreateEntityDataBuffer(entities);
 
-	// Note: Waiting until the first Draw() to build the
-	// initial ray tracing top level accel structure
+	// Once we have all of the BLASs ready, we can make a TLAS
+	RayTracing::CreateTopLevelAccelerationStructureForScene(entities);
+
+	// Finalize any initialization and wait for the GPU
+	// before proceeding to the game loop
+	Graphics::CloseAndExecuteCommandList();
+	Graphics::WaitForGPU();
+	Graphics::ResetAllocatorAndCommandList(0);
 }
 
 
@@ -248,16 +252,17 @@ void Game::Draw(float deltaTime, float totalTime)
 
 		// Must occur BEFORE present
 		Graphics::CloseAndExecuteCommandList();
-
+		
 		// Present the current back buffer and move to the next one
 		bool vsync = Graphics::VsyncState();
 		Graphics::SwapChain->Present(
 			vsync ? 1 : 0,
 			vsync ? 0 : DXGI_PRESENT_ALLOW_TEARING);
 		Graphics::AdvanceSwapChainIndex();
-
+		
 		// Reset the command list & allocator for the upcoming frame
 		Graphics::ResetAllocatorAndCommandList(Graphics::SwapChainIndex());
+		
 	}
 }
 

@@ -54,12 +54,8 @@ namespace Graphics
 	// Basic CPU/GPU synchronization
 	inline Microsoft::WRL::ComPtr<ID3D12Fence>	WaitFence;
 	inline HANDLE								WaitFenceEvent = 0;
-	inline UINT64								WaitFenceCounter = 0;
-
-	// Frame sync'ing
-	inline Microsoft::WRL::ComPtr<ID3D12Fence>	FrameSyncFence;
-	inline HANDLE								FrameSyncFenceEvent = 0;
-	inline UINT64								FrameSyncFenceCounters[NumBackBuffers]{};
+	inline UINT64								CPUCounter = 0;
+	inline UINT64								GPUCounter = 0;
 
 	// Debug Layer
 	inline Microsoft::WRL::ComPtr<ID3D12InfoQueue> InfoQueue;
@@ -81,23 +77,24 @@ namespace Graphics
 	D3D12_CPU_DESCRIPTOR_HANDLE LoadTexture(const wchar_t* file, bool generateMips = true);
 	Microsoft::WRL::ComPtr<ID3D12Resource> CreateStaticBuffer(size_t dataStride, size_t dataCount, void* data);
 	Microsoft::WRL::ComPtr<ID3D12Resource> CreateBuffer(
-		UINT64 size,
+		UINT64 bufferSize,
 		D3D12_HEAP_TYPE heapType = D3D12_HEAP_TYPE_DEFAULT,
 		D3D12_RESOURCE_STATES state = D3D12_RESOURCE_STATE_COMMON,
 		D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE,
-		UINT64 alignment = 0);
+		UINT64 alignment = 0,
+		void* data = 0,
+		size_t dataSize = 0);
 
 	// Resource usage
 	D3D12_GPU_DESCRIPTOR_HANDLE FillNextConstantBufferAndGetGPUDescriptorHandle(
 		void* data,
 		unsigned int dataSizeInBytes);
 
-	D3D12_GPU_DESCRIPTOR_HANDLE CopySRVsToDescriptorHeapAndGetGPUDescriptorHandle(
-		D3D12_CPU_DESCRIPTOR_HANDLE firstDescriptorToCopy, 
-		unsigned int numDescriptorsToCopy);
+	void ReserveDescriptorHeapSlot(
+		D3D12_CPU_DESCRIPTOR_HANDLE* reservedCPUHandle, 
+		D3D12_GPU_DESCRIPTOR_HANDLE* reservedGPUHandle);
 
-	void ReserveDescriptorHeapSlot(D3D12_CPU_DESCRIPTOR_HANDLE* reservedCPUHandle, D3D12_GPU_DESCRIPTOR_HANDLE* reservedGPUHandle);
-
+	unsigned int GetDescriptorIndex(D3D12_GPU_DESCRIPTOR_HANDLE handle);
 
 	// Command list & synchronization
 	void ResetAllocatorAndCommandList(unsigned int swapChainIndex);

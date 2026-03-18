@@ -279,16 +279,13 @@ HRESULT Graphics::Initialize(unsigned int windowWidth, unsigned int windowHeight
 			DSVHandle);
 	}
 
-	// Create the fences for basic synchronization
+	// Create the fence for basic synchronization
 	{
 		// Our basic "wait for GPU" hard stop
 		Device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(WaitFence.GetAddressOf()));
 		WaitFenceEvent = CreateEventEx(0, 0, 0, EVENT_ALL_ACCESS);
-		WaitFenceCounter = 0;
-
-		// Fence for syncing frames "in flight"
-		Device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(FrameSyncFence.GetAddressOf()));
-		FrameSyncFenceEvent = CreateEventEx(0, 0, 0, EVENT_ALL_ACCESS);
+		CPUCounter = 0;
+		GPUCounter = 0;
 	}
 
 	// Create the CBV/SRV descriptor heap
@@ -483,14 +480,20 @@ void Graphics::ResizeBuffers(unsigned int width, unsigned int height)
 			DSVHandle);
 	}
 
-	// Reset back to the first buffer
-	currentBackBufferIndex = 0;
-
 	// Are we in a fullscreen state?
 	SwapChain->GetFullscreenState(&isFullscreen, 0);
 
-	// Wait for the GPU before we proceed
-	WaitForGPU();
+	// Reset back to the first buffer
+	currentBackBufferIndex = 0;
+
+	// Close the command list (just in case), reset all allocators and 
+	// set the command list back to the first allocator.  This is 
+	// necessary to handle occasional 1-frame allocator errors after
+	// a resize.
+	CommandList->Close();
+	for (unsigned int i = 0; i < NumBackBuffers; i++)
+		CommandAllocator[i]->Reset();
+	CommandList->Reset(CommandAllocator[0].Get(), 0);
 }
 
 
@@ -501,30 +504,29 @@ void Graphics::ResizeBuffers(unsigned int width, unsigned int height)
 // --------------------------------------------------------
 void Graphics::AdvanceSwapChainIndex()
 {
-	// Grab the current fence value so we can adjust it for the next frame,
-	// but first use it to signal into the command queue (so we can check for this frame later)
-	UINT64 currentFenceCounter = FrameSyncFenceCounters[currentBackBufferIndex];
-	CommandQueue->Signal(FrameSyncFence.Get(), currentFenceCounter);
+	// Increment our CPU-side counter and place "this frame" into the queue
+	CPUCounter++;
+	CommandQueue->Signal(WaitFence.Get(), CPUCounter);
 
-	// Calculate the next index
-	unsigned int nextBuffer = currentBackBufferIndex + 1;
-	nextBuffer %= NumBackBuffers;
-
-	// Do we need to wait for the next frame?  We do this by checking the counter
-	// associated with that frame's buffer and waiting if it's not complete
-	if (FrameSyncFence->GetCompletedValue() < FrameSyncFenceCounters[nextBuffer])
+	// How far "ahead" are we?
+	UINT64 frames = CPUCounter - GPUCounter;
+	if (frames >= NumBackBuffers)
 	{
-		// Not completed, so we wait
-		FrameSyncFence->SetEventOnCompletion(FrameSyncFenceCounters[nextBuffer], FrameSyncFenceEvent);
-		WaitForSingleObject(FrameSyncFenceEvent, INFINITE);
+		// Too far ahead, so wait for the next GPU counter (current + 1)
+		if (WaitFence->GetCompletedValue() < GPUCounter + 1)
+		{
+			// Not completed, so we wait
+			WaitFence->SetEventOnCompletion(GPUCounter + 1, WaitFenceEvent);
+			WaitForSingleObject(WaitFenceEvent, INFINITE);
+		}
+
+		// GPU has caught up one frame
+		GPUCounter++;
 	}
 
-	// Frame is done, so update the next frame's counter
-	FrameSyncFenceCounters[nextBuffer] = currentFenceCounter + 1;
-
-	// Return the new buffer index, which the caller can
-	// use to track which buffer to use for the next frame
-	currentBackBufferIndex = nextBuffer;
+	// Update the current back buffer index
+	currentBackBufferIndex++;
+	currentBackBufferIndex %= NumBackBuffers;
 }
 
 
@@ -583,21 +585,30 @@ D3D12_CPU_DESCRIPTOR_HANDLE Graphics::LoadTexture(const wchar_t* file, bool gene
 
 
 // --------------------------------------------------------
-// Helper for creating a basic buffer
+// Helper for creating a buffer.  Optionally,
+// initial data may be provided for the buffer.
+// A temporary upload buffer will be created to
+// receive the data, which is then copied to
+// the final GPU buffer.
 // 
-// size      - How big should the buffer be in bytes
-// heapType  - What kind of D3D12 heap?  Default is D3D12_HEAP_TYPE_DEFAULT
-// state     - What state should the resulting resource be in?  Default is D3D12_RESOURCE_STATE_COMMON
-// flags     - Any special flags?  Default is D3D12_RESOURCE_FLAG_NONE
-// alignment - What's the buffer alignment?  Default is 0
+// bufferSize - How big should the buffer be in bytes
+// heapType   - What kind of D3D12 heap?  Default is D3D12_HEAP_TYPE_DEFAULT
+// state      - What state should the resulting resource be in?  Default is D3D12_RESOURCE_STATE_COMMON
+// flags      - Any special flags?  Default is D3D12_RESOURCE_FLAG_NONE
+// alignment  - What's the buffer alignment?  Default is 0
+// data       - Pointer to the data to copy to the buffer.  Default is 0 (nullptr)
+// dataSize   - Size in bytes of data to copy.  If this is larger than bufferSize, no data is copied
 // --------------------------------------------------------
 Microsoft::WRL::ComPtr<ID3D12Resource> Graphics::CreateBuffer(
-	UINT64 size,
+	UINT64 bufferSize,
 	D3D12_HEAP_TYPE heapType,
 	D3D12_RESOURCE_STATES state,
 	D3D12_RESOURCE_FLAGS flags,
-	UINT64 alignment)
+	UINT64 alignment,
+	void* data,
+	size_t dataSize)
 {
+	// The final buffer
 	Microsoft::WRL::ComPtr<ID3D12Resource> buffer;
 
 	// Describe the heap
@@ -620,10 +631,79 @@ Microsoft::WRL::ComPtr<ID3D12Resource> Graphics::CreateBuffer(
 	desc.MipLevels = 1;
 	desc.SampleDesc.Count = 1;
 	desc.SampleDesc.Quality = 0;
-	desc.Width = size; // Size of the buffer
+	desc.Width = bufferSize; // Size of the buffer
 
 	// Create the buffer
 	Device->CreateCommittedResource(&heapDesc, D3D12_HEAP_FLAG_NONE, &desc, state, 0, IID_PPV_ARGS(buffer.GetAddressOf()));
+
+	// Do we need to copy data to the buffer?
+	if (data && dataSize > 0 && dataSize <= bufferSize)
+	{
+		// We need to copy data into the final buffer, so create
+		// an upload buffer to initially get the data
+		D3D12_HEAP_PROPERTIES uploadProps = {};
+		uploadProps.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+		uploadProps.CreationNodeMask = 1;
+		uploadProps.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+		uploadProps.Type = D3D12_HEAP_TYPE_UPLOAD;
+		uploadProps.VisibleNodeMask = 1;
+
+		// Remove any special flags on the initial description
+		desc.Flags = D3D12_RESOURCE_FLAG_NONE;
+
+		Microsoft::WRL::ComPtr<ID3D12Resource> uploadHeap;
+		Device->CreateCommittedResource(
+			&uploadProps,
+			D3D12_HEAP_FLAG_NONE,
+			&desc,
+			D3D12_RESOURCE_STATE_COMMON,
+			0,
+			IID_PPV_ARGS(uploadHeap.GetAddressOf()));
+
+		// Do a straight map/memcpy/unmap
+		void* gpuAddress = 0;
+		uploadHeap->Map(0, 0, &gpuAddress);
+		memcpy(gpuAddress, data, dataSize);
+		uploadHeap->Unmap(0, 0);
+
+		// Create a local command list + allocator
+		Microsoft::WRL::ComPtr<ID3D12CommandAllocator> localAllocator;
+		Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> localList;
+
+		Device->CreateCommandAllocator(
+			D3D12_COMMAND_LIST_TYPE_DIRECT,
+			IID_PPV_ARGS(localAllocator.GetAddressOf()));
+
+		Device->CreateCommandList(
+			0,
+			D3D12_COMMAND_LIST_TYPE_DIRECT,
+			localAllocator.Get(),
+			0,
+			IID_PPV_ARGS(localList.GetAddressOf()));
+
+		// Copy the whole buffer from uploadheap to vert buffer
+		localList->CopyResource(buffer.Get(), uploadHeap.Get());
+
+		// Transition the buffer to generic read for the rest of the app lifetime (presumably)
+		D3D12_RESOURCE_BARRIER rb = {};
+		rb.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+		rb.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+		rb.Transition.pResource = buffer.Get();
+		rb.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_DEST;
+		rb.Transition.StateAfter = D3D12_RESOURCE_STATE_GENERIC_READ;
+		rb.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+		localList->ResourceBarrier(1, &rb);
+
+		// Execute the local command list and wait for it to complete
+		// before returning the final buffer
+		localList->Close();
+		ID3D12CommandList* list[] = { localList.Get() };
+		CommandQueue->ExecuteCommandLists(1, list);
+
+		WaitForGPU();
+	}
+
+	// Return the final buffer
 	return buffer;
 }
 
@@ -704,7 +784,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> Graphics::CreateStaticBuffer(size_t dataS
 		&uploadProps,
 		D3D12_HEAP_FLAG_NONE,
 		&desc,
-		D3D12_RESOURCE_STATE_GENERIC_READ,
+		D3D12_RESOURCE_STATE_COMMON,
 		0,
 		IID_PPV_ARGS(uploadHeap.GetAddressOf()));
 
@@ -717,7 +797,7 @@ Microsoft::WRL::ComPtr<ID3D12Resource> Graphics::CreateStaticBuffer(size_t dataS
 	// Copy the whole buffer from uploadheap to vert buffer
 	localList->CopyResource(buffer.Get(), uploadHeap.Get());
 
-	// Transition the buffer to generic read for the rest of the app lifetime (presumable)
+	// Transition the buffer to generic read for the rest of the app lifetime (presumably)
 	D3D12_RESOURCE_BARRIER rb = {};
 	rb.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
 	rb.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
@@ -816,33 +896,6 @@ D3D12_GPU_DESCRIPTOR_HANDLE Graphics::FillNextConstantBufferAndGetGPUDescriptorH
 
 
 // --------------------------------------------------------
-// Copies one or more SRVs starting at the given CPU handle
-// to the final CBV/SRV descriptor heap, and returns
-// the GPU handle to the beginning of this section.
-// 
-// firstDescriptorToCopy - The handle to the first descriptor
-// numDescriptorsToCopy - How many to copy
-// --------------------------------------------------------
-D3D12_GPU_DESCRIPTOR_HANDLE Graphics::CopySRVsToDescriptorHeapAndGetGPUDescriptorHandle(D3D12_CPU_DESCRIPTOR_HANDLE firstDescriptorToCopy, unsigned int numDescriptorsToCopy)
-{
-	// Grab the actual heap start on both sides and offset to the next open SRV portion
-	D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = CBVSRVDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
-	D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle = CBVSRVDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
-
-	cpuHandle.ptr += (SIZE_T)srvDescriptorOffset * cbvSrvDescriptorHeapIncrementSize;
-	gpuHandle.ptr += (SIZE_T)srvDescriptorOffset * cbvSrvDescriptorHeapIncrementSize;
-
-	// We know where to copy these descriptors, so copy all of them and remember the new offset
-	Device->CopyDescriptorsSimple(numDescriptorsToCopy, cpuHandle, firstDescriptorToCopy, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	srvDescriptorOffset += numDescriptorsToCopy;
-
-	// Pass back the GPU handle to the start of this section
-	// in the final CBV/SRV heap so the caller can use it later
-	return gpuHandle;
-}
-
-
-// --------------------------------------------------------
 // Reserves a slot in the SRV/UAV section of the overall
 // CBV/SRV/UAV descriptor heap.  Handles to CPU and/or GPU
 // are set via parameters.  Pass in 0 to skip a parameter.
@@ -863,6 +916,16 @@ void Graphics::ReserveDescriptorHeapSlot(D3D12_CPU_DESCRIPTOR_HANDLE* reservedCP
 	// Update the overall offset if at least one handle was reserved
 	if(reservedCPUHandle || reservedGPUHandle)
 		srvDescriptorOffset++;
+}
+
+
+// --------------------------------------------------------
+// Calculates the index of a given descriptor in the descriptor heap
+// --------------------------------------------------------
+unsigned int Graphics::GetDescriptorIndex(D3D12_GPU_DESCRIPTOR_HANDLE handle)
+{
+	return (unsigned int)((handle.ptr - CBVSRVDescriptorHeap->GetGPUDescriptorHandleForHeapStart().ptr) /
+		Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
 }
 
 
@@ -904,18 +967,21 @@ void Graphics::WaitForGPU()
 {
 	// Update our ongoing fence value (a unique index for each "stop sign")
 	// and then place that value into the GPU's command queue
-	WaitFenceCounter++;
-	CommandQueue->Signal(WaitFence.Get(), WaitFenceCounter);
+	CPUCounter++;
+	CommandQueue->Signal(WaitFence.Get(), CPUCounter);
 
 	// Check to see if the most recently completed fence value
 	// is less than the one we just set.
-	if (WaitFence->GetCompletedValue() < WaitFenceCounter)
+	if (WaitFence->GetCompletedValue() < CPUCounter)
 	{
 		// Tell the fence to let us know when it's hit, and then
 		// sit and wait until that fence is hit.
-		WaitFence->SetEventOnCompletion(WaitFenceCounter, WaitFenceEvent);
+		WaitFence->SetEventOnCompletion(CPUCounter, WaitFenceEvent);
 		WaitForSingleObject(WaitFenceEvent, INFINITE);
 	}
+
+	// We're fully caught up
+	GPUCounter = CPUCounter;
 }
 
 

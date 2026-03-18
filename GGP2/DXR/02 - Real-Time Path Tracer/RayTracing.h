@@ -19,7 +19,6 @@ namespace RayTracing
 
 	// Root signatures for basic raytracing
 	inline Microsoft::WRL::ComPtr<ID3D12RootSignature> GlobalRaytracingRootSig;
-	inline Microsoft::WRL::ComPtr<ID3D12RootSignature> LocalRaytracingRootSig;
 
 	// Overall raytracing pipeline state object
 	// This is similar to a regular PSO, but without the standard
@@ -28,26 +27,34 @@ namespace RayTracing
 	inline Microsoft::WRL::ComPtr<ID3D12StateObject> RaytracingPipelineStateObject;
 	inline Microsoft::WRL::ComPtr<ID3D12StateObjectProperties> RaytracingPipelineProperties;
 
-	// Shader table holding shaders for use during raytracing
-	inline Microsoft::WRL::ComPtr<ID3D12Resource> ShaderTable;
-	inline UINT64 ShaderTableRecordSize;
+	// Shader tables holding shaders for use during raytracing
+	inline Microsoft::WRL::ComPtr<ID3D12Resource> RayGenTable;
+	inline Microsoft::WRL::ComPtr<ID3D12Resource> MissTable;
+	inline Microsoft::WRL::ComPtr<ID3D12Resource> HitGroupTable;
 
 	// Accel structure requirements
 	inline Microsoft::WRL::ComPtr<ID3D12Resource> TLASScratchBuffer;
 	inline Microsoft::WRL::ComPtr<ID3D12Resource> TLASInstanceDescBuffer[Graphics::NumBackBuffers];
 	inline Microsoft::WRL::ComPtr<ID3D12Resource> TLAS;
+	inline D3D12_CPU_DESCRIPTOR_HANDLE TLASDescriptor_CPU{};
+	inline D3D12_GPU_DESCRIPTOR_HANDLE TLASDescriptor_GPU{};
 
 	// Actual output resource
 	inline Microsoft::WRL::ComPtr<ID3D12Resource> RaytracingOutput;
 	inline D3D12_CPU_DESCRIPTOR_HANDLE RaytracingOutputUAV_CPU;
 	inline D3D12_GPU_DESCRIPTOR_HANDLE RaytracingOutputUAV_GPU;
 
+	// Buffer for bindless resources
+	inline Microsoft::WRL::ComPtr<ID3D12Resource> EntityDataStructuredBuffer;
+	inline D3D12_CPU_DESCRIPTOR_HANDLE EntityDataUAV_CPU{};
+	inline D3D12_GPU_DESCRIPTOR_HANDLE EntityDataUAV_GPU{};
+
 	// --- FUNCTIONS ---
-	HRESULT Initialize();
-	HRESULT CreateRequiredResources(
+	HRESULT Initialize(
 		unsigned int outputWidth,
 		unsigned int outputHeight,
-		std::wstring raytracingShaderLibraryFile,
+		std::wstring raytracingShaderLibraryFile);
+	void CreateEntityDataBuffer(
 		std::vector<std::shared_ptr<GameEntity>> scene);
 	void ResizeOutputUAV(
 		unsigned int outputWidth,
@@ -63,6 +70,6 @@ namespace RayTracing
 	// Helper functions for each initalization step
 	void CreateRaytracingRootSignatures();
 	void CreateRaytracingPipelineState(std::wstring raytracingShaderLibraryFile);
-	void CreateShaderTable(std::vector<std::shared_ptr<GameEntity>> scene);
+	void CreateShaderTables();
 	void CreateRaytracingOutputUAV(unsigned int width, unsigned int height);
 }

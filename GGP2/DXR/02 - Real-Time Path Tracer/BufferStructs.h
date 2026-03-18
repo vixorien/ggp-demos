@@ -1,38 +1,32 @@
 #pragma once
 
-#include "Lights.h"
 #include <DirectXMath.h>
 
-// Must match vertex shader definition!
-struct VertexShaderExternalData
+// Root constants for bindless resources
+struct RayTracingDrawData
 {
-	DirectX::XMFLOAT4X4 world;
-	DirectX::XMFLOAT4X4 worldInverseTranspose;
-	DirectX::XMFLOAT4X4 view;
-	DirectX::XMFLOAT4X4 projection;
+	unsigned int SceneDataConstantBufferIndex;
+	unsigned int EntityDataDescriptorIndex;
+	unsigned int SceneTLASDescriptorIndex;
+	unsigned int OutputUAVDescriptorIndex;
 };
 
-// Must match pixel shader definition!
-struct PixelShaderExternalData
+// Overall scene data for ray tracing (constant buffer)
+struct RayTracingSceneData
 {
-	DirectX::XMFLOAT2 uvScale;
-	DirectX::XMFLOAT2 uvOffset;
-	DirectX::XMFLOAT3 cameraPosition;
-	int lightCount;
-	Light lights[MAX_LIGHTS];
+	DirectX::XMFLOAT4X4 InverseViewProjection;
+	DirectX::XMFLOAT3 CameraPosition;
+	unsigned int RaysPerPixel;
 };
 
-// Overall scene data for raytracing
-struct RaytracingSceneData
+// Per-entity information (geom, material, etc.)
+// - Multiple sets of these will be stored in a structured buffer
+// - Materials *could* be separated out into their own buffer 
+//   to cut down on data repetition
+struct RayTracingEntityData
 {
-	DirectX::XMFLOAT4X4 inverseViewProjection;
-	DirectX::XMFLOAT3 cameraPosition;
-	int raysPerPixel;
-};
-
-// Ensure this matches Raytracing shader define!
-#define MAX_INSTANCES_PER_BLAS 100
-struct RaytracingEntityData
-{
-	DirectX::XMFLOAT4 color[MAX_INSTANCES_PER_BLAS];
+	DirectX::XMFLOAT4 Color;
+	unsigned int VertexBufferDescriptorIndex;
+	unsigned int IndexBufferDescriptorIndex;
+	float pad[2];
 };

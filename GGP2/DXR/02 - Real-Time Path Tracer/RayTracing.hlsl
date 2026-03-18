@@ -1,4 +1,5 @@
 
+
 // === Defines ===
 
 #define PI 3.141592654f
@@ -14,17 +15,28 @@ struct Vertex
     float3 tangent;
 };
 
-// 11 floats total per vertex * 4 bytes each
-static const uint VertexSizeInBytes = 11 * 4; 
+struct SceneData
+{
+	matrix InverseViewProjection;
+	float3 CameraPosition;
+	uint RaysPerPixel;
+};
 
+struct EntityData
+{
+	float4 Color;
+	uint VertexBufferDescriptorIndex;
+	uint IndexBufferDescriptorIndex;
+	float pad[2];
+};
 
 // Payload for rays (data that is "sent along" with each ray during raytrace)
 // Note: This should be as small as possible, and must match our C++ size definition
 struct RayPayload
 {
-	float3 color;
-	uint recursionDepth;
-	uint rayPerPixelIndex;
+	float3 Color;
+	uint RecursionDepth;
+	uint RayPerPixelIndex;
 };
 
 // Note: We'll be using the built-in BuiltInTriangleIntersectionAttributes struct
@@ -34,89 +46,63 @@ struct RayPayload
 
 // === Constant buffers ===
 
-cbuffer SceneData : register(b0)
+cbuffer DrawData : register(b0)
 {
-	matrix inverseViewProjection;
-	float3 cameraPosition;
-	int raysPerPixel;
+	uint SceneDataConstantBufferIndex;
+	uint EntityDataDescriptorIndex;
+	uint SceneTLASDescriptorIndex;
+	uint OutputUAVDescriptorIndex;
 };
-
-cbuffer ObjectData : register(b1)
-{
-	float4 entityColor;	
-}
-
-
-// === Resources ===
-
-// Output UAV 
-RWTexture2D<float4> OutputColor				: register(u0);
-
-// The actual scene we want to trace through (a TLAS)
-RaytracingAccelerationStructure SceneTLAS	: register(t0);
-
-// Geometry buffers
-ByteAddressBuffer IndexBuffer        		: register(t1);
-ByteAddressBuffer VertexBuffer				: register(t2);
 
 
 // === Helpers ===
-
-// Loads the indices of the specified triangle from the index buffer
-uint3 LoadIndices(uint triangleIndex)
-{
-	// What is the start index of this triangle's indices?
-	uint indicesStart = triangleIndex * 3;
-
-	// Adjust by the byte size before loading
-	return IndexBuffer.Load3(indicesStart * 4); // 4 bytes per index
-}
 
 
 // Barycentric interpolation of data from the triangle's vertices
 Vertex InterpolateVertices(uint triangleIndex, float2 barycentrics)
 {
+	// Get the data for this entity
+	StructuredBuffer<EntityData> ed = ResourceDescriptorHeap[EntityDataDescriptorIndex];
+	EntityData thisEntity = ed[InstanceIndex()];
+	
+	// Get the geometry buffers
+	StructuredBuffer<uint> IndexBuffer    = ResourceDescriptorHeap[thisEntity.IndexBufferDescriptorIndex];
+	StructuredBuffer<Vertex> VertexBuffer = ResourceDescriptorHeap[thisEntity.VertexBufferDescriptorIndex];
+
+	// Grab the 3 indices for this triangle
+	uint firstIndex = triangleIndex * 3;
+	uint indices[3];
+	indices[0] = IndexBuffer[firstIndex + 0];
+	indices[1] = IndexBuffer[firstIndex + 1];
+	indices[2] = IndexBuffer[firstIndex + 2];
+
+	// Grab the 3 corresponding vertices
+	Vertex verts[3];
+	verts[0] = VertexBuffer[indices[0]];
+	verts[1] = VertexBuffer[indices[1]];
+	verts[2] = VertexBuffer[indices[2]];
+	
 	// Calculate the barycentric data for vertex interpolation
 	float3 barycentricData = float3(
 		1.0f - barycentrics.x - barycentrics.y,
 		barycentrics.x,
 		barycentrics.y);
-
-	// Grab the indices
-	uint3 indices = LoadIndices(triangleIndex);
-
-	// Set up the final vertex
-    Vertex vert = (Vertex)0;
-
+	
 	// Loop through the barycentric data and interpolate
+    Vertex finalVert = (Vertex)0;
 	for (uint i = 0; i < 3; i++)
 	{
-		// Get the index of the first piece of data for this vertex
-		uint dataIndex = indices[i] * VertexSizeInBytes;
-
-		// Grab the position and offset
-		vert.localPosition += asfloat(VertexBuffer.Load3(dataIndex)) * barycentricData[i];
-		dataIndex += 3 * 4; // 3 floats * 4 bytes per float
-
-		// UV
-		vert.uv += asfloat(VertexBuffer.Load2(dataIndex)) * barycentricData[i];
-		dataIndex += 2 * 4; // 2 floats * 4 bytes per float
-
-		// Normal
-		vert.normal += asfloat(VertexBuffer.Load3(dataIndex)) * barycentricData[i];
-		dataIndex += 3 * 4; // 3 floats * 4 bytes per float
-
-		// Tangent (no offset at the end, since we start over after looping)
-		vert.tangent += asfloat(VertexBuffer.Load3(dataIndex)) * barycentricData[i];
+		finalVert.localPosition += verts[i].localPosition * barycentricData[i];
+		finalVert.uv += verts[i].uv * barycentricData[i];
+		finalVert.normal += verts[i].normal * barycentricData[i];
+		finalVert.tangent += verts[i].tangent * barycentricData[i];
 	}
-
-	// Final interpolated vertex data is ready
-	return vert;
+	return finalVert;
 }
 
 
 // Calculates an origin and direction from the camera for specific pixel indices
-RayDesc CalcRayFromCamera(float2 rayIndices)
+RayDesc CalcRayFromCamera(float2 rayIndices, float3 camPos, float4x4 invVP)
 {
 	// Offset to the middle of the pixel
 	float2 pixel = rayIndices + 0.5f;
@@ -124,17 +110,18 @@ RayDesc CalcRayFromCamera(float2 rayIndices)
 	screenPos.y = -screenPos.y;
 
 	// Unproject the coords
-	float4 worldPos = mul(inverseViewProjection, float4(screenPos, 0, 1));
+	float4 worldPos = mul(invVP, float4(screenPos, 0, 1));
 	worldPos.xyz /= worldPos.w;
 
 	// Set up the ray
 	RayDesc ray;
-	ray.Origin = cameraPosition.xyz;
+	ray.Origin = camPos.xyz;
 	ray.Direction = normalize(worldPos.xyz - ray.Origin);
 	ray.TMin = 0.01f;
 	ray.TMax = 1000.0f;
 	return ray;
 }
+
 
 // === Pseudo-Random Number Generation ===
 
@@ -198,6 +185,7 @@ float3 RandomCosineWeightedHemisphere(float u0, float u1, float3 unitNormal)
 }
 
 
+
 // === Shaders ===
 
 // Ray generation shader - Launched once for each ray we want to generate
@@ -205,44 +193,51 @@ float3 RandomCosineWeightedHemisphere(float u0, float u1, float3 unitNormal)
 [shader("raygeneration")]
 void RayGen()
 {
+	// Grab the constant buffer
+	ConstantBuffer<SceneData> cb = ResourceDescriptorHeap[SceneDataConstantBufferIndex];
+	
 	// Get the ray indices
 	uint2 rayIndices = DispatchRaysIndex().xy;
 	
 	// Average of all rays per pixel
 	float3 totalColor = float3(0, 0, 0);
 	
-	for (int r = 0; r < raysPerPixel; r++)
+	for (int r = 0; r < cb.RaysPerPixel; r++)
 	{
-		float2 adjustedIndices = (float2)rayIndices;
-		float ray01 = (float)r / raysPerPixel;
+		float2 adjustedIndices = (float2) rayIndices;
+		float ray01 = (float) r / cb.RaysPerPixel;
 		adjustedIndices += rand2(rayIndices.xy * ray01);
-		
+
 		// Calculate the ray from the camera through a particular
 		// pixel of the output buffer using this shader's indices
-		RayDesc ray = CalcRayFromCamera(adjustedIndices);
+		RayDesc ray = CalcRayFromCamera(
+			rayIndices,
+			cb.CameraPosition,
+			cb.InverseViewProjection);
 
 		// Set up the payload for the ray
-		RayPayload payload;
-		payload.color = float3(1, 1, 1);
-		payload.recursionDepth = 0;
-		payload.rayPerPixelIndex = r;
-		
+		// This initializes the struct to all zeros
+		RayPayload payload = (RayPayload) 0;
+		payload.Color = float3(1, 1, 1);
+		payload.RecursionDepth = 0;
+		payload.RayPerPixelIndex = r;
+
 		// Perform the ray trace for this ray
+		RaytracingAccelerationStructure SceneTLAS = ResourceDescriptorHeap[SceneTLASDescriptorIndex];
 		TraceRay(
 			SceneTLAS,
 			RAY_FLAG_NONE,
 			0xFF,
-			0,
-			0,
-			0,
+			0, 0, 0,
 			ray,
 			payload);
 		
-		totalColor += payload.color;
+		totalColor += payload.Color;
 	}
-	
+
 	// Set the final color of the buffer (gamma corrected)
-	OutputColor[rayIndices] = float4(pow(totalColor / raysPerPixel, 1.0f / 2.2f), 1);
+	RWTexture2D<float4> OutputColor = ResourceDescriptorHeap[OutputUAVDescriptorIndex];
+	OutputColor[rayIndices] = float4(pow(totalColor / cb.RaysPerPixel, 1.0f / 2.2f), 1);
 }
 
 
@@ -259,23 +254,27 @@ void Miss(inout RayPayload payload)
 	float3 skyColor = lerp(downColor, upColor, interpolation);
 	
 	// Alter the payload color by the sky color
-	payload.color *= skyColor;
+	payload.Color *= skyColor;
 }
 
 
 // Closest hit shader - Runs the first time a ray hits anything
 [shader("closesthit")]
 void ClosestHit(inout RayPayload payload, BuiltInTriangleIntersectionAttributes hitAttributes)
-{	
+{
 	// If we've reached the max recursion, we haven't hit a light source (the sky, which is the "miss shader" here)
-	if (payload.recursionDepth == 10)
+	if (payload.RecursionDepth == 10)
 	{
-		payload.color = float3(0, 0, 0);
+		payload.Color = float3(0, 0, 0);
 		return;
 	}
 	
+	// Get the data for this entity
+	StructuredBuffer<EntityData> entityDataBuffer = ResourceDescriptorHeap[EntityDataDescriptorIndex];
+	EntityData thisEntity = entityDataBuffer[InstanceIndex()];
+	
 	// We've hit, so adjust the payload color by this instance's color
-	payload.color *= entityColor.rgb;
+	payload.Color *= thisEntity.Color.rgb;
 	
 	// Get the geometry hit details and convert normal to world space
 	Vertex hit = InterpolateVertices(PrimitiveIndex(), hitAttributes.barycentrics);
@@ -283,12 +282,12 @@ void ClosestHit(inout RayPayload payload, BuiltInTriangleIntersectionAttributes 
 	
 	// Calc a unique RNG value for this ray, based on the "uv" (0-1 location) of this pixel and other per-ray data
 	float2 pixelUV = (float2)DispatchRaysIndex().xy / DispatchRaysDimensions().xy;
-	float2 rng = rand2(pixelUV * (payload.recursionDepth + 1) + payload.rayPerPixelIndex + RayTCurrent());
+	float2 rng = rand2(pixelUV * (payload.RecursionDepth + 1) + payload.RayPerPixelIndex + RayTCurrent());
 	
 	// Interpolate between perfect reflection and random bounce based on roughness
 	float3 refl = reflect(WorldRayDirection(), normal_WS);
 	float3 randomBounce = RandomCosineWeightedHemisphere(rand(rng), rand(rng.yx), normal_WS);
-	float3 dir = normalize(lerp(refl, randomBounce, entityColor.a));
+	float3 dir = normalize(lerp(refl, randomBounce, thisEntity.Color.a));
 		
 	// Create the new recursive ray
 	RayDesc ray;
@@ -298,7 +297,9 @@ void ClosestHit(inout RayPayload payload, BuiltInTriangleIntersectionAttributes 
 	ray.TMax = 1000.0f;
 	
 	// Recursive ray trace
-	payload.recursionDepth++;
+	payload.RecursionDepth++;
+	
+	RaytracingAccelerationStructure SceneTLAS = ResourceDescriptorHeap[SceneTLASDescriptorIndex];
 	TraceRay(
 		SceneTLAS,
 		RAY_FLAG_NONE,
