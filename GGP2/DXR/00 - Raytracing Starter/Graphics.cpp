@@ -818,33 +818,6 @@ D3D12_GPU_DESCRIPTOR_HANDLE Graphics::FillNextConstantBufferAndGetGPUDescriptorH
 
 
 // --------------------------------------------------------
-// Copies one or more SRVs starting at the given CPU handle
-// to the final CBV/SRV descriptor heap, and returns
-// the GPU handle to the beginning of this section.
-// 
-// firstDescriptorToCopy - The handle to the first descriptor
-// numDescriptorsToCopy - How many to copy
-// --------------------------------------------------------
-D3D12_GPU_DESCRIPTOR_HANDLE Graphics::CopySRVsToDescriptorHeapAndGetGPUDescriptorHandle(D3D12_CPU_DESCRIPTOR_HANDLE firstDescriptorToCopy, unsigned int numDescriptorsToCopy)
-{
-	// Grab the actual heap start on both sides and offset to the next open SRV portion
-	D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = CBVSRVDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
-	D3D12_GPU_DESCRIPTOR_HANDLE gpuHandle = CBVSRVDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
-
-	cpuHandle.ptr += (SIZE_T)srvDescriptorOffset * cbvSrvDescriptorHeapIncrementSize;
-	gpuHandle.ptr += (SIZE_T)srvDescriptorOffset * cbvSrvDescriptorHeapIncrementSize;
-
-	// We know where to copy these descriptors, so copy all of them and remember the new offset
-	Device->CopyDescriptorsSimple(numDescriptorsToCopy, cpuHandle, firstDescriptorToCopy, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	srvDescriptorOffset += numDescriptorsToCopy;
-
-	// Pass back the GPU handle to the start of this section
-	// in the final CBV/SRV heap so the caller can use it later
-	return gpuHandle;
-}
-
-
-// --------------------------------------------------------
 // Reserves a slot in the SRV/UAV section of the overall
 // CBV/SRV/UAV descriptor heap.  Handles to CPU and/or GPU
 // are set via parameters.  Pass in 0 to skip a parameter.
@@ -865,6 +838,16 @@ void Graphics::ReserveDescriptorHeapSlot(D3D12_CPU_DESCRIPTOR_HANDLE* reservedCP
 	// Update the overall offset if at least one handle was reserved
 	if(reservedCPUHandle || reservedGPUHandle)
 		srvDescriptorOffset++;
+}
+
+
+// --------------------------------------------------------
+// Calculates the index of a given descriptor in the descriptor heap
+// --------------------------------------------------------
+unsigned int Graphics::GetDescriptorIndex(D3D12_GPU_DESCRIPTOR_HANDLE handle)
+{
+	return (unsigned int)((handle.ptr - CBVSRVDescriptorHeap->GetGPUDescriptorHandleForHeapStart().ptr) /
+		Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV));
 }
 
 
