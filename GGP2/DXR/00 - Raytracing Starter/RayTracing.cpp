@@ -856,7 +856,7 @@ void RayTracing::Raytrace(std::shared_ptr<Camera> camera, Microsoft::WRL::ComPtr
 			dispatchDesc.MissShaderTable.SizeInBytes = missTableSize;
 			dispatchDesc.MissShaderTable.StrideInBytes = missRecordSize;
 
-			// Descrive entire hit group table
+			// Describe entire hit group table
 			dispatchDesc.HitGroupTable.StartAddress = HitGroupTable->GetGPUVirtualAddress();
 			dispatchDesc.HitGroupTable.SizeInBytes = hitGroupTableSize;
 			dispatchDesc.HitGroupTable.StrideInBytes = hitGroupRecordSize;

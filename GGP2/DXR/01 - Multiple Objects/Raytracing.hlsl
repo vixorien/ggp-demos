@@ -60,7 +60,7 @@ Vertex InterpolateVertices(uint triangleIndex, float2 barycentrics)
 	EntityData thisEntity = ed[InstanceIndex()];
 	
 	// Get the geometry buffers
-	StructuredBuffer<uint> IndexBuffer = ResourceDescriptorHeap[thisEntity.IndexBufferDescriptorIndex];
+	StructuredBuffer<uint> IndexBuffer    = ResourceDescriptorHeap[thisEntity.IndexBufferDescriptorIndex];
 	StructuredBuffer<Vertex> VertexBuffer = ResourceDescriptorHeap[thisEntity.VertexBufferDescriptorIndex];
 
 	// Grab the 3 indices for this triangle
@@ -147,9 +147,7 @@ void RayGen()
 		SceneTLAS,
 		RAY_FLAG_NONE,
 		0xFF,
-		0,
-		0,
-		0,
+		0, 0, 0,
 		ray,
 		payload);
 
