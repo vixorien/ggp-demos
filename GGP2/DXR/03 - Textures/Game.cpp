@@ -33,7 +33,10 @@ using namespace DirectX;
 void Game::Initialize()
 {
 	// Check for DXR support and setup required API objects
-	RayTracing::Initialize();
+	RayTracing::Initialize(
+		Window::Width(),
+		Window::Height(),
+		FixPath(L"RayTracing.cso"));
 
 	// Seed random
 	srand((unsigned int)time(0));
@@ -65,7 +68,7 @@ void Game::Initialize()
 	
 	// Create the camera
 	camera = std::make_shared<FPSCamera>(
-		XMFLOAT3(0.0f, 8.0f, -20.0f),	// Position
+		XMFLOAT3(0.0f, 2.0f, -10.0f),	// Position
 		5.0f,					// Move speed
 		0.002f,					// Look speed
 		XM_PIDIV4,				// Field of view
@@ -74,8 +77,8 @@ void Game::Initialize()
 		100.0f,					// Far clip
 		CameraProjectionType::Perspective);
 
-	// Load the skybox
-	skyboxHandle = Graphics::LoadCubeTexture(
+	// Load skybox
+	skyboxDescriptorIndex = Graphics::CreateCubemap(
 		FixPath(AssetPath + L"/Skies/Clouds Blue/right.png").c_str(),
 		FixPath(AssetPath + L"/Skies/Clouds Blue/left.png").c_str(),
 		FixPath(AssetPath + L"/Skies/Clouds Blue/up.png").c_str(),
@@ -88,49 +91,47 @@ void Game::Initialize()
 #define LoadTexture(x) Graphics::LoadTexture(FixPath(x).c_str())
 
 	// Load textures
-	D3D12_CPU_DESCRIPTOR_HANDLE cobblestoneAlbedo = LoadTexture(AssetPath + L"Textures/PBR/cobblestone_albedo.png");
-	D3D12_CPU_DESCRIPTOR_HANDLE cobblestoneNormals = LoadTexture(AssetPath + L"Textures/PBR/cobblestone_normals.png");
-	D3D12_CPU_DESCRIPTOR_HANDLE cobblestoneRoughness = LoadTexture(AssetPath + L"Textures/PBR/cobblestone_roughness.png");
-	D3D12_CPU_DESCRIPTOR_HANDLE cobblestoneMetal = LoadTexture(AssetPath + L"Textures/PBR/cobblestone_metal.png");
+	UINT cobblestoneAlbedo = LoadTexture(AssetPath + L"Textures/PBR/cobblestone_albedo.png");
+	UINT cobblestoneNormals = LoadTexture(AssetPath + L"Textures/PBR/cobblestone_normals.png");
+	UINT cobblestoneRoughness = LoadTexture(AssetPath + L"Textures/PBR/cobblestone_roughness.png");
+	UINT cobblestoneMetal = LoadTexture(AssetPath + L"Textures/PBR/cobblestone_metal.png");
 
-	D3D12_CPU_DESCRIPTOR_HANDLE bronzeAlbedo = LoadTexture(AssetPath + L"Textures/PBR/bronze_albedo.png");
-	D3D12_CPU_DESCRIPTOR_HANDLE bronzeNormals = LoadTexture(AssetPath + L"Textures/PBR/bronze_normals.png");
-	D3D12_CPU_DESCRIPTOR_HANDLE bronzeRoughness = LoadTexture(AssetPath + L"Textures/PBR/bronze_roughness.png");
-	D3D12_CPU_DESCRIPTOR_HANDLE bronzeMetal = LoadTexture(AssetPath + L"Textures/PBR/bronze_metal.png");
+	UINT bronzeAlbedo = LoadTexture(AssetPath + L"Textures/PBR/bronze_albedo.png");
+	UINT bronzeNormals = LoadTexture(AssetPath + L"Textures/PBR/bronze_normals.png");
+	UINT bronzeRoughness = LoadTexture(AssetPath + L"Textures/PBR/bronze_roughness.png");
+	UINT bronzeMetal = LoadTexture(AssetPath + L"Textures/PBR/bronze_metal.png");
 
-	D3D12_CPU_DESCRIPTOR_HANDLE scratchedAlbedo = LoadTexture(AssetPath + L"Textures/PBR/scratched_albedo.png");
-	D3D12_CPU_DESCRIPTOR_HANDLE scratchedNormals = LoadTexture(AssetPath + L"Textures/PBR/scratched_normals.png");
-	D3D12_CPU_DESCRIPTOR_HANDLE scratchedRoughness = LoadTexture(AssetPath + L"Textures/PBR/scratched_roughness.png");
-	D3D12_CPU_DESCRIPTOR_HANDLE scratchedMetal = LoadTexture(AssetPath + L"Textures/PBR/scratched_metal.png");
+	UINT scratchedAlbedo = LoadTexture(AssetPath + L"Textures/PBR/scratched_albedo.png");
+	UINT scratchedNormals = LoadTexture(AssetPath + L"Textures/PBR/scratched_normals.png");
+	UINT scratchedRoughness = LoadTexture(AssetPath + L"Textures/PBR/scratched_roughness.png");
+	UINT scratchedMetal = LoadTexture(AssetPath + L"Textures/PBR/scratched_metal.png");
 
-	D3D12_CPU_DESCRIPTOR_HANDLE woodAlbedo = LoadTexture(AssetPath + L"Textures/PBR/wood_albedo.png");
-	D3D12_CPU_DESCRIPTOR_HANDLE woodNormals = LoadTexture(AssetPath + L"Textures/PBR/wood_normals.png");
-	D3D12_CPU_DESCRIPTOR_HANDLE woodRoughness = LoadTexture(AssetPath + L"Textures/PBR/wood_roughness.png");
-	D3D12_CPU_DESCRIPTOR_HANDLE woodMetal = LoadTexture(AssetPath + L"Textures/PBR/wood_metal.png");
+	UINT woodAlbedo = LoadTexture(AssetPath + L"Textures/PBR/wood_albedo.png");
+	UINT woodNormals = LoadTexture(AssetPath + L"Textures/PBR/wood_normals.png");
+	UINT woodRoughness = LoadTexture(AssetPath + L"Textures/PBR/wood_roughness.png");
+	UINT woodMetal = LoadTexture(AssetPath + L"Textures/PBR/wood_metal.png");
 
-	D3D12_CPU_DESCRIPTOR_HANDLE floorAlbedo = LoadTexture(AssetPath + L"Textures/PBR/floor_albedo.png");
-	D3D12_CPU_DESCRIPTOR_HANDLE floorNormals = LoadTexture(AssetPath + L"Textures/PBR/floor_normals.png");
-	D3D12_CPU_DESCRIPTOR_HANDLE floorRoughness = LoadTexture(AssetPath + L"Textures/PBR/floor_roughness.png");
-	D3D12_CPU_DESCRIPTOR_HANDLE floorMetal = LoadTexture(AssetPath + L"Textures/PBR/floor_metal.png");
+	UINT floorAlbedo = LoadTexture(AssetPath + L"Textures/PBR/floor_albedo.png");
+	UINT floorNormals = LoadTexture(AssetPath + L"Textures/PBR/floor_normals.png");
+	UINT floorRoughness = LoadTexture(AssetPath + L"Textures/PBR/floor_roughness.png");
+	UINT floorMetal = LoadTexture(AssetPath + L"Textures/PBR/floor_metal.png");
 
-	D3D12_CPU_DESCRIPTOR_HANDLE paintAlbedo = LoadTexture(AssetPath + L"Textures/PBR/paint_albedo.png");
-	D3D12_CPU_DESCRIPTOR_HANDLE paintNormals = LoadTexture(AssetPath + L"Textures/PBR/paint_normals.png");
-	D3D12_CPU_DESCRIPTOR_HANDLE paintRoughness = LoadTexture(AssetPath + L"Textures/PBR/paint_roughness.png");
-	D3D12_CPU_DESCRIPTOR_HANDLE paintMetal = LoadTexture(AssetPath + L"Textures/PBR/paint_metal.png");
+	UINT paintAlbedo = LoadTexture(AssetPath + L"Textures/PBR/paint_albedo.png");
+	UINT paintNormals = LoadTexture(AssetPath + L"Textures/PBR/paint_normals.png");
+	UINT paintRoughness = LoadTexture(AssetPath + L"Textures/PBR/paint_roughness.png");
+	UINT paintMetal = LoadTexture(AssetPath + L"Textures/PBR/paint_metal.png");
 
-	D3D12_CPU_DESCRIPTOR_HANDLE ironAlbedo = LoadTexture(AssetPath + L"Textures/PBR/rough_albedo.png");
-	D3D12_CPU_DESCRIPTOR_HANDLE ironNormals = LoadTexture(AssetPath + L"Textures/PBR/rough_normals.png");
-	D3D12_CPU_DESCRIPTOR_HANDLE ironRoughness = LoadTexture(AssetPath + L"Textures/PBR/rough_roughness.png");
-	D3D12_CPU_DESCRIPTOR_HANDLE ironMetal = LoadTexture(AssetPath + L"Textures/PBR/rough_metal.png");
+	UINT ironAlbedo = LoadTexture(AssetPath + L"Textures/PBR/rough_albedo.png");
+	UINT ironNormals = LoadTexture(AssetPath + L"Textures/PBR/rough_normals.png");
+	UINT ironRoughness = LoadTexture(AssetPath + L"Textures/PBR/rough_roughness.png");
+	UINT ironMetal = LoadTexture(AssetPath + L"Textures/PBR/rough_metal.png");
+
+#undef LoadTexture
 
 	// Create materials
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> pipelineState{};
-	// Create materials
-	// Note: Samplers are handled by a single static sampler in the
-	// root signature for this demo, rather than per-material
-	std::shared_ptr<Material> greyDiffuse = std::make_shared<Material>(pipelineState, XMFLOAT3(0.5f, 0.5f, 0.5f), 1.0f, 0.0f);
-	std::shared_ptr<Material> darkGrey = std::make_shared<Material>(pipelineState, XMFLOAT3(0.25f, 0.25f, 0.25f), 0.0f, 1.0f);
-	std::shared_ptr<Material> metal = std::make_shared<Material>(pipelineState, XMFLOAT3(0.5f, 0.6f, 0.7f), 0.0f, 1.0f);
+	std::shared_ptr<Material> groundMat = std::make_shared<Material>(pipelineState, XMFLOAT3(0.5f, 0.5f, 0.5f));
+	std::shared_ptr<Material> torusMat = std::make_shared<Material>(pipelineState, XMFLOAT3(0.9f, 0.9f, 1), XMFLOAT2(1,1), XMFLOAT2(0,0), 0.0f, 1.0f);
 
 	std::shared_ptr<Material> cobblestone = std::make_shared<Material>(pipelineState, XMFLOAT3(1, 1, 1));
 	std::shared_ptr<Material> scratched = std::make_shared<Material>(pipelineState, XMFLOAT3(1, 1, 1));
@@ -140,48 +141,45 @@ void Game::Initialize()
 	std::shared_ptr<Material> iron = std::make_shared<Material>(pipelineState, XMFLOAT3(1, 1, 1));
 	std::shared_ptr<Material> wood = std::make_shared<Material>(pipelineState, XMFLOAT3(1, 1, 1));
 
-	// Set up textures
-	cobblestone->AddTexture(cobblestoneAlbedo, 0);
-	cobblestone->AddTexture(cobblestoneNormals, 1);
-	cobblestone->AddTexture(cobblestoneRoughness, 2);
-	cobblestone->AddTexture(cobblestoneMetal, 3);
-	cobblestone->FinalizeTextures();
+	groundMat->SetAlbedoIndex(woodAlbedo);
+	groundMat->SetNormalMapIndex(woodNormals);
+	groundMat->SetRoughnessIndex(woodRoughness);
+	groundMat->SetMetalnessIndex(woodMetal);
 
-	scratched->AddTexture(scratchedAlbedo, 0);
-	scratched->AddTexture(scratchedNormals, 1);
-	scratched->AddTexture(scratchedRoughness, 2);
-	scratched->AddTexture(scratchedMetal, 3);
-	scratched->FinalizeTextures();
+	cobblestone->SetAlbedoIndex(cobblestoneAlbedo);
+	cobblestone->SetNormalMapIndex(cobblestoneNormals);
+	cobblestone->SetRoughnessIndex(cobblestoneRoughness);
+	cobblestone->SetMetalnessIndex(cobblestoneMetal);
 
-	bronze->AddTexture(bronzeAlbedo, 0);
-	bronze->AddTexture(bronzeNormals, 1);
-	bronze->AddTexture(bronzeRoughness, 2);
-	bronze->AddTexture(bronzeMetal, 3);
-	bronze->FinalizeTextures();
+	scratched->SetAlbedoIndex(scratchedAlbedo);
+	scratched->SetNormalMapIndex(scratchedNormals);
+	scratched->SetRoughnessIndex(scratchedRoughness);
+	scratched->SetMetalnessIndex(scratchedMetal);
 
-	floor->AddTexture(floorAlbedo, 0);
-	floor->AddTexture(floorNormals, 1);
-	floor->AddTexture(floorRoughness, 2);
-	floor->AddTexture(floorMetal, 3);
-	floor->FinalizeTextures();
+	bronze->SetAlbedoIndex(bronzeAlbedo);
+	bronze->SetNormalMapIndex(bronzeNormals);
+	bronze->SetRoughnessIndex(bronzeRoughness);
+	bronze->SetMetalnessIndex(bronzeMetal);
 
-	paint->AddTexture(paintAlbedo, 0);
-	paint->AddTexture(paintNormals, 1);
-	paint->AddTexture(paintRoughness, 2);
-	paint->AddTexture(paintMetal, 3);
-	paint->FinalizeTextures();
+	floor->SetAlbedoIndex(floorAlbedo);
+	floor->SetNormalMapIndex(floorNormals);
+	floor->SetRoughnessIndex(floorRoughness);
+	floor->SetMetalnessIndex(floorMetal);
 
-	wood->AddTexture(woodAlbedo, 0);
-	wood->AddTexture(woodNormals, 1);
-	wood->AddTexture(woodRoughness, 2);
-	wood->AddTexture(woodMetal, 3);
-	wood->FinalizeTextures();
+	paint->SetAlbedoIndex(paintAlbedo);
+	paint->SetNormalMapIndex(paintNormals);
+	paint->SetRoughnessIndex(paintRoughness);
+	paint->SetMetalnessIndex(paintMetal);
 
-	iron->AddTexture(ironAlbedo, 0);
-	iron->AddTexture(ironNormals, 1);
-	iron->AddTexture(ironRoughness, 2);
-	iron->AddTexture(ironMetal, 3);
-	iron->FinalizeTextures();
+	iron->SetAlbedoIndex(ironAlbedo);
+	iron->SetNormalMapIndex(ironNormals);
+	iron->SetRoughnessIndex(ironRoughness);
+	iron->SetMetalnessIndex(ironMetal);
+
+	wood->SetAlbedoIndex(woodAlbedo);
+	wood->SetNormalMapIndex(woodNormals);
+	wood->SetRoughnessIndex(woodRoughness);
+	wood->SetMetalnessIndex(woodMetal);
 
 	// Load mesh(es)
 	std::shared_ptr<Mesh> cubeMesh = std::make_shared<Mesh>("Cube", FixPath(AssetPath + L"Meshes/cube.obj").c_str());
@@ -189,13 +187,13 @@ void Game::Initialize()
 	std::shared_ptr<Mesh> sphereMesh = std::make_shared<Mesh>("Sphere", FixPath(AssetPath + L"Meshes/sphere.obj").c_str());
 
 	// Floor
-	std::shared_ptr<GameEntity> ground = std::make_shared<GameEntity>(cubeMesh, wood);
-	ground->GetTransform()->SetScale(100);
-	ground->GetTransform()->SetPosition(0, -101, 0);
+	std::shared_ptr<GameEntity> ground = std::make_shared<GameEntity>(cubeMesh, groundMat);
+	ground->GetTransform()->SetScale(50);
+	ground->GetTransform()->SetPosition(0, -51, 0);
 	entities.push_back(ground);
 
 	// Spinning torus
-	std::shared_ptr<GameEntity> t = std::make_shared<GameEntity>(torusMesh, metal);
+	std::shared_ptr<GameEntity> t = std::make_shared<GameEntity>(torusMesh, torusMat);
 	t->GetTransform()->SetScale(4);
 	t->GetTransform()->SetPosition(0, 10, 0);
 	entities.push_back(t);
@@ -218,13 +216,14 @@ void Game::Initialize()
 		else if (randMat > 0.7f) mat = paint;
 		else if (randMat > 0.65f) mat = floor;
 		else mat = std::make_shared<Material>(
-				pipelineState,
-				XMFLOAT3(
-					RandomRange(0.0f, 1.0f),
-					RandomRange(0.0f, 1.0f),
-					RandomRange(0.0f, 1.0f)),
-				rough,
-				metalness);
+			pipelineState,
+			XMFLOAT3(
+				RandomRange(0.0f, 1.0f),
+				RandomRange(0.0f, 1.0f),
+				RandomRange(0.0f, 1.0f)),
+			XMFLOAT2(1,1),
+			XMFLOAT2(0,0),
+			RandomRange(0.0f, 1.0f));
 
 		// Create the sphere
 		std::shared_ptr<GameEntity> sphereEnt = std::make_shared<GameEntity>(sphereMesh, mat);
@@ -237,18 +236,19 @@ void Game::Initialize()
 			RandomRange(-range, range),
 			scale - 1,
 			RandomRange(-range, range));
-
 	}
 
-	// Initialize raytracing
-	RayTracing::CreateRequiredResources(
-		Window::Width(),
-		Window::Height(),
-		FixPath(L"RayTracing.cso"),
-		entities);
+	// Create the ray tracing entity data buffer now that we have a scene
+	RayTracing::CreateEntityDataBuffer(entities);
 
-	// Note: Waiting until the first Draw() to build the
-	// initial ray tracing top level accel structure
+	// Once we have all of the BLASs ready, we can make a TLAS
+	RayTracing::CreateTopLevelAccelerationStructureForScene(entities);
+
+	// Finalize any initialization and wait for the GPU
+	// before proceeding to the game loop
+	Graphics::CloseAndExecuteCommandList();
+	Graphics::WaitForGPU();
+	Graphics::ResetAllocatorAndCommandList(0);
 }
 
 
@@ -326,7 +326,6 @@ void Game::Update(float deltaTime, float totalTime)
 		}
 		entities[i]->GetTransform()->SetPosition(pos);
 		entities[i]->GetTransform()->SetRotation(rot);
-
 	}
 
 }
@@ -350,7 +349,7 @@ void Game::Draw(float deltaTime, float totalTime)
 	// Raytracing: Update the TLAS for the latest entity positions and then trace
 	{
 		RayTracing::CreateTopLevelAccelerationStructureForScene(entities);
-		RayTracing::Raytrace(camera, currentBackBuffer, skyboxHandle);
+		RayTracing::Raytrace(camera, currentBackBuffer, skyboxDescriptorIndex);
 	}
 
 	// ImGui Render after all other scene objects
@@ -381,16 +380,17 @@ void Game::Draw(float deltaTime, float totalTime)
 
 		// Must occur BEFORE present
 		Graphics::CloseAndExecuteCommandList();
-
+		
 		// Present the current back buffer and move to the next one
 		bool vsync = Graphics::VsyncState();
 		Graphics::SwapChain->Present(
 			vsync ? 1 : 0,
 			vsync ? 0 : DXGI_PRESENT_ALLOW_TEARING);
 		Graphics::AdvanceSwapChainIndex();
-
+		
 		// Reset the command list & allocator for the upcoming frame
 		Graphics::ResetAllocatorAndCommandList(Graphics::SwapChainIndex());
+		
 	}
 }
 

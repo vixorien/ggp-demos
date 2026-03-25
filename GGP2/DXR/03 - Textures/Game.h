@@ -34,8 +34,8 @@ private:
 	bool showUIDemoWindow;
 
 	// Scene
+	unsigned int skyboxDescriptorIndex;
 	std::shared_ptr<FPSCamera> camera;
 	std::vector<std::shared_ptr<GameEntity>> entities;
-	D3D12_GPU_DESCRIPTOR_HANDLE skyboxHandle;
 };
 

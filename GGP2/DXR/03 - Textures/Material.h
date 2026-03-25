@@ -15,27 +15,33 @@ public:
 	Material(
 		Microsoft::WRL::ComPtr<ID3D12PipelineState> pipelineState,
 		DirectX::XMFLOAT3 tint,
-		float roughness = 1.0f,
-		float metal = 0.0f,
 		DirectX::XMFLOAT2 uvScale = DirectX::XMFLOAT2(1, 1),
-		DirectX::XMFLOAT2 uvOffset = DirectX::XMFLOAT2(0, 0));
+		DirectX::XMFLOAT2 uvOffset = DirectX::XMFLOAT2(0, 0),
+		float roughness = 1.0f,
+		float metalness = 0.0f);
 
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> GetPipelineState();
 	DirectX::XMFLOAT2 GetUVScale();
 	DirectX::XMFLOAT2 GetUVOffset();
 	DirectX::XMFLOAT3 GetColorTint();
 	float GetRoughness();
-	float GetMetal();
-	D3D12_GPU_DESCRIPTOR_HANDLE GetFinalGPUHandleForTextures();
+	float GetMetalness();
+	unsigned int GetAlbedoIndex();
+	unsigned int GetNormalMapIndex();
+	unsigned int GetRoughnessIndex();
+	unsigned int GetMetalnessIndex();
 
+	void SetPipelineState(Microsoft::WRL::ComPtr<ID3D12PipelineState> pipelineState);
 	void SetUVScale(DirectX::XMFLOAT2 scale);
 	void SetUVOffset(DirectX::XMFLOAT2 offset);
 	void SetColorTint(DirectX::XMFLOAT3 tint);
-	void SetRoughness(float roughness);
-	void SetMetal(float metal);
+	void SetRoughness(float r);
+	void SetMetalness(float m);
 
-	void AddTexture(D3D12_CPU_DESCRIPTOR_HANDLE srvDescriptorHandle, int slot);
-	void FinalizeTextures();
+	void SetAlbedoIndex(unsigned int index);
+	void SetNormalMapIndex(unsigned int index);
+	void SetRoughnessIndex(unsigned int index);
+	void SetMetalnessIndex(unsigned int index);
 
 private:
 
@@ -48,12 +54,12 @@ private:
 	DirectX::XMFLOAT2 uvOffset;
 	DirectX::XMFLOAT2 uvScale;
 	float roughness;
-	float metal;
+	float metalness;
 
 	// Texture-related GPU tracking
-	bool materialTexturesFinalized;
-	int highestSRVSlot;
-	D3D12_CPU_DESCRIPTOR_HANDLE textureSRVsBySlot[128]; // Up to 128 textures can be bound per shader stage (we'll never get near that amount)
-	D3D12_GPU_DESCRIPTOR_HANDLE finalGPUHandleForSRVs;
+	unsigned int albedoIndex;
+	unsigned int normalMapIndex;
+	unsigned int roughnessIndex;
+	unsigned int metalnessIndex;
 };
 
