@@ -16,7 +16,7 @@ cbuffer ExternalData : register(b0)
 
 	// Material related
 	float3 colorTint;
-	float roughness;
+	float pad2;
 	float2 uvScale;
 	float2 uvOffset;
 	
@@ -61,15 +61,15 @@ float4 main(VertexToPixel input) : SV_TARGET
 		switch (lights[i].Type)
 		{
 		case LIGHT_TYPE_DIRECTIONAL: 
-			totalLight += DirLight(light, input.normal, input.worldPos, cameraPosition, roughness, surfaceColor, specularScale);
+			totalLight += DirLight(light, input.normal, input.worldPos, cameraPosition, surfaceColor, specularScale);
 			break;
 
 		case LIGHT_TYPE_POINT: 
-			totalLight += PointLight(light, input.normal, input.worldPos, cameraPosition, roughness, surfaceColor, specularScale);
+			totalLight += PointLight(light, input.normal, input.worldPos, cameraPosition, surfaceColor, specularScale);
 			break;
 
 		case LIGHT_TYPE_SPOT:
-			totalLight += SpotLight(light, input.normal, input.worldPos, cameraPosition, roughness, surfaceColor, specularScale);
+			totalLight += SpotLight(light, input.normal, input.worldPos, cameraPosition, surfaceColor, specularScale);
 			break;
 		}
 	}

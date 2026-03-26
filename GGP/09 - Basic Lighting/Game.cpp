@@ -134,15 +134,19 @@ void Game::LoadAssetsAndCreateEntities()
 	Graphics::Device->CreateSamplerState(&sampDesc, sampler.GetAddressOf());
 
 	// Load textures
-	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> brokenTilesSRV;
-	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> brokenTilesSpecularSRV;
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> slabSRV;
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> slabSpecularSRV;
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> rustySRV;
+	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> rustySpecularSRV;
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> tilesSRV;
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> tilesSpecularSRV;
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> cobblestoneSRV;
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> cobblestoneSpecularSRV;
 
-	CreateWICTextureFromFile(Graphics::Device.Get(), Graphics::Context.Get(), FixPath(AssetPath + L"Textures/brokentiles.png").c_str(), 0, brokenTilesSRV.GetAddressOf());
-	CreateWICTextureFromFile(Graphics::Device.Get(), Graphics::Context.Get(), FixPath(AssetPath + L"Textures/brokentiles_specular.png").c_str(), 0, brokenTilesSpecularSRV.GetAddressOf());
+	CreateWICTextureFromFile(Graphics::Device.Get(), Graphics::Context.Get(), FixPath(AssetPath + L"Textures/slab.png").c_str(), 0, slabSRV.GetAddressOf());
+	CreateWICTextureFromFile(Graphics::Device.Get(), Graphics::Context.Get(), FixPath(AssetPath + L"Textures/slab_specular.png").c_str(), 0, slabSpecularSRV.GetAddressOf());
+	CreateWICTextureFromFile(Graphics::Device.Get(), Graphics::Context.Get(), FixPath(AssetPath + L"Textures/rustymetal.png").c_str(), 0, rustySRV.GetAddressOf());
+	CreateWICTextureFromFile(Graphics::Device.Get(), Graphics::Context.Get(), FixPath(AssetPath + L"Textures/rustymetal_specular.png").c_str(), 0, rustySpecularSRV.GetAddressOf());
 	CreateWICTextureFromFile(Graphics::Device.Get(), Graphics::Context.Get(), FixPath(AssetPath + L"Textures/tiles.png").c_str(), 0, tilesSRV.GetAddressOf());
 	CreateWICTextureFromFile(Graphics::Device.Get(), Graphics::Context.Get(), FixPath(AssetPath + L"Textures/tiles_specular.png").c_str(), 0, tilesSpecularSRV.GetAddressOf());
 	CreateWICTextureFromFile(Graphics::Device.Get(), Graphics::Context.Get(), FixPath(AssetPath + L"Textures/cobblestone.png").c_str(), 0, cobblestoneSRV.GetAddressOf());
@@ -171,10 +175,15 @@ void Game::LoadAssetsAndCreateEntities()
 	matTiles->AddTextureSRV(0, tilesSRV);
 	matTiles->AddTextureSRV(1, tilesSpecularSRV);
 
-	std::shared_ptr<Material> matBrokenTiles = std::make_shared<Material>("Broken Tiles", basicPixelShader, basicVertexShader, XMFLOAT3(1, 1, 1), 0.0f, XMFLOAT2(2, 2));
-	matBrokenTiles->AddSampler(0, sampler);
-	matBrokenTiles->AddTextureSRV(0, brokenTilesSRV);
-	matBrokenTiles->AddTextureSRV(1, brokenTilesSpecularSRV);
+	std::shared_ptr<Material> matRusty = std::make_shared<Material>("Rusty Metal", basicPixelShader, basicVertexShader, XMFLOAT3(1, 1, 1), 0.0f, XMFLOAT2(2, 2));
+	matRusty->AddSampler(0, sampler);
+	matRusty->AddTextureSRV(0, rustySRV);
+	matRusty->AddTextureSRV(1, rustySpecularSRV);
+
+	std::shared_ptr<Material> matSlab = std::make_shared<Material>("Slab", basicPixelShader, basicVertexShader, XMFLOAT3(1, 1, 1), 0.0f, XMFLOAT2(1, 1));
+	matSlab->AddSampler(0, sampler);
+	matSlab->AddTextureSRV(0, slabSRV);
+	matSlab->AddTextureSRV(1, slabSpecularSRV);
 
 	std::shared_ptr<Material> matCobblestone = std::make_shared<Material>("Cobblestone", basicPixelShader, basicVertexShader, XMFLOAT3(1, 1, 1), 0.0f);
 	matCobblestone->AddSampler(0, sampler);
@@ -182,16 +191,16 @@ void Game::LoadAssetsAndCreateEntities()
 	matCobblestone->AddTextureSRV(1, cobblestoneSpecularSRV);
 
 	// Add all materials to vector
-	materials.insert(materials.end(), { matTiles, matBrokenTiles, matCobblestone });
+	materials.insert(materials.end(), { matTiles, matRusty, matSlab, matCobblestone });
 
 	// Create the game entities
-	entities.push_back(std::make_shared<GameEntity>(cubeMesh, matCobblestone));
-	entities.push_back(std::make_shared<GameEntity>(cylinderMesh, matBrokenTiles));
-	entities.push_back(std::make_shared<GameEntity>(helixMesh, matBrokenTiles));
+	entities.push_back(std::make_shared<GameEntity>(cubeMesh, matSlab));
+	entities.push_back(std::make_shared<GameEntity>(cylinderMesh, matRusty));
+	entities.push_back(std::make_shared<GameEntity>(helixMesh, matCobblestone));
 	entities.push_back(std::make_shared<GameEntity>(sphereMesh, matTiles));
 	entities.push_back(std::make_shared<GameEntity>(torusMesh, matTiles));
 	entities.push_back(std::make_shared<GameEntity>(quadMesh, matTiles));
-	entities.push_back(std::make_shared<GameEntity>(quad2sidedMesh, matBrokenTiles));
+	entities.push_back(std::make_shared<GameEntity>(quad2sidedMesh, matSlab));
 
 	// Adjust transforms
 	entities[0]->GetTransform()->MoveAbsolute(-9, 0, 0);
@@ -215,19 +224,19 @@ void Game::LoadAssetsAndCreateEntities()
 	Light dirLight2 = {};
 	dirLight2.Color = XMFLOAT3(1, 1, 1);
 	dirLight2.Type = LIGHT_TYPE_DIRECTIONAL;
-	dirLight2.Intensity = 0.5f;
+	dirLight2.Intensity = 0.75f;
 	dirLight2.Direction = XMFLOAT3(-0.1f, -1, 0); // Will be normalized below
 
 	Light dirLight3 = {};
 	dirLight3.Color = XMFLOAT3(1, 1, 1);
 	dirLight3.Type = LIGHT_TYPE_DIRECTIONAL;
-	dirLight3.Intensity = 0.5f;
+	dirLight3.Intensity = 0.75f;
 	dirLight3.Direction = XMFLOAT3(-1, 1, 0.5f); // Will be normalized below
 
 	Light pointLight1 = {};
 	pointLight1.Color = XMFLOAT3(1, 1, 1);
 	pointLight1.Type = LIGHT_TYPE_POINT;
-	pointLight1.Intensity = 1.0f;
+	pointLight1.Intensity = 0.75f;
 	pointLight1.Position = XMFLOAT3(-1.5f, 0, 0);
 	pointLight1.Range = 10.0f;
 

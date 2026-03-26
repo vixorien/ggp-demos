@@ -5,7 +5,7 @@
 
 #define MAX_LIGHTS 32 // Make sure this matches C++!
 
-#define MAX_SPECULAR_EXPONENT 256.0f
+#define DEFAULT_SPECULAR 256.0f
 
 #define LIGHT_TYPE_DIRECTIONAL	0
 #define LIGHT_TYPE_POINT		1
@@ -62,32 +62,20 @@ float Diffuse(float3 normal, float3 dirToLight)
 
 
 // Phong (specular) BRDF
-float SpecularPhong(float3 normal, float3 dirToLight, float3 toCamera, float roughness)
+float SpecularPhong(float3 normal, float3 dirToLight, float3 toCamera)
 {
 	// Calculate reflection vector
 	float3 refl = reflect(-dirToLight, normal);
 
 	// Compare reflection vector & view vector and raise to a power
-	return roughness == 1 ? 0.0f : pow(max(dot(toCamera, refl), 0), (1 - roughness) * MAX_SPECULAR_EXPONENT);
+	return pow(max(dot(toCamera, refl), 0), DEFAULT_SPECULAR);
 }
-
-
-// Blinn-Phong (specular) BRDF
-float SpecularBlinnPhong(float3 normal, float3 dirToLight, float3 toCamera, float roughness)
-{
-	// Calculate halfway vector
-	float3 halfwayVector = normalize(dirToLight + toCamera);
-
-	// Compare halflway vector & normal and raise to a power
-	return roughness == 1 ? 0.0f : pow(max(dot(halfwayVector, normal), 0), (1 - roughness) * MAX_SPECULAR_EXPONENT);
-}
-
 
 
 
 // === LIGHT TYPES FOR BASIC LIGHTING ===============================
 
-float3 DirLight(Light light, float3 normal, float3 worldPos, float3 camPos, float roughness, float3 surfaceColor, float specularScale)
+float3 DirLight(Light light, float3 normal, float3 worldPos, float3 camPos, float3 surfaceColor, float specularScale)
 {
 	// Get normalize direction to the light
 	float3 toLight = normalize(-light.Direction);
@@ -95,14 +83,14 @@ float3 DirLight(Light light, float3 normal, float3 worldPos, float3 camPos, floa
 
 	// Calculate the light amounts
 	float diff = Diffuse(normal, toLight);
-	float spec = SpecularPhong(normal, toLight, toCam, roughness) * specularScale;
+	float spec = SpecularPhong(normal, toLight, toCam) * specularScale;
 
 	// Combine
 	return (diff * surfaceColor + spec) * light.Intensity * light.Color;
 }
 
 
-float3 PointLight(Light light, float3 normal, float3 worldPos, float3 camPos, float roughness, float3 surfaceColor, float specularScale)
+float3 PointLight(Light light, float3 normal, float3 worldPos, float3 camPos, float3 surfaceColor, float specularScale)
 {
 	// Calc light direction
 	float3 toLight = normalize(light.Position - worldPos);
@@ -111,14 +99,14 @@ float3 PointLight(Light light, float3 normal, float3 worldPos, float3 camPos, fl
 	// Calculate the light amounts
 	float atten = Attenuate(light, worldPos);
 	float diff = Diffuse(normal, toLight);
-	float spec = SpecularPhong(normal, toLight, toCam, roughness) * specularScale;
+	float spec = SpecularPhong(normal, toLight, toCam) * specularScale;
 
 	// Combine
 	return (diff * surfaceColor + spec) * atten * light.Intensity * light.Color;
 }
 
 
-float3 SpotLight(Light light, float3 normal, float3 worldPos, float3 camPos, float roughness, float3 surfaceColor, float specularScale)
+float3 SpotLight(Light light, float3 normal, float3 worldPos, float3 camPos, float3 surfaceColor, float specularScale)
 {
 	// Calculate the spot falloff
 	float3 toLight = normalize(light.Position - worldPos);
@@ -135,7 +123,7 @@ float3 SpotLight(Light light, float3 normal, float3 worldPos, float3 camPos, flo
 
 	// Combine with the point light calculation
 	// Note: This could be optimized a bit!  Doing a lot of the same work twice!
-	return PointLight(light, normal, worldPos, camPos, roughness, surfaceColor, specularScale) * spotTerm;
+	return PointLight(light, normal, worldPos, camPos, surfaceColor, specularScale) * spotTerm;
 }
 
 #endif
