@@ -89,9 +89,6 @@ void RayTracing::CreateEntityDataBuffer(std::vector<std::shared_ptr<GameEntity>>
 	std::vector<RayTracingEntityData> entityData;
 	for (int i = 0; i < scene.size(); i++)
 	{
-		// Roughness value flips between 0 and 1
-		float rough = 1 - i % 2;
-
 		// Set up this entity's data
 		RayTracingEntityData data{};
 		std::shared_ptr<Material> mat = scene[i]->GetMaterial();
@@ -285,7 +282,7 @@ void RayTracing::CreateRaytracingPipelineState(std::wstring raytracingShaderLibr
 
 	// === Shader config (payload) ===
 	D3D12_RAYTRACING_SHADER_CONFIG shaderConfigDesc = {};
-	shaderConfigDesc.MaxPayloadSizeInBytes = sizeof(DirectX::XMFLOAT3) * sizeof(unsigned int) * 2;	// float3 + uint + uint
+	shaderConfigDesc.MaxPayloadSizeInBytes = sizeof(DirectX::XMFLOAT3) + sizeof(unsigned int) * 2;	// float3 + uint + uint
 	shaderConfigDesc.MaxAttributeSizeInBytes = sizeof(DirectX::XMFLOAT2); // Assuming a float2 for barycentric coords for now
 
 	D3D12_STATE_SUBOBJECT shaderConfigSubObj = {};
