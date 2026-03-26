@@ -215,7 +215,7 @@ void RayTracing::CreateRaytracingPipelineState(std::wstring raytracingShaderLibr
 	// - Overall pipeline config
 	// Note: No need for local root signatures due to bindless resource indexing
 	std::vector<D3D12_STATE_SUBOBJECT> subobjects;
-	subobjects.reserve(9);
+	subobjects.reserve(11);
 
 	// === Ray generation shader ===
 	D3D12_EXPORT_DESC rayGenExportDesc = {};
@@ -235,15 +235,17 @@ void RayTracing::CreateRaytracingPipelineState(std::wstring raytracingShaderLibr
 	subobjects.push_back(rayGenSubObj);
 
 	// === Miss shader ===
-	D3D12_EXPORT_DESC missExportDesc = {};
-	missExportDesc.Name = L"Miss";
-	missExportDesc.Flags = D3D12_EXPORT_FLAG_NONE;
+	D3D12_EXPORT_DESC missExportDesc[2]{};
+	missExportDesc[0].Name = L"Miss";
+	missExportDesc[0].Flags = D3D12_EXPORT_FLAG_NONE;
+	missExportDesc[1].Name = L"MissShadow";
+	missExportDesc[1].Flags = D3D12_EXPORT_FLAG_NONE;
 
 	D3D12_DXIL_LIBRARY_DESC	missLibDesc = {};
 	missLibDesc.DXILLibrary.BytecodeLength = blob->GetBufferSize();
 	missLibDesc.DXILLibrary.pShaderBytecode = blob->GetBufferPointer();
-	missLibDesc.NumExports = 1;
-	missLibDesc.pExports = &missExportDesc;
+	missLibDesc.NumExports = ARRAYSIZE(missExportDesc);
+	missLibDesc.pExports = missExportDesc;
 
 	D3D12_STATE_SUBOBJECT missSubObj = {};
 	missSubObj.Type = D3D12_STATE_SUBOBJECT_TYPE_DXIL_LIBRARY;
@@ -252,11 +254,13 @@ void RayTracing::CreateRaytracingPipelineState(std::wstring raytracingShaderLibr
 	subobjects.push_back(missSubObj);
 
 	// === Closest hit shader ===
-	D3D12_EXPORT_DESC closestHitExportDesc[2]{};
+	D3D12_EXPORT_DESC closestHitExportDesc[3]{};
 	closestHitExportDesc[0].Name = L"ClosestHit";
 	closestHitExportDesc[0].Flags = D3D12_EXPORT_FLAG_NONE;
 	closestHitExportDesc[1].Name = L"ClosestHitEmissive";
 	closestHitExportDesc[1].Flags = D3D12_EXPORT_FLAG_NONE;
+	closestHitExportDesc[2].Name = L"ClosestHitShadow";
+	closestHitExportDesc[2].Flags = D3D12_EXPORT_FLAG_NONE;
 
 	D3D12_DXIL_LIBRARY_DESC	closestHitLibDesc = {};
 	closestHitLibDesc.DXILLibrary.BytecodeLength = blob->GetBufferSize();
@@ -293,6 +297,17 @@ void RayTracing::CreateRaytracingPipelineState(std::wstring raytracingShaderLibr
 
 	subobjects.push_back(hitGroupEmissive);
 
+	// === Hit group 2 ===
+	D3D12_HIT_GROUP_DESC hitGroupShadowDesc = {};
+	hitGroupShadowDesc.ClosestHitShaderImport = L"ClosestHitShadow";
+	hitGroupShadowDesc.HitGroupExport = L"HitGroupShadow";
+
+	D3D12_STATE_SUBOBJECT hitGroupShadow = {};
+	hitGroupShadow.Type = D3D12_STATE_SUBOBJECT_TYPE_HIT_GROUP;
+	hitGroupShadow.pDesc = &hitGroupShadowDesc;
+
+	subobjects.push_back(hitGroupShadow);
+
 	// === Shader config (payload) ===
 	D3D12_RAYTRACING_SHADER_CONFIG shaderConfigDesc = {};
 	shaderConfigDesc.MaxPayloadSizeInBytes = sizeof(DirectX::XMFLOAT3) + sizeof(unsigned int) * 2;	// float3 + uint + uint
@@ -306,12 +321,12 @@ void RayTracing::CreateRaytracingPipelineState(std::wstring raytracingShaderLibr
 
 	// === Association - Payload and shaders ===
 	// Names of shaders that use the payload
-	const wchar_t* payloadShaderNames[] = { L"RayGen", L"Miss", L"HitGroup", L"HitGroupEmissive" };
+	const wchar_t* payloadShaderNames[] = { L"RayGen", L"Miss", L"MissShadow", L"HitGroup", L"HitGroupEmissive", L"HitGroupShadow"};
 
 	D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION shaderPayloadAssociation = {};
 	shaderPayloadAssociation.NumExports = ARRAYSIZE(payloadShaderNames);
 	shaderPayloadAssociation.pExports = payloadShaderNames;
-	shaderPayloadAssociation.pSubobjectToAssociate = &subobjects[5]; // Payload config above!
+	shaderPayloadAssociation.pSubobjectToAssociate = &subobjects[6]; // Payload config above!
 
 	D3D12_STATE_SUBOBJECT shaderPayloadAssociationObject = {};
 	shaderPayloadAssociationObject.Type = D3D12_STATE_SUBOBJECT_TYPE_SUBOBJECT_TO_EXPORTS_ASSOCIATION;
@@ -364,7 +379,7 @@ void RayTracing::CreateShaderTables()
 	// How many of each type of shader?
 	UINT64 rayGenCount = 1;
 	UINT64 missCount = 1;
-	UINT64 hitGroupCount = 2;
+	UINT64 hitGroupCount = 4; // Hit, ShadowHit, Emissive, ShadowHit
 
 	// Ray Gen Table setup
 	{
@@ -436,7 +451,19 @@ void RayTracing::CreateShaderTables()
 		addr += hitGroupRecordSize;
 		memcpy(
 			addr,
+			RaytracingPipelineProperties->GetShaderIdentifier(L"HitGroupShadow"),
+			D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
+
+		addr += hitGroupRecordSize;
+		memcpy(
+			addr,
 			RaytracingPipelineProperties->GetShaderIdentifier(L"HitGroupEmissive"),
+			D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
+
+		addr += hitGroupRecordSize;
+		memcpy(
+			addr,
+			RaytracingPipelineProperties->GetShaderIdentifier(L"HitGroupShadow"),
 			D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES);
 
 		HitGroupTable->Unmap(0, 0);
@@ -654,7 +681,7 @@ void RayTracing::CreateTopLevelAccelerationStructureForScene(std::vector<std::sh
 		// Create this description and add to our overall set of descriptions
 		D3D12_RAYTRACING_INSTANCE_DESC instDesc = {};
 		instDesc.InstanceID = 0;
-		instDesc.InstanceContributionToHitGroupIndex = i == 3 ? 1 : 0; // First sphere should be emissive
+		instDesc.InstanceContributionToHitGroupIndex = scene[i]->GetMaterial()->GetEmissive() ? 2 : 0;
 		instDesc.InstanceMask = 0xFF;
 		memcpy(&instDesc.Transform, &transform, sizeof(float) * 3 * 4); // Copy first [3][4] elements
 		instDesc.AccelerationStructure = scene[i]->GetMesh()->GetRayTracingData().BLAS->GetGPUVirtualAddress();

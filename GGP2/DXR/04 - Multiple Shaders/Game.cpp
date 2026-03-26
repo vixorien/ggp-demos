@@ -198,6 +198,7 @@ void Game::Initialize()
 	t->GetTransform()->SetPosition(0, 10, 0);
 	entities.push_back(t);
 
+	bool anyEmissive = false;
 	float range = 20;
 	for (int i = 0; i < 50; i++)
 	{
@@ -215,15 +216,26 @@ void Game::Initialize()
 		else if (randMat > 0.75f) mat = iron;
 		else if (randMat > 0.7f) mat = paint;
 		else if (randMat > 0.65f) mat = floor;
-		else mat = std::make_shared<Material>(
-			pipelineState,
-			XMFLOAT3(
-				RandomRange(0.0f, 1.0f),
-				RandomRange(0.0f, 1.0f),
-				RandomRange(0.0f, 1.0f)),
-			XMFLOAT2(1,1),
-			XMFLOAT2(0,0),
-			RandomRange(0.0f, 1.0f));
+		else
+		{
+			mat = std::make_shared<Material>(
+				pipelineState,
+				XMFLOAT3(
+					RandomRange(0.0f, 1.0f),
+					RandomRange(0.0f, 1.0f),
+					RandomRange(0.0f, 1.0f)),
+				XMFLOAT2(1, 1),
+				XMFLOAT2(0, 0),
+				RandomRange(0.0f, 1.0f));
+
+			// Make the first of these emissive
+			if (!anyEmissive)
+			{
+				anyEmissive = true;
+				mat->SetEmissive(true);
+			}
+
+		}
 
 		// Create the sphere
 		std::shared_ptr<GameEntity> sphereEnt = std::make_shared<GameEntity>(sphereMesh, mat);

@@ -7,7 +7,8 @@ Material::Material(
 	DirectX::XMFLOAT2 uvScale,
 	DirectX::XMFLOAT2 uvOffset,
 	float roughness,
-	float metalness)
+	float metalness,
+	bool emissive)
 	:
 	pipelineState(pipelineState),
 	colorTint(tint),
@@ -18,7 +19,8 @@ Material::Material(
 	albedoIndex(-1),
 	normalMapIndex(-1),
 	roughnessIndex(-1),
-	metalnessIndex(-1)\
+	metalnessIndex(-1),
+	emissive(emissive)
 {
 }
 
@@ -29,6 +31,7 @@ DirectX::XMFLOAT2 Material::GetUVOffset() { return uvOffset; }
 DirectX::XMFLOAT3 Material::GetColorTint() { return colorTint; }
 float Material::GetRoughness() { return roughness; }
 float Material::GetMetalness() { return metalness; }
+bool Material::GetEmissive() { return emissive; }
 
 unsigned int Material::GetAlbedoIndex() { return albedoIndex; }
 unsigned int Material::GetNormalMapIndex() { return normalMapIndex; }
@@ -43,6 +46,7 @@ void Material::SetUVOffset(DirectX::XMFLOAT2 offset) { uvOffset = offset; }
 void Material::SetColorTint(DirectX::XMFLOAT3 tint) { this->colorTint = tint; }
 void Material::SetRoughness(float r) { roughness = r; }
 void Material::SetMetalness(float m) { metalness = m; }
+void Material::SetEmissive(bool e) { emissive = e; }
 
 void Material::SetAlbedoIndex(unsigned int index) { albedoIndex = index; }
 void Material::SetNormalMapIndex(unsigned int index) { normalMapIndex = index; }

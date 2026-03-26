@@ -44,6 +44,11 @@ struct RayPayload
 	uint RayPerPixelIndex;
 };
 
+struct ShadowPayload
+{
+	bool Hit;
+};
+
 // Note: We'll be using the built-in BuiltInTriangleIntersectionAttributes struct
 // for triangle attributes, so no need to define our own.  It contains a single float2.
 
@@ -286,7 +291,22 @@ void Miss(inout RayPayload payload)
 	payload.Color *= sky.SampleLevel(BasicSampler, WorldRayDirection(), 0).rgb;
 }
 
+// A miss shader for shadow rays
+[shader("miss")]
+void MissShadow(inout ShadowPayload payload)
+{
+	payload.Hit = false;
+}
 
+// A closest hit shader for shadow rays
+[shader("closesthit")]
+void ClosestHitShadow(inout ShadowPayload payload, BuiltInTriangleIntersectionAttributes hitAttributes)
+{
+	payload.Hit = true;
+}
+
+
+// A closest hit shader for emissive objects
 [shader("closesthit")]
 void ClosestHitEmissive(inout RayPayload payload, BuiltInTriangleIntersectionAttributes hitAttributes)
 {
@@ -308,6 +328,12 @@ void ClosestHit(inout RayPayload payload, BuiltInTriangleIntersectionAttributes 
 		return;
 	}
 	
+	// Grab the scene TLAS since it's used in two places
+	RaytracingAccelerationStructure SceneTLAS = ResourceDescriptorHeap[SceneTLASDescriptorIndex];
+	
+	// Where did we hit?
+	float3 hitPos = WorldRayOrigin() + WorldRayDirection() * RayTCurrent();
+	
 	// Get the data for this entity
 	StructuredBuffer<EntityData> entityDataBuffer = ResourceDescriptorHeap[EntityDataDescriptorIndex];
 	EntityData thisEntity = entityDataBuffer[InstanceIndex()];
@@ -317,6 +343,34 @@ void ClosestHit(inout RayPayload payload, BuiltInTriangleIntersectionAttributes 
 	float3 normal_WS = normalize(mul(hit.normal, (float3x3)ObjectToWorld4x3()));
 	float3 tangent_WS = normalize(mul(hit.tangent, (float3x3)ObjectToWorld4x3()));
 
+	// Trace a shadow ray if necessary
+	float3 directionToSun = normalize(float3(0, 1, 1));
+	float diffuse = dot(normal_WS, directionToSun);
+	if(diffuse > 0)
+	{
+		RayDesc shadowRay;
+		shadowRay.Direction = directionToSun;
+		shadowRay.Origin = hitPos + normal_WS * 0.01f;
+		shadowRay.TMin = 0.001f;
+		shadowRay.TMax = 1000.0f;
+	
+		ShadowPayload shadowPayload;
+		shadowPayload.Hit = false;
+	
+		TraceRay(
+			SceneTLAS,
+			RAY_FLAG_NONE,
+			0xFF,
+			1, // Ray contribution to hit group index (further indexing hit shaders)
+			0,
+			1, // Which miss shader?
+			shadowRay,
+			shadowPayload);
+		
+		payload.Color += shadowPayload.Hit ? 0 : diffuse;
+	}
+	
+	
 	// Basic surface color
 	float metal = thisEntity.Metalness;
 	float roughness = saturate(pow(thisEntity.Roughness, 2)); // Squared remap
@@ -366,14 +420,13 @@ void ClosestHit(inout RayPayload payload, BuiltInTriangleIntersectionAttributes 
 	
 	// Create the new recursive ray
 	RayDesc ray;
-	ray.Origin = WorldRayOrigin() + WorldRayDirection() * RayTCurrent();
+	ray.Origin = hitPos;
 	ray.Direction = dir;
 	ray.TMin = 0.0001f;
 	ray.TMax = 1000.0f;
 	
 	// Recursive ray trace
 	payload.RecursionDepth++;
-	RaytracingAccelerationStructure SceneTLAS = ResourceDescriptorHeap[SceneTLASDescriptorIndex];
 	TraceRay(
 		SceneTLAS,
 		RAY_FLAG_NONE,

@@ -18,7 +18,8 @@ public:
 		DirectX::XMFLOAT2 uvScale = DirectX::XMFLOAT2(1, 1),
 		DirectX::XMFLOAT2 uvOffset = DirectX::XMFLOAT2(0, 0),
 		float roughness = 1.0f,
-		float metalness = 0.0f);
+		float metalness = 0.0f,
+		bool emissive = false);
 
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> GetPipelineState();
 	DirectX::XMFLOAT2 GetUVScale();
@@ -26,6 +27,7 @@ public:
 	DirectX::XMFLOAT3 GetColorTint();
 	float GetRoughness();
 	float GetMetalness();
+	bool GetEmissive();
 	unsigned int GetAlbedoIndex();
 	unsigned int GetNormalMapIndex();
 	unsigned int GetRoughnessIndex();
@@ -37,6 +39,7 @@ public:
 	void SetColorTint(DirectX::XMFLOAT3 tint);
 	void SetRoughness(float r);
 	void SetMetalness(float m);
+	void SetEmissive(bool e);
 
 	void SetAlbedoIndex(unsigned int index);
 	void SetNormalMapIndex(unsigned int index);
@@ -55,6 +58,7 @@ private:
 	DirectX::XMFLOAT2 uvScale;
 	float roughness;
 	float metalness;
+	bool emissive;
 
 	// Texture-related GPU tracking
 	unsigned int albedoIndex;
