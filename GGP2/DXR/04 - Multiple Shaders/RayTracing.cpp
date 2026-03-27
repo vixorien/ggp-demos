@@ -253,7 +253,7 @@ void RayTracing::CreateRaytracingPipelineState(std::wstring raytracingShaderLibr
 
 	subobjects.push_back(missSubObj);
 
-	// === Closest hit shader ===
+	// === Closest hit shaders ===
 	D3D12_EXPORT_DESC closestHitExportDesc[3]{};
 	closestHitExportDesc[0].Name = L"ClosestHit";
 	closestHitExportDesc[0].Flags = D3D12_EXPORT_FLAG_NONE;
@@ -297,7 +297,7 @@ void RayTracing::CreateRaytracingPipelineState(std::wstring raytracingShaderLibr
 
 	subobjects.push_back(hitGroupEmissive);
 
-	// === Hit group 2 ===
+	// === Hit group 3 ===
 	D3D12_HIT_GROUP_DESC hitGroupShadowDesc = {};
 	hitGroupShadowDesc.ClosestHitShaderImport = L"ClosestHitShadow";
 	hitGroupShadowDesc.HitGroupExport = L"HitGroupShadow";
@@ -321,7 +321,10 @@ void RayTracing::CreateRaytracingPipelineState(std::wstring raytracingShaderLibr
 
 	// === Association - Payload and shaders ===
 	// Names of shaders that use the payload
-	const wchar_t* payloadShaderNames[] = { L"RayGen", L"Miss", L"MissShadow", L"HitGroup", L"HitGroupEmissive", L"HitGroupShadow"};
+	const wchar_t* payloadShaderNames[] = { 
+		L"RayGen", 
+		L"Miss", L"MissShadow", 
+		L"HitGroup", L"HitGroupEmissive", L"HitGroupShadow"};
 
 	D3D12_SUBOBJECT_TO_EXPORTS_ASSOCIATION shaderPayloadAssociation = {};
 	shaderPayloadAssociation.NumExports = ARRAYSIZE(payloadShaderNames);

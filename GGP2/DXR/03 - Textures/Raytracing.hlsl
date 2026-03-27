@@ -27,10 +27,12 @@ struct EntityData
 	float4 Color;
 	uint VertexBufferDescriptorIndex;
 	uint IndexBufferDescriptorIndex;
+	
 	uint AlbedoIndex;
 	uint NormalMapIndex;
 	uint RoughnessIndex;
 	uint MetalnessIndex;
+	
 	float Roughness;
 	float Metalness;
 };
@@ -320,7 +322,9 @@ void ClosestHit(inout RayPayload payload, BuiltInTriangleIntersectionAttributes 
 		Texture2D Rough = ResourceDescriptorHeap[thisEntity.RoughnessIndex];
 		Texture2D Metal = ResourceDescriptorHeap[thisEntity.MetalnessIndex];
 		
-		//hit.uv = hit.uv * thisEntity.uvScale + thisEntity.uvOffset;
+		// Samples from the first (largest) mip
+		float4 color = Albedo.SampleLevel(BasicSampler, hit.uv, 0);
+		
 		surfaceColor = pow(Albedo.SampleLevel(BasicSampler, hit.uv, 0).rgb, 2.2f);
 		roughness = pow(Rough.SampleLevel(BasicSampler, hit.uv, 0).r, 2); // Squared remap
 		metal = Metal.SampleLevel(BasicSampler, hit.uv, 0).r;

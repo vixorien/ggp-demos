@@ -308,12 +308,16 @@ void ClosestHitShadow(inout ShadowPayload payload, BuiltInTriangleIntersectionAt
 
 // A closest hit shader for emissive objects
 [shader("closesthit")]
-void ClosestHitEmissive(inout RayPayload payload, BuiltInTriangleIntersectionAttributes hitAttributes)
+void ClosestHitEmissive(
+	inout RayPayload payload, 
+	BuiltInTriangleIntersectionAttributes hitAttributes)
 {
 	// Get the data for this entity
-	StructuredBuffer<EntityData> entityDataBuffer = ResourceDescriptorHeap[EntityDataDescriptorIndex];
+	StructuredBuffer<EntityData> entityDataBuffer = 
+		ResourceDescriptorHeap[EntityDataDescriptorIndex];
 	EntityData thisEntity = entityDataBuffer[InstanceIndex()];
 	
+	// Alter the payload by this entity's (extra bright) color
 	payload.Color *= thisEntity.Color.rgb * 2;
 }
 
