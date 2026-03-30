@@ -57,5 +57,11 @@ private:
 	std::shared_ptr<Mesh> skyMesh;
 
 	unsigned int skyboxDescriptorIndex;
+
+	// Compute pipeline for IBL preprocessing
+	Microsoft::WRL::ComPtr<ID3D12RootSignature> computeRootSig;
+	Microsoft::WRL::ComPtr<ID3D12PipelineState> noiseGenPSO;
+	Microsoft::WRL::ComPtr<ID3D12PipelineState> textureGenPSO;
+
 };
 
