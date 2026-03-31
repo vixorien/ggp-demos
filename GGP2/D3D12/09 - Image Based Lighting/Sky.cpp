@@ -186,10 +186,14 @@ void Sky::CreateIBLResources()
 {
 	// Shaders for PSOs
 	Microsoft::WRL::ComPtr<ID3DBlob> brdfLookUpTableByteCode;
+	Microsoft::WRL::ComPtr<ID3DBlob> irrMapByteCode;
+	Microsoft::WRL::ComPtr<ID3DBlob> specMapByteCode;
 
 	// Load shaders
 	{
 		D3DReadFileToBlob(FixPath(L"IBLBrdfLookUpTableCS.cso").c_str(), brdfLookUpTableByteCode.GetAddressOf());
+		D3DReadFileToBlob(FixPath(L"IBLIrradianceMapCS.cso").c_str(), irrMapByteCode.GetAddressOf());
+		D3DReadFileToBlob(FixPath(L"IBLSpecularMapCS.cso").c_str(), specMapByteCode.GetAddressOf());
 	}
 
 	// Create compute-specific root sig and PSOs
@@ -200,7 +204,7 @@ void Sky::CreateIBLResources()
 		// Root params for descriptor indices
 		rootParams[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
 		rootParams[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
-		rootParams[0].Constants.Num32BitValues = 4; // TODO: UPDATE
+		rootParams[0].Constants.Num32BitValues = 6; // Max size of all 3 compute shaders
 		rootParams[0].Constants.RegisterSpace = 0;
 		rootParams[0].Constants.ShaderRegister = 0;
 
@@ -248,11 +252,28 @@ void Sky::CreateIBLResources()
 
 		// Set up PSOs
 		D3D12_COMPUTE_PIPELINE_STATE_DESC cPSO{};
-		cPSO.CS.BytecodeLength = brdfLookUpTableByteCode->GetBufferSize();
-		cPSO.CS.pShaderBytecode = brdfLookUpTableByteCode->GetBufferPointer();
 		cPSO.pRootSignature = computeRootSig.Get();
 
-		Graphics::Device->CreateComputePipelineState(&cPSO, IID_PPV_ARGS(brdfLookUpTablePSO.GetAddressOf()));
+		// BRDF look up table
+		{
+			cPSO.CS.BytecodeLength = brdfLookUpTableByteCode->GetBufferSize();
+			cPSO.CS.pShaderBytecode = brdfLookUpTableByteCode->GetBufferPointer();
+			Graphics::Device->CreateComputePipelineState(&cPSO, IID_PPV_ARGS(brdfLookUpTablePSO.GetAddressOf()));
+		}
+
+		// Irradiance map
+		{
+			cPSO.CS.BytecodeLength = irrMapByteCode->GetBufferSize();
+			cPSO.CS.pShaderBytecode = irrMapByteCode->GetBufferPointer();
+			Graphics::Device->CreateComputePipelineState(&cPSO, IID_PPV_ARGS(irradianceMapPSO.GetAddressOf()));
+		}
+
+		// Specular map
+		{
+			cPSO.CS.BytecodeLength = specMapByteCode->GetBufferSize();
+			cPSO.CS.pShaderBytecode = specMapByteCode->GetBufferPointer();
+			Graphics::Device->CreateComputePipelineState(&cPSO, IID_PPV_ARGS(specularMapPSO.GetAddressOf()));
+		}
 	}
 
 	// Perform individual compute steps to generate IBL resources
@@ -277,14 +298,15 @@ void Sky::CreateIBLBrdfLookUpTable()
 	uavDesc.Texture2D.MipSlice = 0;
 	Graphics::Device->CreateUnorderedAccessView(brdfLookUpTable.Get(), 0, &uavDesc, uav_cpu);
 
-	// Create final SRV for it
-	D3D12_CPU_DESCRIPTOR_HANDLE srv_cpu;
-	D3D12_GPU_DESCRIPTOR_HANDLE srv_gpu;
-	Graphics::ReserveDescriptorHeapSlot(&srv_cpu, &srv_gpu);
+	// Create final SRV for it (using null description to get default SRV)
+	{
+		D3D12_CPU_DESCRIPTOR_HANDLE srv_cpu;
+		D3D12_GPU_DESCRIPTOR_HANDLE srv_gpu;
+		Graphics::ReserveDescriptorHeapSlot(&srv_cpu, &srv_gpu);
 
-	// Using a null description to make a default SRV
-	Graphics::Device->CreateShaderResourceView(brdfLookUpTable.Get(), 0, srv_cpu);
-	brdfLookUpTableDescriptorIndex = Graphics::GetDescriptorIndex(srv_gpu);
+		Graphics::Device->CreateShaderResourceView(brdfLookUpTable.Get(), 0, srv_cpu);
+		brdfLookUpTableDescriptorIndex = Graphics::GetDescriptorIndex(srv_gpu);
+	}
 
 	// Run the compute shader to create the brdf look up table
 	{
@@ -308,10 +330,127 @@ void Sky::CreateIBLBrdfLookUpTable()
 
 void Sky::CreateIBLSpecularMap()
 {
+	// Calculate how many mip levels we'll need, potentially skipping
+	// a few of the smaller levels (1x1, 2x2, etc.) because they're mostly
+	// the same with such low resolutions
+	totalSpecMipLevels = max((int)(log2(SpecularMapSize)) + 1 - SpecMipLevelsToSkip, 1); // Add 1 for 1x1
+
+	// Create the irradiance map as a 6-element texture array
+	// (a cube map!) with multiple mip levels
+	specularMap = Graphics::CreateTexture(SpecularMapSize, SpecularMapSize, 6, totalSpecMipLevels, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+
+	// Create final SRV for it
+	{
+		D3D12_CPU_DESCRIPTOR_HANDLE srv_cpu;
+		D3D12_GPU_DESCRIPTOR_HANDLE srv_gpu;
+		Graphics::ReserveDescriptorHeapSlot(&srv_cpu, &srv_gpu);
+
+		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
+		srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
+		srvDesc.TextureCube.MipLevels = totalSpecMipLevels;
+		srvDesc.TextureCube.MostDetailedMip = 0;
+		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		Graphics::Device->CreateShaderResourceView(specularMap.Get(), &srvDesc, srv_cpu);
+		specularMapDescriptorIndex = Graphics::GetDescriptorIndex(srv_gpu);
+	}
+
+	// Run the compute shader to create the specular map,
+	// one mip level at a time since you cannot access
+	// individual mips of a RWTexture in a compute shader :/
+	for (int mip = 0; mip < totalSpecMipLevels; mip++)
+	{
+		// Create a UAV for this mip level
+		D3D12_CPU_DESCRIPTOR_HANDLE uav_cpu;
+		D3D12_GPU_DESCRIPTOR_HANDLE uav_gpu;
+		Graphics::ReserveDescriptorHeapSlot(&uav_cpu, &uav_gpu);
+
+		D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc{};
+		uavDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2DARRAY;
+		uavDesc.Texture2DArray.ArraySize = 6;
+		uavDesc.Texture2DArray.FirstArraySlice = 0;
+		uavDesc.Texture2DArray.MipSlice = mip;
+		Graphics::Device->CreateUnorderedAccessView(specularMap.Get(), 0, &uavDesc, uav_cpu);
+
+		// Set up compute pipeline
+		Graphics::CommandList->SetDescriptorHeaps(1, Graphics::CBVSRVDescriptorHeap.GetAddressOf());
+		Graphics::CommandList->SetComputeRootSignature(computeRootSig.Get());
+
+		// Calculate the size of this mip level
+		unsigned int mipSize = (float)pow(2, totalSpecMipLevels + SpecMipLevelsToSkip - 1 - mip);
+
+		SpecularComputeIndices data{};
+		data.EnvironmentMapDescriptorIndex = skyboxDescriptorIndex;
+		data.OutputDescriptorIndex = Graphics::GetDescriptorIndex(uav_gpu);
+		data.OutputWidth = mipSize;
+		data.OutputHeight = mipSize;
+		data.MipLevel = mip;
+		data.Roughness = mip / (float)(totalSpecMipLevels - 1);
+		Graphics::CommandList->SetComputeRoot32BitConstants(
+			0,
+			sizeof(SpecularComputeIndices) / sizeof(unsigned int),
+			&data,
+			0);
+
+		Graphics::CommandList->SetPipelineState(specularMapPSO.Get());
+		Graphics::CommandList->Dispatch(SpecularMapSize / 8, SpecularMapSize / 8, 6); // 6 on Z for cube map!
+	}
 }
 
 void Sky::CreateIBLIrradianceMap()
 {
+	// Create the irradiance map as a 6-element texture array (a cube map!)
+	irradianceMap = Graphics::CreateTexture(IrradianceMapSize, IrradianceMapSize, 6, 1, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+
+	// Create a UAV for it
+	D3D12_CPU_DESCRIPTOR_HANDLE uav_cpu;
+	D3D12_GPU_DESCRIPTOR_HANDLE uav_gpu;
+	Graphics::ReserveDescriptorHeapSlot(&uav_cpu, &uav_gpu);
+
+	D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc{};
+	uavDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2DARRAY;
+	uavDesc.Texture2DArray.ArraySize = 6;
+	uavDesc.Texture2DArray.FirstArraySlice = 0;
+	uavDesc.Texture2DArray.MipSlice = 0;
+	Graphics::Device->CreateUnorderedAccessView(irradianceMap.Get(), 0, &uavDesc, uav_cpu);
+
+	// Create final SRV for it
+	{
+		D3D12_CPU_DESCRIPTOR_HANDLE srv_cpu;
+		D3D12_GPU_DESCRIPTOR_HANDLE srv_gpu;
+		Graphics::ReserveDescriptorHeapSlot(&srv_cpu, &srv_gpu);
+
+		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
+		srvDesc.Format = uavDesc.Format;
+		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
+		srvDesc.TextureCube.MipLevels = 1;
+		srvDesc.TextureCube.MostDetailedMip = 0;
+		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		Graphics::Device->CreateShaderResourceView(irradianceMap.Get(), &srvDesc, srv_cpu);
+		irradianceMapDescriptorIndex = Graphics::GetDescriptorIndex(srv_gpu);
+	}
+
+	// Run the compute shader to create the irradiance map
+	{
+		Graphics::CommandList->SetDescriptorHeaps(1, Graphics::CBVSRVDescriptorHeap.GetAddressOf());
+		Graphics::CommandList->SetComputeRootSignature(computeRootSig.Get());
+
+		IrradianceComputeIndices data{};
+		data.EnvironmentMapDescriptorIndex = skyboxDescriptorIndex;
+		data.OutputDescriptorIndex = Graphics::GetDescriptorIndex(uav_gpu);
+		data.OutputWidth = IrradianceMapSize;
+		data.OutputHeight = IrradianceMapSize;
+		Graphics::CommandList->SetComputeRoot32BitConstants(
+			0,
+			sizeof(IrradianceComputeIndices) / sizeof(unsigned int),
+			&data,
+			0);
+
+		Graphics::CommandList->SetPipelineState(irradianceMapPSO.Get());
+		Graphics::CommandList->Dispatch(IrradianceMapSize / 8, IrradianceMapSize / 8, 6); // 6 on Z for cube map!
+	}
 }
 
 void Sky::Draw(std::shared_ptr<Camera> camera)

@@ -20,6 +20,24 @@ struct BrdfLUTComputeIndices
 	unsigned int OutputDescriptorIndex;
 };
 
+struct IrradianceComputeIndices
+{
+	unsigned int OutputWidth;
+	unsigned int OutputHeight;
+	unsigned int OutputDescriptorIndex;
+	unsigned int EnvironmentMapDescriptorIndex;
+};
+
+struct SpecularComputeIndices
+{
+	unsigned int OutputWidth;
+	unsigned int OutputHeight;
+	unsigned int OutputDescriptorIndex;
+	unsigned int EnvironmentMapDescriptorIndex;
+	unsigned int MipLevel;
+	float Roughness;
+};
+
 class Sky
 {
 public:
@@ -67,7 +85,11 @@ private:
 	unsigned int skyboxDescriptorIndex;
 
 	// Compute pipeline for IBL preprocessing
-	const int BrdfLookUpTableSize = 512;
+	const unsigned int BrdfLookUpTableSize = 512;
+	const unsigned int IrradianceMapSize = 512;
+	const unsigned int SpecularMapSize = 256;
+	const unsigned int SpecMipLevelsToSkip = 3; // Number of lower mips (1x1, 2x2, etc.) to exclude from the maps
+	unsigned int totalSpecMipLevels;
 
 	void CreateIBLResources();
 	void CreateIBLBrdfLookUpTable();
