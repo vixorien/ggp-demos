@@ -70,6 +70,9 @@ Sky::~Sky()
 // Getters
 unsigned int Sky::GetSkyboxDescriptorIndex() { return skyboxDescriptorIndex; }
 unsigned int Sky::GetBrdfLookUpTableDescriptorIndex() { return brdfLookUpTableDescriptorIndex; }
+unsigned int Sky::GetIrradianceMapDescriptorIndex() { return irradianceMapDescriptorIndex; }
+unsigned int Sky::GetSpecularMapDescriptorIndex() { return specularMapDescriptorIndex; }
+unsigned int Sky::GetTotalSpecularMipLevels() { return totalSpecMipLevels; }
 
 void Sky::InitRenderStates()
 {

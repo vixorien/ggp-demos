@@ -71,6 +71,9 @@ public:
 
 	unsigned int GetSkyboxDescriptorIndex();
 	unsigned int GetBrdfLookUpTableDescriptorIndex();
+	unsigned int GetIrradianceMapDescriptorIndex();
+	unsigned int GetSpecularMapDescriptorIndex();
+	unsigned int GetTotalSpecularMipLevels();
 
 private:
 

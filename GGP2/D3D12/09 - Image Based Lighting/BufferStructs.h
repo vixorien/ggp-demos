@@ -30,7 +30,15 @@ struct PixelShaderPerFrameData
 {
 	DirectX::XMFLOAT3 cameraPosition;
 	int lightCount;
+
+	unsigned int irradianceIndex;
+	unsigned int specularIndex;
+	unsigned int brdfLUTIndex;
+	unsigned int totalSpecularMipLevels;
+
 	Light lights[MAX_LIGHTS];
+
+	unsigned int IndirectLightingEnabled;
 };
 
 struct PixelShaderPerObjectData
@@ -41,4 +49,6 @@ struct PixelShaderPerObjectData
 	unsigned int metalnessIndex;
 	DirectX::XMFLOAT2 uvScale;
 	DirectX::XMFLOAT2 uvOffset;
+	float roughness;
+	float metalness;
 };

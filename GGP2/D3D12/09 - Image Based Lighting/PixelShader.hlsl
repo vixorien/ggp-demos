@@ -14,7 +14,15 @@ struct PSPerFrameData
 {
 	float3 cameraPosition;
 	int lightCount;
+	
+	uint irradianceIndex;
+	uint specularIndex;
+	uint brdfLUTIndex;
+	uint totalSpecularMipLevels;
+	
 	Light lights[MAX_LIGHTS];
+	
+	uint IndirectLightingEnabled;
 };
 
 struct PSPerObjectData
@@ -25,6 +33,8 @@ struct PSPerObjectData
 	uint metalnessIndex;
 	float2 uvScale;
 	float2 uvOffset;
+	float roughness;
+	float metalness;
 };
 
 // Struct representing the data we expect to receive from earlier pipeline stages
@@ -37,8 +47,9 @@ struct VertexToPixel
 	float3 worldPos			: POSITION;
 };
 
-// Texture related
-SamplerState BasicSampler		: register(s0);
+// Samplers
+SamplerState BasicSampler : register(s0);
+SamplerState ClampSampler : register(s1);
 
 // --------------------------------------------------------
 // The entry point (main method) for our pixel shader
@@ -48,28 +59,37 @@ float4 main(VertexToPixel input) : SV_TARGET
 	ConstantBuffer<PSPerFrameData> cbFrame = ResourceDescriptorHeap[psPerFrameCBIndex];
 	ConstantBuffer<PSPerObjectData> cbObject = ResourceDescriptorHeap[psPerObjectCBIndex];
 	
-	Texture2D AlbedoTexture = ResourceDescriptorHeap[cbObject.albedoIndex];
-	Texture2D NormalMap		= ResourceDescriptorHeap[cbObject.normalMapIndex];
-	Texture2D RoughnessMap	= ResourceDescriptorHeap[cbObject.roughnessIndex];
-	Texture2D MetalMap		= ResourceDescriptorHeap[cbObject.metalnessIndex];
-	
 	// Clean up un-normalized normals
 	input.normal = normalize(input.normal);
 	input.tangent = normalize(input.tangent);
 	
 	// Scale and offset uv as necessary
 	input.uv = input.uv * cbObject.uvScale + cbObject.uvOffset;
-
-	// Normal mapping
-	input.normal = NormalMapping(NormalMap, BasicSampler, input.uv, input.normal, input.tangent);
-
-	// Surface color with gamma correction
-	float4 surfaceColor = AlbedoTexture.Sample(BasicSampler, input.uv);
-	surfaceColor.rgb = pow(surfaceColor.rgb, 2.2);
 	
-	// Sample the other maps
-	float roughness = RoughnessMap.Sample(BasicSampler, input.uv).r;
-	float metal = MetalMap.Sample(BasicSampler, input.uv).r;
+	// Default material details
+	float4 surfaceColor = float4(1,1,1,1);
+	float roughness = cbObject.roughness;
+	float metal = cbObject.metalness;
+	
+	// Are we using textures?
+	if(cbObject.albedoIndex != -1)
+	{
+		Texture2D AlbedoTexture = ResourceDescriptorHeap[cbObject.albedoIndex];
+		Texture2D NormalMap = ResourceDescriptorHeap[cbObject.normalMapIndex];
+		Texture2D RoughnessMap = ResourceDescriptorHeap[cbObject.roughnessIndex];
+		Texture2D MetalMap = ResourceDescriptorHeap[cbObject.metalnessIndex];
+	
+		// Normal mapping
+		input.normal = NormalMapping(NormalMap, BasicSampler, input.uv, input.normal, input.tangent);
+		
+		// Surface color with gamma correction
+		surfaceColor = AlbedoTexture.Sample(BasicSampler, input.uv);
+		surfaceColor.rgb = pow(surfaceColor.rgb, 2.2);
+	
+		// Sample the other maps
+		roughness = RoughnessMap.Sample(BasicSampler, input.uv).r;
+		metal = MetalMap.Sample(BasicSampler, input.uv).r;
+	}
 	
 	// Specular color - Assuming albedo texture is actually holding specular color if metal == 1
 	// Note the use of lerp here - metal is generally 0 or 1, but might be in between
@@ -102,6 +122,32 @@ float4 main(VertexToPixel input) : SV_TARGET
 			break;
 		}
 	}
+	
+	// --- Indirect lighting ---
+	
+	// Textures
+	TextureCube IrradianceMap = ResourceDescriptorHeap[cbFrame.irradianceIndex];
+	TextureCube SpecularMap = ResourceDescriptorHeap[cbFrame.specularIndex];
+	Texture2D BrdfLUT = ResourceDescriptorHeap[cbFrame.brdfLUTIndex];
+	
+	// -- Diffuse IBL --
+	float3 indirectDiffuse = IrradianceMap.SampleLevel(BasicSampler, input.normal, 0).rgb;
+	
+	// -- Specular look up table --
+	float3 viewToCam = normalize(cbFrame.cameraPosition - input.worldPos);
+	float3 viewRefl = reflect(-viewToCam, input.normal);
+	float NdotV = saturate(dot(input.normal, viewToCam));
+	float2 indirectBRDF = BrdfLUT.Sample(ClampSampler, float2(NdotV, roughness)).rg;
+	
+	// -- Specular IBL --
+	float3 indSpecFresnel = specColor * indirectBRDF.x + indirectBRDF.y;
+	float3 indirectSpecular = SpecularMap.SampleLevel(BasicSampler, viewRefl, roughness * (cbFrame.totalSpecularMipLevels - 1.0)).rgb * indSpecFresnel;
+	
+	// -- Total Indirect --
+	float3 fullIndirect = (indirectDiffuse * surfaceColor.rgb * saturate(1.0f - metal)) + indirectSpecular;
+	
+	// Add indirect if necessary
+	totalLight += cbFrame.IndirectLightingEnabled ? fullIndirect : 0;
 
 	// Gamma correct and return
 	return float4(pow(totalLight, 1.0f / 2.2f), 1.0f);

@@ -75,6 +75,8 @@ void Game::Initialize()
 		0.01f,					// Near clip
 		100.0f,					// Far clip
 		CameraProjectionType::Perspective);
+
+	indirectLightingEnabled = true;
 }
 
 
@@ -138,7 +140,16 @@ void Game::CreateRootSigAndPipelineState()
 		anisoWrap.ShaderRegister = 0;  // register(s0)
 		anisoWrap.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
 
-		D3D12_STATIC_SAMPLER_DESC samplers[] = { anisoWrap };
+		D3D12_STATIC_SAMPLER_DESC clamp = {};
+		clamp.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+		clamp.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+		clamp.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+		clamp.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+		clamp.MaxLOD = D3D12_FLOAT32_MAX;
+		clamp.ShaderRegister = 1;  // register(s1)
+		clamp.ShaderVisibility = D3D12_SHADER_VISIBILITY_PIXEL;
+
+		D3D12_STATIC_SAMPLER_DESC samplers[] = { anisoWrap, clamp };
 
 		// Describe and serialize the root signature
 		D3D12_ROOT_SIGNATURE_DESC rootSig = {};
@@ -309,6 +320,22 @@ void Game::CreateGeometry()
 	entities.push_back(entityHelix);
 	entities.push_back(entitySphere);
 
+	// Create roughness grids
+	for (float metal = 0.0f; metal <= 1.0f; metal++)
+	{
+		for (float rough = 0.0f; rough <= 1.0f; rough += 0.1f)
+		{
+			// Make new material for this object
+			std::shared_ptr<Material> mat = std::make_shared<Material>(
+				pipelineState, XMFLOAT3(1, 1, 1), XMFLOAT2(1,1), XMFLOAT2(0,0), rough, metal);
+
+			// Make an entity and line up in grid
+			std::shared_ptr<GameEntity> e = std::make_shared<GameEntity>(sphere, mat);
+			e->GetTransform()->SetPosition(rough * 20 - 10, metal * 3.0f + 3.0f, 0);
+			entities.push_back(e);
+		}
+	}
+
 	// Load the sky
 	sky = std::make_shared<Sky>(
 		FixPath(AssetPath + L"Skies/Clouds Blue/right.png").c_str(),
@@ -425,8 +452,8 @@ void Game::Update(float deltaTime, float totalTime)
 
 	camera->Update(deltaTime);
 
-	for (auto& e : entities)
-		e->GetTransform()->Rotate(0, deltaTime, 0);
+	/*for (auto& e : entities)
+		e->GetTransform()->Rotate(0, deltaTime, 0);*/
 }
 
 
@@ -507,6 +534,11 @@ void Game::Draw(float deltaTime, float totalTime)
 			PixelShaderPerFrameData psFrame{};
 			psFrame.cameraPosition = camera->GetTransform()->GetPosition();
 			psFrame.lightCount = lightCount;
+			psFrame.totalSpecularMipLevels = sky->GetTotalSpecularMipLevels();
+			psFrame.brdfLUTIndex = sky->GetBrdfLookUpTableDescriptorIndex();
+			psFrame.irradianceIndex = sky->GetIrradianceMapDescriptorIndex();
+			psFrame.specularIndex = sky->GetSpecularMapDescriptorIndex();
+			psFrame.IndirectLightingEnabled = indirectLightingEnabled;
 			memcpy(psFrame.lights, &lights[0], sizeof(Light) * lightCount);
 
 			D3D12_GPU_DESCRIPTOR_HANDLE cbHandlePS = Graphics::FillNextConstantBufferAndGetGPUDescriptorHandle(
@@ -547,6 +579,8 @@ void Game::Draw(float deltaTime, float totalTime)
 				PixelShaderPerObjectData psData = {};
 				psData.uvScale = mat->GetUVScale();
 				psData.uvOffset = mat->GetUVOffset();
+				psData.roughness = mat->GetRoughness();
+				psData.metalness = mat->GetMetalness();
 				psData.albedoIndex = mat->GetAlbedoIndex();
 				psData.normalMapIndex = mat->GetNormalMapIndex();
 				psData.roughnessIndex = mat->GetRoughnessIndex();
@@ -673,11 +707,22 @@ void Game::BuildUI()
 			ImGui::TreePop();
 		}
 
+		// === IBL ===
+		if (ImGui::TreeNode("Image Based Lighting"))
+		{
+			ImGui::Checkbox("Indirect Lighting Enabled", &indirectLightingEnabled);
 
-		D3D12_GPU_DESCRIPTOR_HANDLE t = Graphics::CBVSRVDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
-		t.ptr += sky->GetBrdfLookUpTableDescriptorIndex() * Graphics::Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+			ImGui::Spacing();
+			ImGui::Text("IBL BRDF Look Up Table");
 
-		ImGui::Image(ImTextureRef(t.ptr), ImVec2(256, 256));
+			// Convert descriptor index BACK into actual GPU handle
+			D3D12_GPU_DESCRIPTOR_HANDLE t = Graphics::CBVSRVDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
+			t.ptr += sky->GetBrdfLookUpTableDescriptorIndex() * Graphics::Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+			ImGui::Image(ImTextureRef(t.ptr), ImVec2(256, 256));
+
+			// Finalize the tree node
+			ImGui::TreePop();
+		}
 
 	}
 	ImGui::End();

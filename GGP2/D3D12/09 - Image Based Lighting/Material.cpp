@@ -5,7 +5,9 @@ Material::Material(
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> pipelineState,
 	DirectX::XMFLOAT3 tint,
 	DirectX::XMFLOAT2 uvScale,
-	DirectX::XMFLOAT2 uvOffset)
+	DirectX::XMFLOAT2 uvOffset,
+	float roughness,
+	float metalness)
 	:
 	pipelineState(pipelineState),
 	colorTint(tint),
@@ -14,7 +16,9 @@ Material::Material(
 	albedoIndex(-1),
 	normalMapIndex(-1),
 	roughnessIndex(-1),
-	metalnessIndex(-1)
+	metalnessIndex(-1),
+	roughness(roughness),
+	metalness(metalness)
 {
 }
 
@@ -23,6 +27,8 @@ Microsoft::WRL::ComPtr<ID3D12PipelineState> Material::GetPipelineState() { retur
 DirectX::XMFLOAT2 Material::GetUVScale() { return uvScale; }
 DirectX::XMFLOAT2 Material::GetUVOffset() { return uvOffset; }
 DirectX::XMFLOAT3 Material::GetColorTint() { return colorTint; }
+float Material::GetRoughness() { return roughness; }
+float Material::GetMetalness() { return metalness; }
 
 unsigned int Material::GetAlbedoIndex() { return albedoIndex; }
 unsigned int Material::GetNormalMapIndex() { return normalMapIndex; }
@@ -35,6 +41,8 @@ void Material::SetPipelineState(Microsoft::WRL::ComPtr<ID3D12PipelineState> pipe
 void Material::SetUVScale(DirectX::XMFLOAT2 scale) { uvScale = scale; }
 void Material::SetUVOffset(DirectX::XMFLOAT2 offset) { uvOffset = offset; }
 void Material::SetColorTint(DirectX::XMFLOAT3 tint) { this->colorTint = tint; }
+void Material::SetRoughness(float r) { roughness = r; }
+void Material::SetMetalness(float m) { metalness = m; }
 
 void Material::SetAlbedoIndex(unsigned int index) { albedoIndex = index; }
 void Material::SetNormalMapIndex(unsigned int index) { normalMapIndex = index; }

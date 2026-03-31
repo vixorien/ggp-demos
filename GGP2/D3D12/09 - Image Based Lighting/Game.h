@@ -49,6 +49,7 @@ private:
 	std::shared_ptr<FPSCamera> camera;
 	std::vector<std::shared_ptr<GameEntity>> entities;
 	std::shared_ptr<Sky> sky;
+	bool indirectLightingEnabled;
 
 	// Other graphics data
 	D3D12_VIEWPORT viewport{};
