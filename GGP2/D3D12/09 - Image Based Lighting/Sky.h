@@ -13,6 +13,13 @@ struct SkyDrawIndices
 	unsigned int psSkyboxIndex;
 };
 
+struct BrdfLUTComputeIndices
+{
+	unsigned int OutputWidth;
+	unsigned int OutputHeight;
+	unsigned int OutputDescriptorIndex;
+};
+
 class Sky
 {
 public:
@@ -45,6 +52,7 @@ public:
 	void Draw(std::shared_ptr<Camera> camera);
 
 	unsigned int GetSkyboxDescriptorIndex();
+	unsigned int GetBrdfLookUpTableDescriptorIndex();
 
 private:
 
@@ -59,9 +67,23 @@ private:
 	unsigned int skyboxDescriptorIndex;
 
 	// Compute pipeline for IBL preprocessing
-	Microsoft::WRL::ComPtr<ID3D12RootSignature> computeRootSig;
-	Microsoft::WRL::ComPtr<ID3D12PipelineState> noiseGenPSO;
-	Microsoft::WRL::ComPtr<ID3D12PipelineState> textureGenPSO;
+	const int BrdfLookUpTableSize = 512;
 
+	void CreateIBLResources();
+	void CreateIBLBrdfLookUpTable();
+	void CreateIBLSpecularMap();
+	void CreateIBLIrradianceMap();
+	Microsoft::WRL::ComPtr<ID3D12RootSignature> computeRootSig;
+	Microsoft::WRL::ComPtr<ID3D12PipelineState> brdfLookUpTablePSO;
+	Microsoft::WRL::ComPtr<ID3D12PipelineState> specularMapPSO;
+	Microsoft::WRL::ComPtr<ID3D12PipelineState> irradianceMapPSO;
+
+	Microsoft::WRL::ComPtr<ID3D12Resource> brdfLookUpTable;
+	Microsoft::WRL::ComPtr<ID3D12Resource> specularMap;
+	Microsoft::WRL::ComPtr<ID3D12Resource> irradianceMap;
+
+	unsigned int brdfLookUpTableDescriptorIndex = -1;
+	unsigned int specularMapDescriptorIndex = -1;
+	unsigned int irradianceMapDescriptorIndex = -1;
 };
 

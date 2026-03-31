@@ -81,6 +81,13 @@ namespace Graphics
 		const wchar_t* down,
 		const wchar_t* front,
 		const wchar_t* back);
+	Microsoft::WRL::ComPtr<ID3D12Resource> CreateTexture(
+		unsigned int width, 
+		unsigned int height, 
+		unsigned int arraySize = 1,
+		unsigned int mipLevels = 1,
+		D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE,
+		DXGI_FORMAT colorFormat = DXGI_FORMAT_R8G8B8A8_UNORM);
 	Microsoft::WRL::ComPtr<ID3D12Resource> CreateStaticBuffer(size_t dataStride, size_t dataCount, void* data);
 
 	// Resource usage

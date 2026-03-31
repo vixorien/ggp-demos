@@ -605,6 +605,47 @@ unsigned int Graphics::CreateCubemap(const wchar_t* right, const wchar_t* left, 
 	return srvIndex;
 }
 
+Microsoft::WRL::ComPtr<ID3D12Resource> Graphics::CreateTexture(
+	unsigned int width, 
+	unsigned int height, 
+	unsigned int arraySize, 
+	unsigned int mipLevels, 
+	D3D12_RESOURCE_FLAGS flags, 
+	DXGI_FORMAT colorFormat)
+{
+	// Set up the heap and then resource itself
+	D3D12_HEAP_PROPERTIES props = {};
+	props.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+	props.CreationNodeMask = 1;
+	props.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+	props.Type = D3D12_HEAP_TYPE_DEFAULT;
+	props.VisibleNodeMask = 1;
+
+	D3D12_RESOURCE_DESC desc = {};
+	desc.Alignment = 0;
+	desc.DepthOrArraySize = arraySize;
+	desc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
+	desc.Flags = flags;
+	desc.Format = colorFormat;
+	desc.Height = height;
+	desc.Layout = D3D12_TEXTURE_LAYOUT_UNKNOWN;
+	desc.MipLevels = mipLevels;
+	desc.SampleDesc.Count = 1;
+	desc.SampleDesc.Quality = 0;
+	desc.Width = width;
+
+	Microsoft::WRL::ComPtr<ID3D12Resource> texture;
+	Graphics::Device->CreateCommittedResource(
+		&props,
+		D3D12_HEAP_FLAG_NONE,
+		&desc,
+		D3D12_RESOURCE_STATE_COMMON,
+		0,
+		IID_PPV_ARGS(texture.GetAddressOf()));
+
+	return texture;
+}
+
 
 // --------------------------------------------------------
 // Helper for creating a static buffer that will get

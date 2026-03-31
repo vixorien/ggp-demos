@@ -672,6 +672,13 @@ void Game::BuildUI()
 			// Finalize the tree node
 			ImGui::TreePop();
 		}
+
+
+		D3D12_GPU_DESCRIPTOR_HANDLE t = Graphics::CBVSRVDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
+		t.ptr += sky->GetBrdfLookUpTableDescriptorIndex() * Graphics::Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+		ImGui::Image(ImTextureRef(t.ptr), ImVec2(256, 256));
+
 	}
 	ImGui::End();
 }

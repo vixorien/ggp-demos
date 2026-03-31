@@ -78,8 +78,12 @@ void main( uint3 id : SV_DispatchThreadID )
 	if(id.x >= OutputWidth || id.y >= OutputHeight)
 		return;
 	
-	float roughness = id.x / (float)OutputWidth;
-	float nDotV = id.y / (float)OutputHeight;
+	// Treat the uv range (0-1) as a grid of 
+	// roughness and nDotV permutations
+	// Note: ROUGHNESS is Y
+	//       nDotV is X
+	float nDotV = id.x / (float)OutputWidth;
+	float roughness = id.y / (float)OutputHeight;
 	float2 brdf = IntegrateBRDF(roughness, nDotV);
 	
 	RWTexture2D<float4> OutputTexture = ResourceDescriptorHeap[OutputDescriptorIndex];

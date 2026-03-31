@@ -19,8 +19,9 @@ Sky::Sky(
 	skyboxDescriptorIndex(skyboxDescriptorIndex),
 	skyMesh(mesh)
 {
-	// Init render states
+	// Init render states and compute IBL resources from environment map
 	InitRenderStates();
+	CreateIBLResources();
 }
 
 // Constructor that loads a DDS cube map file
@@ -35,6 +36,9 @@ Sky::Sky(
 
 	// Load the texture
 	skyboxDescriptorIndex = Graphics::LoadTexture(cubemapDDSFile, false);
+
+	// Compute IBL resources from environment map
+	CreateIBLResources();
 }
 
 // Constructor that loads 6 textures and makes a cube map
@@ -54,13 +58,18 @@ Sky::Sky(
 
 	// Create texture from 6 images
 	skyboxDescriptorIndex = Graphics::CreateCubemap(right, left, up, down, front, back);
+
+	// Compute IBL resources from environment map
+	CreateIBLResources();
 }
 
 Sky::~Sky()
 {
 }
 
+// Getters
 unsigned int Sky::GetSkyboxDescriptorIndex() { return skyboxDescriptorIndex; }
+unsigned int Sky::GetBrdfLookUpTableDescriptorIndex() { return brdfLookUpTableDescriptorIndex; }
 
 void Sky::InitRenderStates()
 {
@@ -171,6 +180,138 @@ void Sky::InitRenderStates()
 		// Create the pipe state object
 		Graphics::Device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(pipelineState.GetAddressOf()));
 	}
+}
+
+void Sky::CreateIBLResources()
+{
+	// Shaders for PSOs
+	Microsoft::WRL::ComPtr<ID3DBlob> brdfLookUpTableByteCode;
+
+	// Load shaders
+	{
+		D3DReadFileToBlob(FixPath(L"IBLBrdfLookUpTableCS.cso").c_str(), brdfLookUpTableByteCode.GetAddressOf());
+	}
+
+	// Create compute-specific root sig and PSOs
+	{
+		// Create the root parameters
+		D3D12_ROOT_PARAMETER rootParams[1] = {};
+
+		// Root params for descriptor indices
+		rootParams[0].ParameterType = D3D12_ROOT_PARAMETER_TYPE_32BIT_CONSTANTS;
+		rootParams[0].ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+		rootParams[0].Constants.Num32BitValues = 4; // TODO: UPDATE
+		rootParams[0].Constants.RegisterSpace = 0;
+		rootParams[0].Constants.ShaderRegister = 0;
+
+		D3D12_STATIC_SAMPLER_DESC anisoWrap = {};
+		anisoWrap.AddressU = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+		anisoWrap.AddressV = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+		anisoWrap.AddressW = D3D12_TEXTURE_ADDRESS_MODE_WRAP;
+		anisoWrap.Filter = D3D12_FILTER_ANISOTROPIC;
+		anisoWrap.MaxAnisotropy = 16;
+		anisoWrap.MaxLOD = D3D12_FLOAT32_MAX;
+		anisoWrap.ShaderRegister = 0;  // register(s0)
+		anisoWrap.ShaderVisibility = D3D12_SHADER_VISIBILITY_ALL;
+
+		D3D12_STATIC_SAMPLER_DESC samplers[] = { anisoWrap };
+
+		// Describe and serialize the root signature
+		D3D12_ROOT_SIGNATURE_DESC rootSig = {};
+		rootSig.Flags = D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED;
+		rootSig.NumParameters = ARRAYSIZE(rootParams);
+		rootSig.pParameters = rootParams;
+		rootSig.NumStaticSamplers = ARRAYSIZE(samplers);
+		rootSig.pStaticSamplers = samplers;
+
+		ID3DBlob* serializedRootSig = 0;
+		ID3DBlob* errors = 0;
+
+		D3D12SerializeRootSignature(
+			&rootSig,
+			D3D_ROOT_SIGNATURE_VERSION_1,
+			&serializedRootSig,
+			&errors);
+
+		// Check for errors during serialization
+		if (errors != 0)
+		{
+			OutputDebugString((wchar_t*)errors->GetBufferPointer());
+		}
+
+		// Actually create the root sig
+		Graphics::Device->CreateRootSignature(
+			0,
+			serializedRootSig->GetBufferPointer(),
+			serializedRootSig->GetBufferSize(),
+			IID_PPV_ARGS(computeRootSig.GetAddressOf()));
+
+		// Set up PSOs
+		D3D12_COMPUTE_PIPELINE_STATE_DESC cPSO{};
+		cPSO.CS.BytecodeLength = brdfLookUpTableByteCode->GetBufferSize();
+		cPSO.CS.pShaderBytecode = brdfLookUpTableByteCode->GetBufferPointer();
+		cPSO.pRootSignature = computeRootSig.Get();
+
+		Graphics::Device->CreateComputePipelineState(&cPSO, IID_PPV_ARGS(brdfLookUpTablePSO.GetAddressOf()));
+	}
+
+	// Perform individual compute steps to generate IBL resources
+	CreateIBLBrdfLookUpTable();
+	CreateIBLSpecularMap();
+	CreateIBLIrradianceMap();
+}
+
+void Sky::CreateIBLBrdfLookUpTable()
+{
+	// Create the look up table texture
+	brdfLookUpTable = Graphics::CreateTexture(BrdfLookUpTableSize, BrdfLookUpTableSize, 1, 1, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+
+	// Create a UAV for it
+	D3D12_CPU_DESCRIPTOR_HANDLE uav_cpu;
+	D3D12_GPU_DESCRIPTOR_HANDLE uav_gpu;
+	Graphics::ReserveDescriptorHeapSlot(&uav_cpu, &uav_gpu);
+
+	D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc{};
+	uavDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+	uavDesc.Texture2D.MipSlice = 0;
+	Graphics::Device->CreateUnorderedAccessView(brdfLookUpTable.Get(), 0, &uavDesc, uav_cpu);
+
+	// Create final SRV for it
+	D3D12_CPU_DESCRIPTOR_HANDLE srv_cpu;
+	D3D12_GPU_DESCRIPTOR_HANDLE srv_gpu;
+	Graphics::ReserveDescriptorHeapSlot(&srv_cpu, &srv_gpu);
+
+	// Using a null description to make a default SRV
+	Graphics::Device->CreateShaderResourceView(brdfLookUpTable.Get(), 0, srv_cpu);
+	brdfLookUpTableDescriptorIndex = Graphics::GetDescriptorIndex(srv_gpu);
+
+	// Run the compute shader to create the brdf look up table
+	{
+		Graphics::CommandList->SetDescriptorHeaps(1, Graphics::CBVSRVDescriptorHeap.GetAddressOf());
+		Graphics::CommandList->SetComputeRootSignature(computeRootSig.Get());
+
+		BrdfLUTComputeIndices data{};
+		data.OutputDescriptorIndex = Graphics::GetDescriptorIndex(uav_gpu);
+		data.OutputWidth = BrdfLookUpTableSize;
+		data.OutputHeight = BrdfLookUpTableSize;
+		Graphics::CommandList->SetComputeRoot32BitConstants(
+			0,
+			sizeof(BrdfLUTComputeIndices) / sizeof(unsigned int),
+			&data,
+			0);
+
+		Graphics::CommandList->SetPipelineState(brdfLookUpTablePSO.Get());
+		Graphics::CommandList->Dispatch(BrdfLookUpTableSize / 8, BrdfLookUpTableSize / 8, 1);
+	}
+}
+
+void Sky::CreateIBLSpecularMap()
+{
+}
+
+void Sky::CreateIBLIrradianceMap()
+{
 }
 
 void Sky::Draw(std::shared_ptr<Camera> camera)
