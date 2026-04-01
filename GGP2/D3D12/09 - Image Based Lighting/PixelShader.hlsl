@@ -131,16 +131,17 @@ float4 main(VertexToPixel input) : SV_TARGET
 	Texture2D BrdfLUT = ResourceDescriptorHeap[cbFrame.brdfLUTIndex];
 	
 	// -- Diffuse IBL --
-	float3 indirectDiffuse = IrradianceMap.SampleLevel(BasicSampler, input.normal, 0).rgb;
+	float3 indirectDiffuse = IrradianceMap.Sample(BasicSampler, input.normal).rgb;
 	
 	// -- Specular look up table --
 	float3 viewToCam = normalize(cbFrame.cameraPosition - input.worldPos);
-	float3 viewRefl = reflect(-viewToCam, input.normal);
 	float NdotV = saturate(dot(input.normal, viewToCam));
-	float2 indirectBRDF = BrdfLUT.Sample(ClampSampler, float2(NdotV, roughness)).rg;
+	float2 uv = float2(NdotV, roughness);
+	float2 indirectBRDF = BrdfLUT.Sample(ClampSampler, uv).rg;
 	
 	// -- Specular IBL --
 	float3 indSpecFresnel = specColor * indirectBRDF.x + indirectBRDF.y;
+	float3 viewRefl = reflect(-viewToCam, input.normal);
 	float3 indirectSpecular = SpecularMap.SampleLevel(BasicSampler, viewRefl, roughness * (cbFrame.totalSpecularMipLevels - 1.0)).rgb * indSpecFresnel;
 	
 	// -- Total Indirect --
