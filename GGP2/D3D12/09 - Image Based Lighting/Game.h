@@ -48,7 +48,9 @@ private:
 	std::vector<Light> lights;
 	std::shared_ptr<FPSCamera> camera;
 	std::vector<std::shared_ptr<GameEntity>> entities;
-	std::shared_ptr<Sky> sky;
+	std::vector<std::shared_ptr<Sky>> skies;
+	unsigned int currentSky;
+	bool directLightingEnabled;
 	bool indirectLightingEnabled;
 
 	// Other graphics data

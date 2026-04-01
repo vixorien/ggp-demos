@@ -76,7 +76,9 @@ void Game::Initialize()
 		100.0f,					// Far clip
 		CameraProjectionType::Perspective);
 
+	directLightingEnabled = true;
 	indirectLightingEnabled = true;
+	currentSky = 0;
 }
 
 
@@ -336,23 +338,25 @@ void Game::CreateGeometry()
 		}
 	}
 
-	// Load the sky
-	/*sky = std::make_shared<Sky>(
+	// Load the skies
+	// First is made from 6 individual textures (IBL maps generated after)
+	skies.push_back(std::make_shared<Sky>(
 		FixPath(AssetPath + L"Skies/Clouds Blue/right.png").c_str(),
 		FixPath(AssetPath + L"Skies/Clouds Blue/left.png").c_str(),
 		FixPath(AssetPath + L"Skies/Clouds Blue/up.png").c_str(),
 		FixPath(AssetPath + L"Skies/Clouds Blue/down.png").c_str(),
 		FixPath(AssetPath + L"Skies/Clouds Blue/front.png").c_str(),
 		FixPath(AssetPath + L"Skies/Clouds Blue/back.png").c_str(),
-		cube);*/
-	sky = std::make_shared<Sky>(
-		FixPath(AssetPath + L"Skies/Clouds Blue/IBL/sky_cube.dds").c_str(),
-		FixPath(AssetPath + L"Skies/Clouds Blue/IBL/ibl_irradiance_cube.dds").c_str(),
-		FixPath(AssetPath + L"Skies/Clouds Blue/IBL/ibl_specular_cube_7_mips.dds").c_str(),
-		FixPath(AssetPath + L"Skies/Clouds Blue/IBL/brdf_look_up_table.dds").c_str(),
+		cube));
+
+	// Second is loading preexisting IBL maps
+	skies.push_back(std::make_shared<Sky>(
+		FixPath(AssetPath + L"Skies/Planet/IBL/sky_cube.dds").c_str(),
+		FixPath(AssetPath + L"Skies/Planet/IBL/ibl_irradiance_cube.dds").c_str(),
+		FixPath(AssetPath + L"Skies/Planet/IBL/ibl_specular_cube_7_mips.dds").c_str(),
+		FixPath(AssetPath + L"Skies/Planet/IBL/brdf_look_up_table.dds").c_str(),
 		7,
-		cube
-	);
+		cube));
 }
 
 
@@ -541,11 +545,11 @@ void Game::Draw(float deltaTime, float totalTime)
 		{
 			PixelShaderPerFrameData psFrame{};
 			psFrame.cameraPosition = camera->GetTransform()->GetPosition();
-			psFrame.lightCount = lightCount;
-			psFrame.totalSpecularMipLevels = sky->GetTotalSpecularMipLevels();
-			psFrame.brdfLUTIndex = sky->GetBrdfLookUpTableDescriptorIndex();
-			psFrame.irradianceIndex = sky->GetIrradianceMapDescriptorIndex();
-			psFrame.specularIndex = sky->GetSpecularMapDescriptorIndex();
+			psFrame.lightCount = directLightingEnabled ? lightCount : 0;
+			psFrame.totalSpecularMipLevels = skies[currentSky]->GetTotalSpecularMipLevels();
+			psFrame.brdfLUTIndex = skies[currentSky]->GetBrdfLookUpTableDescriptorIndex();
+			psFrame.irradianceIndex = skies[currentSky]->GetIrradianceMapDescriptorIndex();
+			psFrame.specularIndex = skies[currentSky]->GetSpecularMapDescriptorIndex();
 			psFrame.IndirectLightingEnabled = indirectLightingEnabled;
 			memcpy(psFrame.lights, &lights[0], sizeof(Light) * lightCount);
 
@@ -621,7 +625,7 @@ void Game::Draw(float deltaTime, float totalTime)
 	}
 
 	// Skybox after opaque objects
-	sky->Draw(camera);
+	skies[currentSky]->Draw(camera);
 
 	// ImGui Render after all other scene objects
 	{
@@ -718,6 +722,12 @@ void Game::BuildUI()
 		// === IBL ===
 		if (ImGui::TreeNode("Image Based Lighting"))
 		{
+			ImGui::Text("Current Sky: %i", currentSky);
+			if (ImGui::Button("Next Sky"))
+				currentSky = (currentSky + 1) % skies.size();
+
+			ImGui::Spacing();
+			ImGui::Checkbox("Direct Lighting Enabled", &directLightingEnabled);
 			ImGui::Checkbox("Indirect Lighting Enabled", &indirectLightingEnabled);
 
 			ImGui::Spacing();
@@ -725,7 +735,7 @@ void Game::BuildUI()
 
 			// Convert descriptor index BACK into actual GPU handle
 			D3D12_GPU_DESCRIPTOR_HANDLE t = Graphics::CBVSRVDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
-			t.ptr += sky->GetBrdfLookUpTableDescriptorIndex() * Graphics::Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+			t.ptr += skies[currentSky]->GetBrdfLookUpTableDescriptorIndex() * Graphics::Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 			ImGui::Image(ImTextureRef(t.ptr), ImVec2(256, 256));
 
 			// Finalize the tree node
