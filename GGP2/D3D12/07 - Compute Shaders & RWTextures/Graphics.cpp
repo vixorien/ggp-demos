@@ -458,7 +458,7 @@ unsigned int Graphics::LoadTexture(const wchar_t* file, bool generateMips)
 
 	// Attempt to create the texture
 	Microsoft::WRL::ComPtr<ID3D12Resource> texture;
-	if(isDDS)
+	if (isDDS)
 		DirectX::CreateDDSTextureFromFile(Device.Get(), upload, file, texture.GetAddressOf(), generateMips);
 	else
 		DirectX::CreateWICTextureFromFile(Device.Get(), upload, file, texture.GetAddressOf(), generateMips);
@@ -467,20 +467,36 @@ unsigned int Graphics::LoadTexture(const wchar_t* file, bool generateMips)
 	auto finish = upload.End(CommandQueue.Get());
 	finish.wait();
 
-	// Now that we have the texture, add to our list and make a CPU-side descriptor heap
-	// just for this texture's SRV.  Note that it would probably be better to put all 
-	// texture SRVs into the same descriptor heap, but we don't know how many we'll need
-	// until they're all loaded and this is a quick and dirty implementation!
+	// Save the texure and grab the description for the SRV below
 	textures.push_back(texture);
+	D3D12_RESOURCE_DESC desc = texture->GetDesc();
 
 	// Save the index of this descriptor and increment the overall offset
 	unsigned int srvIndex = srvDescriptorOffset;
 	srvDescriptorOffset++;
 
 	// Create the SRV in the main descriptor heap at the appropriate offset
+	D3D12_SHADER_RESOURCE_VIEW_DESC srv{};
+	srv.Format = desc.Format;
+	srv.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	if (desc.Width == desc.Height && desc.DepthOrArraySize == 6)
+	{
+		// It's most likely a cube map
+		srv.ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE;
+		srv.TextureCube.MipLevels = desc.MipLevels;
+		srv.TextureCube.MostDetailedMip = 0;
+	}
+	else
+	{
+		// Standard 2d texture
+		srv.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+		srv.Texture2D.MipLevels = desc.MipLevels;
+		srv.Texture2D.MostDetailedMip = 0;
+	}
+
 	D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = CBVSRVDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
 	cpuHandle.ptr += srvIndex * Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	Device->CreateShaderResourceView(texture.Get(), 0, cpuHandle);
+	Device->CreateShaderResourceView(texture.Get(), &srv, cpuHandle);
 
 	// Send back the index of the descriptor
 	return srvIndex;

@@ -337,14 +337,22 @@ void Game::CreateGeometry()
 	}
 
 	// Load the sky
-	sky = std::make_shared<Sky>(
+	/*sky = std::make_shared<Sky>(
 		FixPath(AssetPath + L"Skies/Clouds Blue/right.png").c_str(),
 		FixPath(AssetPath + L"Skies/Clouds Blue/left.png").c_str(),
 		FixPath(AssetPath + L"Skies/Clouds Blue/up.png").c_str(),
 		FixPath(AssetPath + L"Skies/Clouds Blue/down.png").c_str(),
 		FixPath(AssetPath + L"Skies/Clouds Blue/front.png").c_str(),
 		FixPath(AssetPath + L"Skies/Clouds Blue/back.png").c_str(),
-		cube);
+		cube);*/
+	sky = std::make_shared<Sky>(
+		FixPath(AssetPath + L"Skies/Clouds Blue/IBL/sky_cube.dds").c_str(),
+		FixPath(AssetPath + L"Skies/Clouds Blue/IBL/ibl_irradiance_cube.dds").c_str(),
+		FixPath(AssetPath + L"Skies/Clouds Blue/IBL/ibl_specular_cube_7_mips.dds").c_str(),
+		FixPath(AssetPath + L"Skies/Clouds Blue/IBL/brdf_look_up_table.dds").c_str(),
+		7,
+		cube
+	);
 }
 
 

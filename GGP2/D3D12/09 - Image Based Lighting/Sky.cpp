@@ -63,6 +63,27 @@ Sky::Sky(
 	CreateIBLResources();
 }
 
+Sky::Sky(
+	const wchar_t* cubemapDDSFile,
+	const wchar_t* irradianceMapDDSFile, 
+	const wchar_t* specularMapDDSFile, 
+	const wchar_t* brdfLookUpTableDDSFile, 
+	unsigned int totalSpecMipLevels,
+	std::shared_ptr<Mesh> mesh)
+	:
+	skyMesh(mesh),
+	totalSpecMipLevels(totalSpecMipLevels)
+{
+	// Init render states
+	InitRenderStates();
+
+	// Load the textures
+	skyboxDescriptorIndex = Graphics::LoadTexture(cubemapDDSFile, false);
+	irradianceMapDescriptorIndex = Graphics::LoadTexture(irradianceMapDDSFile, false);
+	specularMapDescriptorIndex = Graphics::LoadTexture(specularMapDDSFile, false);
+	brdfLookUpTableDescriptorIndex = Graphics::LoadTexture(brdfLookUpTableDDSFile, false);
+}
+
 Sky::~Sky()
 {
 }
@@ -361,7 +382,7 @@ void Sky::CreateIBLSpecularMap()
 	// Run the compute shader to create the specular map,
 	// one mip level at a time since you cannot access
 	// individual mips of a RWTexture in a compute shader :/
-	for (int mip = 0; mip < totalSpecMipLevels; mip++)
+	for (unsigned int mip = 0; mip < totalSpecMipLevels; mip++)
 	{
 		// Create a UAV for this mip level
 		D3D12_CPU_DESCRIPTOR_HANDLE uav_cpu;
@@ -381,7 +402,7 @@ void Sky::CreateIBLSpecularMap()
 		Graphics::CommandList->SetComputeRootSignature(computeRootSig.Get());
 
 		// Calculate the size of this mip level
-		unsigned int mipSize = (float)pow(2, totalSpecMipLevels + SpecMipLevelsToSkip - 1 - mip);
+		unsigned int mipSize = (unsigned int)pow(2, totalSpecMipLevels + SpecMipLevelsToSkip - 1 - mip);
 
 		SpecularComputeIndices data{};
 		data.EnvironmentMapDescriptorIndex = skyboxDescriptorIndex;

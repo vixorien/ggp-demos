@@ -65,6 +65,17 @@ public:
 		std::shared_ptr<Mesh> mesh
 	);
 
+	// Constructor that loads a cube map and other
+	// IBL maps together, rather than making them dynamically
+	Sky(
+		const wchar_t* cubemapDDSFile,
+		const wchar_t* irradianceMapDDSFile,
+		const wchar_t* specularMapDDSFile,
+		const wchar_t* brdfLookUpTableDDSFile,
+		unsigned int totalSpecMipLevels,
+		std::shared_ptr<Mesh> mesh
+	);
+
 	~Sky();
 
 	void Draw(std::shared_ptr<Camera> camera);
