@@ -308,8 +308,10 @@ void Sky::CreateIBLResources()
 
 void Sky::CreateIBLBrdfLookUpTable()
 {
+	DXGI_FORMAT colorFormat = DXGI_FORMAT_R16G16_UNORM;
+
 	// Create the look up table texture
-	brdfLookUpTable = Graphics::CreateTexture(BrdfLookUpTableSize, BrdfLookUpTableSize, 1, 1, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
+	brdfLookUpTable = Graphics::CreateTexture(BrdfLookUpTableSize, BrdfLookUpTableSize, 1, 1, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, colorFormat);
 
 	// Create a UAV for it
 	D3D12_CPU_DESCRIPTOR_HANDLE uav_cpu;
@@ -317,7 +319,7 @@ void Sky::CreateIBLBrdfLookUpTable()
 	Graphics::ReserveDescriptorHeapSlot(&uav_cpu, &uav_gpu);
 
 	D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc{};
-	uavDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	uavDesc.Format = colorFormat;
 	uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
 	uavDesc.Texture2D.MipSlice = 0;
 	Graphics::Device->CreateUnorderedAccessView(brdfLookUpTable.Get(), 0, &uavDesc, uav_cpu);

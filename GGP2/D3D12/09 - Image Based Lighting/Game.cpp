@@ -734,9 +734,7 @@ void Game::BuildUI()
 			ImGui::Text("IBL BRDF Look Up Table");
 
 			// Convert descriptor index BACK into actual GPU handle
-			D3D12_GPU_DESCRIPTOR_HANDLE t = Graphics::CBVSRVDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
-			t.ptr += skies[currentSky]->GetBrdfLookUpTableDescriptorIndex() * Graphics::Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-			ImGui::Image(ImTextureRef(t.ptr), ImVec2(256, 256));
+			ImageWithHover(skies[currentSky]->GetBrdfLookUpTableDescriptorIndex(), ImVec2(256, 256));
 
 			// Finalize the tree node
 			ImGui::TreePop();
@@ -746,6 +744,48 @@ void Game::BuildUI()
 	ImGui::End();
 }
 
+void Game::ImageWithHover(unsigned int descriptorIndex, const ImVec2& size)
+{
+	// Convert descriptor index BACK into actual GPU handle
+	D3D12_GPU_DESCRIPTOR_HANDLE t = Graphics::CBVSRVDescriptorHeap->GetGPUDescriptorHandleForHeapStart();
+	t.ptr += 
+		skies[currentSky]->GetBrdfLookUpTableDescriptorIndex() * 
+		Graphics::Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+
+	// Draw the image
+	ImGui::Image(ImTextureRef(t.ptr), size);
+
+	// Check for hover
+	if (ImGui::IsItemHovered())
+	{
+		// Zoom amount and aspect of the image
+		float zoom = 0.03f;
+		float aspect = (float)size.x / size.y;
+
+		// Get the coords of the image
+		ImVec2 topLeft = ImGui::GetItemRectMin();
+		ImVec2 bottomRight = ImGui::GetItemRectMax();
+
+		// Get the mouse pos as a percent across the image, clamping near the edge
+		ImVec2 mousePosGlobal = ImGui::GetMousePos();
+		ImVec2 mousePos = ImVec2(mousePosGlobal.x - topLeft.x, mousePosGlobal.y - topLeft.y);
+		ImVec2 uvPercent = ImVec2(mousePos.x / size.x, mousePos.y / size.y);
+
+		uvPercent.x = max(uvPercent.x, zoom / 2);
+		uvPercent.x = min(uvPercent.x, 1 - zoom / 2);
+		uvPercent.y = max(uvPercent.y, zoom / 2 * aspect);
+		uvPercent.y = min(uvPercent.y, 1 - zoom / 2 * aspect);
+
+		// Figure out the uv coords for the zoomed image
+		ImVec2 uvTL = ImVec2(uvPercent.x - zoom / 2, uvPercent.y - zoom / 2 * aspect);
+		ImVec2 uvBR = ImVec2(uvPercent.x + zoom / 2, uvPercent.y + zoom / 2 * aspect);
+
+		// Draw a floating box with a zoomed view of the image
+		ImGui::BeginTooltip();
+		ImGui::Image(ImTextureRef(t.ptr), ImVec2(256, 256), uvTL, uvBR);
+		ImGui::EndTooltip();
+	}
+}
 
 
 

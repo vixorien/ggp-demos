@@ -7,6 +7,8 @@
 #include "Lights.h"
 #include "Sky.h"
 
+#include "ImGui/imgui.h"
+
 #include <d3d12.h>
 #include <wrl/client.h>
 #include <vector>
@@ -36,7 +38,8 @@ private:
 
 	// UI functions and variables
 	void UINewFrame(float deltaTime);
-	void BuildUI();
+	void BuildUI(); 
+	void ImageWithHover(unsigned int descriptorIndex, const ImVec2& size);
 	bool showUIDemoWindow;
 
 	// Pipeline
