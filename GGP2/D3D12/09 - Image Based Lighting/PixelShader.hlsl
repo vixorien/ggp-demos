@@ -142,10 +142,13 @@ float4 main(VertexToPixel input) : SV_TARGET
 	// -- Specular IBL --
 	float3 indSpecFresnel = specColor * indirectBRDF.x + indirectBRDF.y;
 	float3 viewRefl = reflect(-viewToCam, input.normal);
-	float3 indirectSpecular = SpecularMap.SampleLevel(BasicSampler, viewRefl, roughness * (cbFrame.totalSpecularMipLevels - 1.0)).rgb * indSpecFresnel;
+	float mip = roughness * (cbFrame.totalSpecularMipLevels - 1.0);
+	float3 indirectSpecular = SpecularMap.SampleLevel(BasicSampler, viewRefl, mip).rgb * indSpecFresnel;
 	
 	// -- Total Indirect --
-	float3 fullIndirect = (indirectDiffuse * surfaceColor.rgb * saturate(1.0f - metal)) + indirectSpecular;
+	float3 fullIndirect = 
+		(indirectDiffuse * surfaceColor.rgb * saturate(1.0f - metal)) + 
+		indirectSpecular;
 	
 	// Add indirect if necessary
 	totalLight += cbFrame.IndirectLightingEnabled ? fullIndirect : 0;
