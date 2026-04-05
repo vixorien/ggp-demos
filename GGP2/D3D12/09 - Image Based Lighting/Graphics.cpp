@@ -776,6 +776,113 @@ Microsoft::WRL::ComPtr<ID3D12Resource> Graphics::CreateStaticBuffer(size_t dataS
 	return finalBuffer;
 }
 
+// Only gets the FIRST MIP LEVEL and ASSUMES RGBA or BGRA format
+void Graphics::ReadTextureDataFromGPU(Microsoft::WRL::ComPtr<ID3D12Resource> texture, std::vector<unsigned char>& pixelData)
+{
+	D3D12_RESOURCE_DESC textureDesc{};
+	textureDesc = texture->GetDesc();
+
+	// Need to read back the contents of the texture
+	D3D12_HEAP_PROPERTIES props = {};
+	props.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+	props.CreationNodeMask = 1;
+	props.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+	props.Type = D3D12_HEAP_TYPE_READBACK;
+	props.VisibleNodeMask = 1;
+
+	unsigned int formatSize = 0;
+	switch (textureDesc.Format)
+	{
+	case DXGI_FORMAT_R8G8B8A8_UNORM:
+	case DXGI_FORMAT_B8G8R8A8_UNORM:
+		formatSize = sizeof(unsigned char) * 4;
+		break;
+
+	default: return;
+	}
+
+	// Readback must be through a BUFFER
+	unsigned long long rowPitch = textureDesc.Width * formatSize;
+	unsigned long long bufferSizeInBytes =
+		rowPitch *
+		textureDesc.Height *
+		textureDesc.DepthOrArraySize;
+
+	D3D12_RESOURCE_DESC desc = {};
+	desc.Alignment = 0;
+	desc.DepthOrArraySize = 1;
+	desc.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+	desc.Flags = D3D12_RESOURCE_FLAG_NONE;
+	desc.Format = DXGI_FORMAT_UNKNOWN;
+	desc.Height = 1;
+	desc.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+	desc.MipLevels = 1;
+	desc.SampleDesc.Count = 1;
+	desc.SampleDesc.Quality = 0;
+	desc.Width = bufferSizeInBytes;
+
+	Microsoft::WRL::ComPtr<ID3D12Resource> readback;
+	Graphics::Device->CreateCommittedResource(
+		&props,
+		D3D12_HEAP_FLAG_NONE,
+		&desc,
+		D3D12_RESOURCE_STATE_COPY_DEST,
+		0,
+		IID_PPV_ARGS(readback.GetAddressOf()));
+
+	// Transition source to proper state
+	D3D12_RESOURCE_BARRIER tr{};
+	tr.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	tr.Transition.pResource = texture.Get();
+	tr.Transition.StateBefore = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE; // Default state after load
+	tr.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_SOURCE;
+	tr.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+	CommandList->ResourceBarrier(1, &tr);
+
+	// Copy data from original texture to readback texture
+	for (unsigned int arrayElement = 0; arrayElement < textureDesc.DepthOrArraySize; arrayElement++)
+	{
+		// Set up destination
+		D3D12_TEXTURE_COPY_LOCATION destLoc{};
+		destLoc.pResource = readback.Get();
+		destLoc.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+
+		// Use helper function to fill out "footprint" of the buffer
+		D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint;
+		Device->GetCopyableFootprints(&textureDesc, arrayElement, 1, 0, &footprint, 0, 0, 0);
+		destLoc.PlacedFootprint = footprint;
+
+		// Set up source
+		D3D12_TEXTURE_COPY_LOCATION srcLoc{};
+		srcLoc.pResource = texture.Get();
+		srcLoc.SubresourceIndex = arrayElement;
+		srcLoc.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+
+		// Copy the subresource
+		CommandList->CopyTextureRegion(&destLoc, 0, 0, 0, &srcLoc, 0);
+	}
+
+	// Transition original texture back
+	tr.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_SOURCE;
+	tr.Transition.StateAfter = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+	CommandList->ResourceBarrier(1, &tr);
+
+	// Perform copy
+	CloseAndExecuteCommandList();
+	WaitForGPU();
+	ResetAllocatorAndCommandList();
+
+	// Resize the vector
+	pixelData.resize(bufferSizeInBytes);
+	unsigned long long offset = 0;
+
+	// Map and copy the data from the buffer
+	void* mapped;
+	readback->Map(0, 0, &mapped);
+	memcpy(pixelData.data(), mapped, bufferSizeInBytes);
+	readback->Unmap(0, 0);
+}
+
 
 // --------------------------------------------------------
 // Copies the given data into the next "unused" spot in

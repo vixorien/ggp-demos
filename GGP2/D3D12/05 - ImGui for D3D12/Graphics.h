@@ -35,7 +35,7 @@ namespace Graphics
 	inline Microsoft::WRL::ComPtr<IDXGISwapChain>	SwapChain;
 
 	// Command submission
-	inline Microsoft::WRL::ComPtr<ID3D12CommandAllocator>		CommandAllocator;
+	inline Microsoft::WRL::ComPtr<ID3D12CommandAllocator>		CommandAllocator[NumBackBuffers];
 	inline Microsoft::WRL::ComPtr<ID3D12CommandQueue>			CommandQueue;
 	inline Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList>	CommandList;
 
@@ -54,7 +54,8 @@ namespace Graphics
 	// Basic CPU/GPU synchronization
 	inline Microsoft::WRL::ComPtr<ID3D12Fence>	WaitFence;
 	inline HANDLE								WaitFenceEvent = 0;
-	inline UINT64								WaitFenceCounter = 0;
+	inline UINT64								CPUCounter = 0;
+	inline UINT64								GPUCounter = 0;
 
 	// Debug Layer
 	inline Microsoft::WRL::ComPtr<ID3D12InfoQueue> InfoQueue;
@@ -88,7 +89,7 @@ namespace Graphics
 	unsigned int GetDescriptorIndex(D3D12_GPU_DESCRIPTOR_HANDLE handle);
 
 	// Command list & synchronization
-	void ResetAllocatorAndCommandList();
+	void ResetAllocatorAndCommandList(unsigned int swapChainIndex);
 	void CloseAndExecuteCommandList();
 	void WaitForGPU();
 

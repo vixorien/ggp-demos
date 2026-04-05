@@ -30,7 +30,7 @@ float G_Smith(float Roughness, float NdotV, float NdotL)
 
 // Convolves the texture cube for a particular roughness and vector
 float2 IntegrateBRDF(float roughnessValue, float nDotV)
-{
+{	
 	float3 V;
 	V.x = sqrt(1.0f - nDotV * nDotV);
 	V.y = 0;

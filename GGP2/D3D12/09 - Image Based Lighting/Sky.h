@@ -44,14 +44,15 @@ public:
 
 	// Constructor that takes an existing cube map SRV
 	Sky(
-		std::shared_ptr<Mesh> mesh,
-		unsigned int skyboxDescriptorIndex
+		unsigned int skyboxDescriptorIndex,
+		std::shared_ptr<Mesh> mesh
 	);
 
 	// Constructor that loads a DDS cube map file
 	Sky(
 		const wchar_t* cubemapDDSFile, 
-		std::shared_ptr<Mesh> mesh
+		std::shared_ptr<Mesh> mesh,
+		bool useSphericalHarmonicsForIrradiance = false
 	);
 
 	// Constructor that loads 6 textures and makes a cube map
@@ -62,7 +63,8 @@ public:
 		const wchar_t* down,
 		const wchar_t* front,
 		const wchar_t* back,
-		std::shared_ptr<Mesh> mesh
+		std::shared_ptr<Mesh> mesh,
+		bool useSphericalHarmonicsForIrradiance = false
 	);
 
 	// Constructor that loads a cube map and other
@@ -109,6 +111,7 @@ private:
 	void CreateIBLBrdfLookUpTable();
 	void CreateIBLSpecularMap();
 	void CreateIBLIrradianceMap();
+	void CreateIBLIrradianceSphericalHarmonics(Microsoft::WRL::ComPtr<ID3D12Resource> skyCube);
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> computeRootSig;
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> brdfLookUpTablePSO;
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> specularMapPSO;
@@ -121,5 +124,7 @@ private:
 	unsigned int brdfLookUpTableDescriptorIndex = -1;
 	unsigned int specularMapDescriptorIndex = -1;
 	unsigned int irradianceMapDescriptorIndex = -1;
+
+	bool useSphericalHarmonicsForIrradiance;
 };
 

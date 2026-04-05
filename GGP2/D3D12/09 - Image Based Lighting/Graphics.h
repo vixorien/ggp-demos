@@ -5,6 +5,7 @@
 #include <dxgi1_6.h>
 #include <string>
 #include <wrl/client.h>
+#include <vector>
 
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
@@ -89,6 +90,7 @@ namespace Graphics
 		D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAG_NONE,
 		DXGI_FORMAT colorFormat = DXGI_FORMAT_R8G8B8A8_UNORM);
 	Microsoft::WRL::ComPtr<ID3D12Resource> CreateStaticBuffer(size_t dataStride, size_t dataCount, void* data);
+	void ReadTextureDataFromGPU(Microsoft::WRL::ComPtr<ID3D12Resource> texture, std::vector<unsigned char>& pixelData);
 
 	// Resource usage
 	D3D12_GPU_DESCRIPTOR_HANDLE FillNextConstantBufferAndGetGPUDescriptorHandle(

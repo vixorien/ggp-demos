@@ -13,11 +13,12 @@ using namespace DirectX;
 
 // Constructor that takes an existing cube map SRV index
 Sky::Sky(
-	std::shared_ptr<Mesh> mesh,
-	unsigned int skyboxDescriptorIndex) 
+	unsigned int skyboxDescriptorIndex,
+	std::shared_ptr<Mesh> mesh)
 	:
 	skyboxDescriptorIndex(skyboxDescriptorIndex),
-	skyMesh(mesh)
+	skyMesh(mesh),
+	useSphericalHarmonicsForIrradiance(false)
 {
 	// Init render states and compute IBL resources from environment map
 	InitRenderStates();
@@ -27,9 +28,11 @@ Sky::Sky(
 // Constructor that loads a DDS cube map file
 Sky::Sky(
 	const wchar_t* cubemapDDSFile,
-	std::shared_ptr<Mesh> mesh) 
+	std::shared_ptr<Mesh> mesh,
+	bool useSphericalHarmonicsForIrradiance)
 	:
-	skyMesh(mesh)
+	skyMesh(mesh),
+	useSphericalHarmonicsForIrradiance(useSphericalHarmonicsForIrradiance)
 {
 	// Init render states
 	InitRenderStates();
@@ -49,9 +52,11 @@ Sky::Sky(
 	const wchar_t* down, 
 	const wchar_t* front, 
 	const wchar_t* back, 
-	std::shared_ptr<Mesh> mesh)
+	std::shared_ptr<Mesh> mesh,
+	bool useSphericalHarmonicsForIrradiance)
 	:
-	skyMesh(mesh)
+	skyMesh(mesh),
+	useSphericalHarmonicsForIrradiance(useSphericalHarmonicsForIrradiance)
 {
 	// Init render states
 	InitRenderStates();
@@ -72,7 +77,8 @@ Sky::Sky(
 	std::shared_ptr<Mesh> mesh)
 	:
 	skyMesh(mesh),
-	totalSpecMipLevels(totalSpecMipLevels)
+	totalSpecMipLevels(totalSpecMipLevels),
+	useSphericalHarmonicsForIrradiance(false)
 {
 	// Init render states
 	InitRenderStates();
@@ -477,6 +483,17 @@ void Sky::CreateIBLIrradianceMap()
 		Graphics::CommandList->SetPipelineState(irradianceMapPSO.Get());
 		Graphics::CommandList->Dispatch(IrradianceMapSize / 8, IrradianceMapSize / 8, 6); // 6 on Z for cube map!
 	}
+
+	// TEST
+	std::vector<unsigned char> pixels;
+	Graphics::ReadTextureDataFromGPU(irradianceMap, pixels);
+
+}
+
+void Sky::CreateIBLIrradianceSphericalHarmonics(Microsoft::WRL::ComPtr<ID3D12Resource> skyCube)
+{
+	std::vector<unsigned char> pixelData;
+	Graphics::ReadTextureDataFromGPU(skyCube, pixelData);
 }
 
 void Sky::Draw(std::shared_ptr<Camera> camera)

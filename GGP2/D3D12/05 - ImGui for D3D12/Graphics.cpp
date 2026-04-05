@@ -142,10 +142,13 @@ HRESULT Graphics::Initialize(unsigned int windowWidth, unsigned int windowHeight
 	// Set up D3D12 command allocator / queue / list,
 	// which are necessary pieces for issuing standard API calls
 	{
-		// Set up allocator
-		Device->CreateCommandAllocator(
-			D3D12_COMMAND_LIST_TYPE_DIRECT,
-			IID_PPV_ARGS(CommandAllocator.GetAddressOf()));
+		// Set up allocators (one per possible frame "in flight")
+		for (unsigned int i = 0; i < NumBackBuffers; i++)
+		{
+			Device->CreateCommandAllocator(
+				D3D12_COMMAND_LIST_TYPE_DIRECT,
+				IID_PPV_ARGS(CommandAllocator[i].GetAddressOf()));
+		}
 
 		// Command queue
 		D3D12_COMMAND_QUEUE_DESC qDesc = {};
@@ -157,7 +160,7 @@ HRESULT Graphics::Initialize(unsigned int windowWidth, unsigned int windowHeight
 		Device->CreateCommandList(
 			0,								// Which physical GPU will handle these tasks?  0 for single GPU setup
 			D3D12_COMMAND_LIST_TYPE_DIRECT,	// Type of command list - direct is for standard API calls
-			CommandAllocator.Get(),			// The allocator for this list
+			CommandAllocator[0].Get(),		// The allocator for this list
 			0,								// Initial pipeline state - none for now
 			IID_PPV_ARGS(CommandList.GetAddressOf()));
 	}
@@ -194,7 +197,8 @@ HRESULT Graphics::Initialize(unsigned int windowWidth, unsigned int windowHeight
 	{
 		Device->CreateFence(0, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(WaitFence.GetAddressOf()));
 		WaitFenceEvent = CreateEventEx(0, 0, 0, EVENT_ALL_ACCESS);
-		WaitFenceCounter = 0;
+		CPUCounter = 0;
+		GPUCounter = 0;
 	}
 
 	// Overall API has been initialized
@@ -408,14 +412,20 @@ void Graphics::ResizeBuffers(unsigned int width, unsigned int height)
 			DSVHandle);
 	}
 
-	// Reset back to the first buffer
-	currentBackBufferIndex = 0;
-
 	// Are we in a fullscreen state?
 	SwapChain->GetFullscreenState(&isFullscreen, 0);
 
-	// Wait for the GPU before we proceed
-	WaitForGPU();
+	// Reset back to the first buffer
+	currentBackBufferIndex = 0;
+
+	// Close the command list (just in case), reset all allocators and 
+	// set the command list back to the first allocator.  This is 
+	// necessary to handle occasional 1-frame allocator errors after
+	// a resize.
+	CommandList->Close();
+	for (unsigned int i = 0; i < NumBackBuffers; i++)
+		CommandAllocator[i]->Reset();
+	CommandList->Reset(CommandAllocator[0].Get(), 0);
 }
 
 
@@ -426,6 +436,27 @@ void Graphics::ResizeBuffers(unsigned int width, unsigned int height)
 // --------------------------------------------------------
 void Graphics::AdvanceSwapChainIndex()
 {
+	// Increment our CPU-side counter and place "this frame" into the queue
+	CPUCounter++;
+	CommandQueue->Signal(WaitFence.Get(), CPUCounter);
+
+	// How far "ahead" are we?
+	UINT64 frames = CPUCounter - GPUCounter;
+	if (frames >= NumBackBuffers)
+	{
+		// Too far ahead, so wait for the next GPU counter (current + 1)
+		if (WaitFence->GetCompletedValue() < GPUCounter + 1)
+		{
+			// Not completed, so we wait
+			WaitFence->SetEventOnCompletion(GPUCounter + 1, WaitFenceEvent);
+			WaitForSingleObject(WaitFenceEvent, INFINITE);
+		}
+
+		// GPU has caught up one frame
+		GPUCounter++;
+	}
+
+	// Update the current back buffer index
 	currentBackBufferIndex++;
 	currentBackBufferIndex %= NumBackBuffers;
 }
@@ -702,10 +733,10 @@ unsigned int Graphics::GetDescriptorIndex(D3D12_GPU_DESCRIPTOR_HANDLE handle)
 // Always wait before reseting command allocator, as it should not
 // be reset while the GPU is processing a command list
 // --------------------------------------------------------
-void Graphics::ResetAllocatorAndCommandList()
+void Graphics::ResetAllocatorAndCommandList(unsigned int swapChainIndex)
 {
-	CommandAllocator->Reset();
-	CommandList->Reset(CommandAllocator.Get(), 0);
+	CommandAllocator[swapChainIndex]->Reset();
+	CommandList->Reset(CommandAllocator[swapChainIndex].Get(), 0);
 }
 
 
@@ -733,18 +764,21 @@ void Graphics::WaitForGPU()
 {
 	// Update our ongoing fence value (a unique index for each "stop sign")
 	// and then place that value into the GPU's command queue
-	WaitFenceCounter++;
-	CommandQueue->Signal(WaitFence.Get(), WaitFenceCounter);
+	CPUCounter++;
+	CommandQueue->Signal(WaitFence.Get(), CPUCounter);
 
 	// Check to see if the most recently completed fence value
 	// is less than the one we just set.
-	if (WaitFence->GetCompletedValue() < WaitFenceCounter)
+	if (WaitFence->GetCompletedValue() < CPUCounter)
 	{
 		// Tell the fence to let us know when it's hit, and then
 		// sit and wait until that fence is hit.
-		WaitFence->SetEventOnCompletion(WaitFenceCounter, WaitFenceEvent);
+		WaitFence->SetEventOnCompletion(CPUCounter, WaitFenceEvent);
 		WaitForSingleObject(WaitFenceEvent, INFINITE);
 	}
+
+	// We're fully caught up
+	GPUCounter = CPUCounter;
 }
 
 
