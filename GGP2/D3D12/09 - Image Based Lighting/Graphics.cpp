@@ -891,9 +891,13 @@ void Graphics::ReadTextureDataFromGPU(Microsoft::WRL::ComPtr<ID3D12Resource> tex
 		destLoc.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
 
 		// Use helper function to fill out "footprint" of the buffer
-		D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint;
-		Device->GetCopyableFootprints(&textureDesc, arrayElement, 1, 0, &footprint, 0, 0, 0);
-		destLoc.PlacedFootprint = footprint;
+		Device->GetCopyableFootprints(&textureDesc, arrayElement, 1, 100, &destLoc.PlacedFootprint, 0, 0, 0);
+
+		// Adjust the offset based on the overall byte size (and the face)
+		destLoc.PlacedFootprint.Offset = 
+			destLoc.PlacedFootprint.Footprint.RowPitch * 
+			destLoc.PlacedFootprint.Footprint.Height * 
+			arrayElement;
 
 		// Set up source
 		D3D12_TEXTURE_COPY_LOCATION srcLoc{};
@@ -902,6 +906,7 @@ void Graphics::ReadTextureDataFromGPU(Microsoft::WRL::ComPtr<ID3D12Resource> tex
 		srcLoc.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
 
 		// Copy the subresource
+		//unsigned int destOffset = footprint.Footprint.RowPitch * footprint.Footprint.Height * arrayElement;
 		CommandList->CopyTextureRegion(&destLoc, 0, 0, 0, &srcLoc, 0);
 	}
 

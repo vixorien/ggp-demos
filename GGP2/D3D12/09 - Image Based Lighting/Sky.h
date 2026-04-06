@@ -12,6 +12,9 @@ struct SkyDrawIndices
 	unsigned int vsVertexBufferIndex;
 	unsigned int vsCBIndex;
 	unsigned int psSkyboxIndex;
+
+	unsigned int useSH;
+	DirectX::XMFLOAT4 shValues[9];
 };
 
 struct BrdfLUTComputeIndices

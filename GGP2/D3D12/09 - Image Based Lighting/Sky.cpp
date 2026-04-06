@@ -595,7 +595,16 @@ void Sky::Draw(std::shared_ptr<Camera> camera)
 	SkyDrawIndices drawData{};
 	drawData.psSkyboxIndex = skyCubeMap.SRV.GPUDescriptorIndex;
 	drawData.vsVertexBufferIndex = Graphics::GetDescriptorIndex(skyMesh->GetVertexBufferDescriptorHandle());
-	
+
+	// SH data
+	drawData.useSH = true;
+	for (int i = 0; i < 9; i++)
+	{
+		drawData.shValues[i].x = shIrradiance[i * 3 + 0];
+		drawData.shValues[i].y = shIrradiance[i * 3 + 1];
+		drawData.shValues[i].z = shIrradiance[i * 3 + 2];
+	}
+
 	// Per frame data
 	{
 		VertexShaderPerFrameData vsFrame{};

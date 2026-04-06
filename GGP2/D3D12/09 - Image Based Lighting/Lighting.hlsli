@@ -463,5 +463,60 @@ float3 ImportanceSampleGGX(float2 Xi, float roughness, float3 N)
 }
 
 
+// === UTILITY FUNCTIONS for Spherical Harmonics ====================
+
+static const float CosineA0 = 1.0f;
+static const float CosineA1 = 2.0f / 3.0f;
+static const float CosineA2 = 0.25f;
+
+struct SH
+{
+	float Coefficients[9];	
+};
+
+SH GetSHWeights(float3 dir)
+{
+	SH sh;
+
+	// First band
+	sh.Coefficients[0] = 0.282095f;
+
+	// Second band
+	sh.Coefficients[1] = 0.488603f * dir.y;
+	sh.Coefficients[2] = 0.488603f * dir.z;
+	sh.Coefficients[3] = 0.488603f * dir.x;
+
+	// Third band
+	sh.Coefficients[4] = 1.092548f * dir.x * dir.y;
+	sh.Coefficients[5] = 1.092548f * dir.y * dir.z;
+	sh.Coefficients[6] = 0.315392f * (3.0f * dir.z * dir.z - 1.0f);
+	sh.Coefficients[7] = 1.092548f * dir.z * dir.x;
+	sh.Coefficients[8] = 0.546274f * (dir.x * dir.x - dir.y * dir.y);
+
+	return sh;
+}
+
+float3 GetSHColor(float3 dir, float4 shValues[9])
+{
+	SH shWeights = GetSHWeights(dir);
+	
+	shWeights.Coefficients[0] *= CosineA0;
+	
+	shWeights.Coefficients[1] *= CosineA1;
+	shWeights.Coefficients[2] *= CosineA1;
+	shWeights.Coefficients[3] *= CosineA1;
+	
+	shWeights.Coefficients[4] *= CosineA2;
+	shWeights.Coefficients[5] *= CosineA2;
+	shWeights.Coefficients[6] *= CosineA2;
+	shWeights.Coefficients[7] *= CosineA2;
+	shWeights.Coefficients[8] *= CosineA2;
+	
+	float3 finalColor = 0;
+	for(int i = 0; i < 9; i++)
+		finalColor += shWeights.Coefficients[i] * shValues[i].rgb;
+
+	return finalColor;
+}
 
 #endif
