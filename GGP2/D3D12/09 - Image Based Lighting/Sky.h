@@ -124,5 +124,6 @@ private:
 	TextureDetails irradianceMap;
 
 	bool useSphericalHarmonicsForIrradiance;
+	float shIrradiance[9 * 3]; // 9 coefficients * 3 color channels
 };
 

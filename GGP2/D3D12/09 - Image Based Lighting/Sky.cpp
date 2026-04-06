@@ -484,11 +484,19 @@ void Sky::CreateIBLIrradianceMap()
 
 void Sky::CreateIBLIrradianceSphericalHarmonics()
 {
+	// Grab the pixel data from the skybox cube map on the GPU
 	std::vector<unsigned char> pixelData;
 	Graphics::ReadTextureDataFromGPU(skyCubeMap.Texture, pixelData);
 
-	// Loop through the pixels of the texture
+	// Reset SH
+	for (int i = 0; i < 9 * 3; i++)
+		shIrradiance[i] = 0.0f;
+
+	// Grab texture description (for width & height)
 	D3D12_RESOURCE_DESC desc = skyCubeMap.Texture->GetDesc();
+
+	// Loop through the pixels of the texture
+	float totalWeight = 0;
 	for (unsigned int face = 0; face < 6; face++)
 	{
 		for (unsigned int y = 0; y < desc.Height; y++)
@@ -496,24 +504,85 @@ void Sky::CreateIBLIrradianceSphericalHarmonics()
 			for (unsigned int x = 0; x < desc.Width; x++)
 			{
 				// Index for the first of 4 pixel values
-				unsigned int index =
+				unsigned long long index =
 					face * desc.Width * desc.Height + // Skip to correct face
 					x + (y * desc.Width); // Get specific pixel
 
 				index *= 4; // 4 values per pixel
 
-				// Convert to color
-				XMFLOAT4 color(
+				// Convert this texel to color
+				XMFLOAT4 texelColor(
 					pixelData[index + 0] / 255.0f,
 					pixelData[index + 1] / 255.0f,
 					pixelData[index + 2] / 255.0f,
 					pixelData[index + 3] / 255.0f
 				);
 
+				// Calculate a 3D direction from x/y/face
+				XMFLOAT3 dir{};
+				float dx = x / (float)desc.Width * 2 - 1;
+				float dy = y / (float)desc.Height * 2 - 1;
+				switch (face)
+				{
+				case 0: dir = XMFLOAT3(+1, -dy, -dx); break;
+				case 1: dir = XMFLOAT3(-1, -dy, +dx); break;
+				case 2: dir = XMFLOAT3(+dx, +1, +dy); break;
+				case 3: dir = XMFLOAT3(+dx, -1, -dy); break;
+				case 4: dir = XMFLOAT3(+dx, -dy, +1); break;
+				case 5: dir = XMFLOAT3(-dx, -dy, -1); break;
+				}
+				XMVECTOR dirV = XMLoadFloat3(&dir);
+				XMStoreFloat3(&dir, XMVector3Normalize(dirV));
 				
+				// Cube maps are flat, so we need to calculate
+				// the texel's projected area on the sphere
+				float u = ((x + 0.5f) / (float)desc.Width) * 2 - 1;
+				float v = ((y + 0.5f) / (float)desc.Height) * 2 - 1;
+				float dist_sq = u * u + v * v + 1.0f; // Dist^2 from center to texel = x^2 + y^2 + z^2 (z == 1)
+				float projWeight = 4.0f / (float)sqrt(dist_sq) * dist_sq;
+
+				// Calculate this direction's influence using
+				// 3 spherical harmonics bands (9 total values)
+				float shDirWeight[9]{};
+				{
+					// First band
+					shDirWeight[0] = 0.282095f;
+
+					// Second band
+					shDirWeight[1] = 0.488603f * dir.y;
+					shDirWeight[2] = 0.488603f * dir.z;
+					shDirWeight[3] = 0.488603f * dir.x;
+
+					// Third band
+					shDirWeight[4] = 1.092548f * dir.x * dir.y;
+					shDirWeight[5] = 1.092548f * dir.y * dir.z;
+					shDirWeight[6] = 0.315392f * (3.0f * dir.z * dir.z - 1.0f);
+					shDirWeight[7] = 1.092548f * dir.z * dir.x;
+					shDirWeight[8] = 0.546274f * (dir.x * dir.x - dir.y * dir.y);
+				}
+
+				// Apply color of the texel in this direction to the
+				// overall SH results, weighted appropriately
+				for (int i = 0; i < 9; i++)
+				{
+					// Handle R/G/B of texel color
+					shIrradiance[i * 3 + 0] += shDirWeight[i] * texelColor.x * projWeight;
+					shIrradiance[i * 3 + 1] += shDirWeight[i] * texelColor.y * projWeight;
+					shIrradiance[i * 3 + 2] += shDirWeight[i] * texelColor.z * projWeight;
+				}
+				totalWeight += projWeight;
 			}
 		}
 	}
+
+	// Normalize results
+	float norm = (4.0f * XM_PI) / totalWeight;
+	for (int i = 0; i < 9 * 3; i++)
+		shIrradiance[i] *= norm;
+	
+	// TESTING
+	for (int i = 0; i < 9 * 3; i++)
+		printf("%f\n", shIrradiance[i]);
 }
 
 void Sky::Draw(std::shared_ptr<Camera> camera)
