@@ -48,7 +48,8 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> computeRootSig;
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> computePSO;
 	Microsoft::WRL::ComPtr<ID3D12Resource> ComputeOutputTexture;
-	D3D12_GPU_DESCRIPTOR_HANDLE ComputeOutputGPUHandle;
+	D3D12_CPU_DESCRIPTOR_HANDLE ComputeOutputCPUHandle{};
+	D3D12_GPU_DESCRIPTOR_HANDLE ComputeOutputGPUHandle{};
 	unsigned int ComputeOutputHeapIndex;
 	DrawData drawData;
 

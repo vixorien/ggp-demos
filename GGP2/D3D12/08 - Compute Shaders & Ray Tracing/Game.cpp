@@ -379,10 +379,12 @@ void Game::CreateOutputTexture(unsigned int width, unsigned int height)
 		0,
 		IID_PPV_ARGS(ComputeOutputTexture.GetAddressOf()));
 
-	// Reserve a slot
-	D3D12_CPU_DESCRIPTOR_HANDLE cpu;
-	Graphics::ReserveDescriptorHeapSlot(&cpu, &ComputeOutputGPUHandle);
-	ComputeOutputHeapIndex = Graphics::GetDescriptorIndex(ComputeOutputGPUHandle);
+	// Reserve a slot (only once)
+	if (!ComputeOutputCPUHandle.ptr && !ComputeOutputGPUHandle.ptr)
+	{
+		Graphics::ReserveDescriptorHeapSlot(&ComputeOutputCPUHandle, &ComputeOutputGPUHandle);
+		ComputeOutputHeapIndex = Graphics::GetDescriptorIndex(ComputeOutputGPUHandle);
+	}
 
 	// Create the SRV for it
 	D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc{};
@@ -390,7 +392,7 @@ void Game::CreateOutputTexture(unsigned int width, unsigned int height)
 	uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
 	uavDesc.Texture2D.MipSlice = 0;
 	uavDesc.Texture2D.PlaneSlice = 0;
-	Graphics::Device->CreateUnorderedAccessView(ComputeOutputTexture.Get(), 0, &uavDesc, cpu);
+	Graphics::Device->CreateUnorderedAccessView(ComputeOutputTexture.Get(), 0, &uavDesc, ComputeOutputCPUHandle);
 }
 
 
@@ -602,11 +604,10 @@ void Game::Draw(float deltaTime, float totalTime)
 		Graphics::SwapChain->Present(
 			vsync ? 1 : 0,
 			vsync ? 0 : DXGI_PRESENT_ALLOW_TEARING);
-		Graphics::AdvanceSwapChainIndex();
 
-		// Wait for the GPU to be done and then reset the command list & allocator
-		Graphics::WaitForGPU();
-		Graphics::ResetAllocatorAndCommandList();
+		// Reset the command list & allocator for the upcoming frame
+		Graphics::AdvanceSwapChainIndex();
+		Graphics::ResetAllocatorAndCommandList(Graphics::SwapChainIndex());
 	}
 }
 
