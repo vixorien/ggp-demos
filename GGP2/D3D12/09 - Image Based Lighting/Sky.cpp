@@ -11,12 +11,12 @@
 
 using namespace DirectX;
 
-// Constructor that takes an existing cube map SRV index
+// Constructor that takes an existing cube map
 Sky::Sky(
-	unsigned int skyboxDescriptorIndex,
+	TextureDetails skyCubeDetails,
 	std::shared_ptr<Mesh> mesh)
 	:
-	skyboxDescriptorIndex(skyboxDescriptorIndex),
+	skyCubeMap(skyCubeDetails),
 	skyMesh(mesh),
 	useSphericalHarmonicsForIrradiance(false)
 {
@@ -38,7 +38,7 @@ Sky::Sky(
 	InitRenderStates();
 
 	// Load the texture
-	skyboxDescriptorIndex = Graphics::LoadTexture(cubemapDDSFile, false);
+	skyCubeMap = Graphics::LoadTexture(cubemapDDSFile, false);
 
 	// Compute IBL resources from environment map
 	CreateIBLResources();
@@ -62,7 +62,7 @@ Sky::Sky(
 	InitRenderStates();
 
 	// Create texture from 6 images
-	skyboxDescriptorIndex = Graphics::CreateCubemap(right, left, up, down, front, back);
+	skyCubeMap = Graphics::CreateCubemap(right, left, up, down, front, back);
 
 	// Compute IBL resources from environment map
 	CreateIBLResources();
@@ -84,10 +84,10 @@ Sky::Sky(
 	InitRenderStates();
 
 	// Load the textures
-	skyboxDescriptorIndex = Graphics::LoadTexture(cubemapDDSFile, false);
-	irradianceMapDescriptorIndex = Graphics::LoadTexture(irradianceMapDDSFile, false);
-	specularMapDescriptorIndex = Graphics::LoadTexture(specularMapDDSFile, false);
-	brdfLookUpTableDescriptorIndex = Graphics::LoadTexture(brdfLookUpTableDDSFile, false);
+	skyCubeMap = Graphics::LoadTexture(cubemapDDSFile, false);
+	irradianceMap = Graphics::LoadTexture(irradianceMapDDSFile, false);
+	specularMap = Graphics::LoadTexture(specularMapDDSFile, false);
+	brdfLookUpTable = Graphics::LoadTexture(brdfLookUpTableDDSFile, false);
 }
 
 Sky::~Sky()
@@ -95,10 +95,10 @@ Sky::~Sky()
 }
 
 // Getters
-unsigned int Sky::GetSkyboxDescriptorIndex() { return skyboxDescriptorIndex; }
-unsigned int Sky::GetBrdfLookUpTableDescriptorIndex() { return brdfLookUpTableDescriptorIndex; }
-unsigned int Sky::GetIrradianceMapDescriptorIndex() { return irradianceMapDescriptorIndex; }
-unsigned int Sky::GetSpecularMapDescriptorIndex() { return specularMapDescriptorIndex; }
+unsigned int Sky::GetSkyboxDescriptorIndex() { return skyCubeMap.SRV.GPUDescriptorIndex; }
+unsigned int Sky::GetBrdfLookUpTableDescriptorIndex() { return brdfLookUpTable.SRV.GPUDescriptorIndex; }
+unsigned int Sky::GetIrradianceMapDescriptorIndex() { return irradianceMap.SRV.GPUDescriptorIndex; }
+unsigned int Sky::GetSpecularMapDescriptorIndex() { return specularMap.SRV.GPUDescriptorIndex; }
 unsigned int Sky::GetTotalSpecularMipLevels() { return totalSpecMipLevels; }
 
 void Sky::InitRenderStates()
@@ -320,24 +320,20 @@ void Sky::CreateIBLBrdfLookUpTable()
 	brdfLookUpTable = Graphics::CreateTexture(BrdfLookUpTableSize, BrdfLookUpTableSize, 1, 1, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS, colorFormat);
 
 	// Create a UAV for it
-	D3D12_CPU_DESCRIPTOR_HANDLE uav_cpu;
-	D3D12_GPU_DESCRIPTOR_HANDLE uav_gpu;
-	Graphics::ReserveDescriptorHeapSlot(&uav_cpu, &uav_gpu);
+	Graphics::ReserveDescriptorHeapSlot(&brdfLookUpTable.UAV.CPUHandle, &brdfLookUpTable.UAV.GPUHandle);
 
 	D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc{};
 	uavDesc.Format = colorFormat;
 	uavDesc.ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
 	uavDesc.Texture2D.MipSlice = 0;
-	Graphics::Device->CreateUnorderedAccessView(brdfLookUpTable.Get(), 0, &uavDesc, uav_cpu);
+	Graphics::Device->CreateUnorderedAccessView(brdfLookUpTable.Texture.Get(), 0, &uavDesc, brdfLookUpTable.UAV.CPUHandle);
 
 	// Create final SRV for it (using null description to get default SRV)
 	{
-		D3D12_CPU_DESCRIPTOR_HANDLE srv_cpu;
-		D3D12_GPU_DESCRIPTOR_HANDLE srv_gpu;
-		Graphics::ReserveDescriptorHeapSlot(&srv_cpu, &srv_gpu);
+		Graphics::ReserveDescriptorHeapSlot(&brdfLookUpTable.SRV.CPUHandle, &brdfLookUpTable.SRV.GPUHandle);
 
-		Graphics::Device->CreateShaderResourceView(brdfLookUpTable.Get(), 0, srv_cpu);
-		brdfLookUpTableDescriptorIndex = Graphics::GetDescriptorIndex(srv_gpu);
+		Graphics::Device->CreateShaderResourceView(brdfLookUpTable.Texture.Get(), 0, brdfLookUpTable.SRV.CPUHandle);
+		brdfLookUpTable.SRV.GPUDescriptorIndex = Graphics::GetDescriptorIndex(brdfLookUpTable.SRV.GPUHandle);
 	}
 
 	// Run the compute shader to create the brdf look up table
@@ -346,7 +342,7 @@ void Sky::CreateIBLBrdfLookUpTable()
 		Graphics::CommandList->SetComputeRootSignature(computeRootSig.Get());
 
 		BrdfLUTComputeIndices data{};
-		data.OutputDescriptorIndex = Graphics::GetDescriptorIndex(uav_gpu);
+		data.OutputDescriptorIndex = Graphics::GetDescriptorIndex(brdfLookUpTable.UAV.GPUHandle);
 		data.OutputWidth = BrdfLookUpTableSize;
 		data.OutputHeight = BrdfLookUpTableSize;
 		Graphics::CommandList->SetComputeRoot32BitConstants(
@@ -373,9 +369,7 @@ void Sky::CreateIBLSpecularMap()
 
 	// Create final SRV for it
 	{
-		D3D12_CPU_DESCRIPTOR_HANDLE srv_cpu;
-		D3D12_GPU_DESCRIPTOR_HANDLE srv_gpu;
-		Graphics::ReserveDescriptorHeapSlot(&srv_cpu, &srv_gpu);
+		Graphics::ReserveDescriptorHeapSlot(&specularMap.SRV.CPUHandle, &specularMap.SRV.GPUHandle);
 
 		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
 		srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -383,8 +377,8 @@ void Sky::CreateIBLSpecularMap()
 		srvDesc.TextureCube.MipLevels = totalSpecMipLevels;
 		srvDesc.TextureCube.MostDetailedMip = 0;
 		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-		Graphics::Device->CreateShaderResourceView(specularMap.Get(), &srvDesc, srv_cpu);
-		specularMapDescriptorIndex = Graphics::GetDescriptorIndex(srv_gpu);
+		Graphics::Device->CreateShaderResourceView(specularMap.Texture.Get(), &srvDesc, specularMap.SRV.CPUHandle);
+		specularMap.SRV.GPUDescriptorIndex = Graphics::GetDescriptorIndex(specularMap.SRV.GPUHandle);
 	}
 
 	// Run the compute shader to create the specular map,
@@ -403,7 +397,7 @@ void Sky::CreateIBLSpecularMap()
 		uavDesc.Texture2DArray.ArraySize = 6;
 		uavDesc.Texture2DArray.FirstArraySlice = 0;
 		uavDesc.Texture2DArray.MipSlice = mip;
-		Graphics::Device->CreateUnorderedAccessView(specularMap.Get(), 0, &uavDesc, uav_cpu);
+		Graphics::Device->CreateUnorderedAccessView(specularMap.Texture.Get(), 0, &uavDesc, uav_cpu);
 
 		// Set up compute pipeline
 		Graphics::CommandList->SetDescriptorHeaps(1, Graphics::CBVSRVDescriptorHeap.GetAddressOf());
@@ -413,7 +407,7 @@ void Sky::CreateIBLSpecularMap()
 		unsigned int mipSize = (unsigned int)pow(2, totalSpecMipLevels + SpecMipLevelsToSkip - 1 - mip);
 
 		SpecularComputeIndices data{};
-		data.EnvironmentMapDescriptorIndex = skyboxDescriptorIndex;
+		data.EnvironmentMapDescriptorIndex = skyCubeMap.SRV.GPUDescriptorIndex;
 		data.OutputDescriptorIndex = Graphics::GetDescriptorIndex(uav_gpu);
 		data.OutputWidth = mipSize;
 		data.OutputHeight = mipSize;
@@ -436,9 +430,7 @@ void Sky::CreateIBLIrradianceMap()
 	irradianceMap = Graphics::CreateTexture(IrradianceMapSize, IrradianceMapSize, 6, 1, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 
 	// Create a UAV for it
-	D3D12_CPU_DESCRIPTOR_HANDLE uav_cpu;
-	D3D12_GPU_DESCRIPTOR_HANDLE uav_gpu;
-	Graphics::ReserveDescriptorHeapSlot(&uav_cpu, &uav_gpu);
+	Graphics::ReserveDescriptorHeapSlot(&irradianceMap.UAV.CPUHandle, &irradianceMap.UAV.GPUHandle);
 
 	D3D12_UNORDERED_ACCESS_VIEW_DESC uavDesc{};
 	uavDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
@@ -446,7 +438,8 @@ void Sky::CreateIBLIrradianceMap()
 	uavDesc.Texture2DArray.ArraySize = 6;
 	uavDesc.Texture2DArray.FirstArraySlice = 0;
 	uavDesc.Texture2DArray.MipSlice = 0;
-	Graphics::Device->CreateUnorderedAccessView(irradianceMap.Get(), 0, &uavDesc, uav_cpu);
+	Graphics::Device->CreateUnorderedAccessView(irradianceMap.Texture.Get(), 0, &uavDesc, irradianceMap.UAV.CPUHandle);
+	irradianceMap.UAV.GPUDescriptorIndex = Graphics::GetDescriptorIndex(irradianceMap.UAV.GPUHandle);
 
 	// Create final SRV for it
 	{
@@ -460,8 +453,8 @@ void Sky::CreateIBLIrradianceMap()
 		srvDesc.TextureCube.MipLevels = 1;
 		srvDesc.TextureCube.MostDetailedMip = 0;
 		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-		Graphics::Device->CreateShaderResourceView(irradianceMap.Get(), &srvDesc, srv_cpu);
-		irradianceMapDescriptorIndex = Graphics::GetDescriptorIndex(srv_gpu);
+		Graphics::Device->CreateShaderResourceView(irradianceMap.Texture.Get(), &srvDesc, srv_cpu);
+		irradianceMap.SRV.GPUDescriptorIndex = Graphics::GetDescriptorIndex(srv_gpu);
 	}
 
 	// Run the compute shader to create the irradiance map
@@ -470,8 +463,8 @@ void Sky::CreateIBLIrradianceMap()
 		Graphics::CommandList->SetComputeRootSignature(computeRootSig.Get());
 
 		IrradianceComputeIndices data{};
-		data.EnvironmentMapDescriptorIndex = skyboxDescriptorIndex;
-		data.OutputDescriptorIndex = Graphics::GetDescriptorIndex(uav_gpu);
+		data.EnvironmentMapDescriptorIndex = skyCubeMap.SRV.GPUDescriptorIndex;
+		data.OutputDescriptorIndex = irradianceMap.UAV.GPUDescriptorIndex;
 		data.OutputWidth = IrradianceMapSize;
 		data.OutputHeight = IrradianceMapSize;
 		Graphics::CommandList->SetComputeRoot32BitConstants(
@@ -486,7 +479,7 @@ void Sky::CreateIBLIrradianceMap()
 
 	// TEST
 	std::vector<unsigned char> pixels;
-	Graphics::ReadTextureDataFromGPU(irradianceMap, pixels);
+	Graphics::ReadTextureDataFromGPU(irradianceMap.Texture, pixels);
 
 }
 
@@ -494,6 +487,8 @@ void Sky::CreateIBLIrradianceSphericalHarmonics(Microsoft::WRL::ComPtr<ID3D12Res
 {
 	std::vector<unsigned char> pixelData;
 	Graphics::ReadTextureDataFromGPU(skyCube, pixelData);
+
+
 }
 
 void Sky::Draw(std::shared_ptr<Camera> camera)
@@ -504,7 +499,7 @@ void Sky::Draw(std::shared_ptr<Camera> camera)
 
 	// Basic draw data
 	SkyDrawIndices drawData{};
-	drawData.psSkyboxIndex = skyboxDescriptorIndex;
+	drawData.psSkyboxIndex = skyCubeMap.SRV.GPUDescriptorIndex;
 	drawData.vsVertexBufferIndex = Graphics::GetDescriptorIndex(skyMesh->GetVertexBufferDescriptorHandle());
 	
 	// Per frame data

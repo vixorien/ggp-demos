@@ -471,7 +471,7 @@ void Graphics::AdvanceSwapChainIndex()
 // file - The image file to attempt to load
 // generateMips - Should mip maps be generated? (defaults to true)
 // --------------------------------------------------------
-unsigned int Graphics::LoadTexture(const wchar_t* file, bool generateMips)
+TextureDetails Graphics::LoadTexture(const wchar_t* file, bool generateMips)
 {
 	// Helper function from DXTK for uploading a resource
 	// (like a texture) to the appropriate GPU memory
@@ -525,15 +525,19 @@ unsigned int Graphics::LoadTexture(const wchar_t* file, bool generateMips)
 		srv.Texture2D.MostDetailedMip = 0;
 	}
 
-	D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = CBVSRVDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
-	cpuHandle.ptr += srvIndex * Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	Device->CreateShaderResourceView(texture.Get(), &srv, cpuHandle);
+	// Final texture details
+	TextureDetails details;
+	details.Texture = texture;
 
-	// Send back the index of the descriptor
-	return srvIndex;
+	// Create the SRV
+	ReserveDescriptorHeapSlot(&details.SRV.CPUHandle, &details.SRV.GPUHandle);
+	Device->CreateShaderResourceView(texture.Get(), &srv, details.SRV.CPUHandle);
+	details.SRV.GPUDescriptorIndex = GetDescriptorIndex(details.SRV.GPUHandle);
+
+	return details;
 }
 
-unsigned int Graphics::CreateCubemap(const wchar_t* right, const wchar_t* left, const wchar_t* up, const wchar_t* down, const wchar_t* front, const wchar_t* back)
+TextureDetails Graphics::CreateCubemap(const wchar_t* right, const wchar_t* left, const wchar_t* up, const wchar_t* down, const wchar_t* front, const wchar_t* back)
 {
 	// Temporary textures
 	Microsoft::WRL::ComPtr<ID3D12Resource> faces[6]{};
@@ -643,16 +647,20 @@ unsigned int Graphics::CreateCubemap(const wchar_t* right, const wchar_t* left, 
 	srvDesc.TextureCube.MostDetailedMip = 0;
 	srvDesc.TextureCube.ResourceMinLODClamp = 0;
 
-	// Create the SRV in the main descriptor heap at the appropriate offset
-	D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle = CBVSRVDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
-	cpuHandle.ptr += srvIndex * Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-	Device->CreateShaderResourceView(cubeMap.Get(), &srvDesc, cpuHandle);
+	// Final details
+	TextureDetails details;
+	details.Texture = cubeMap;
 
-	// Send back the index of the descriptor
-	return srvIndex;
+	// Create the SRV in the main descriptor heap at the appropriate offset
+	ReserveDescriptorHeapSlot(&details.SRV.CPUHandle, &details.SRV.GPUHandle);
+	Device->CreateShaderResourceView(cubeMap.Get(), &srvDesc, details.SRV.CPUHandle);
+	details.SRV.GPUDescriptorIndex = GetDescriptorIndex(details.SRV.GPUHandle);
+
+	// Send back the details
+	return details;
 }
 
-Microsoft::WRL::ComPtr<ID3D12Resource> Graphics::CreateTexture(
+TextureDetails Graphics::CreateTexture(
 	unsigned int width, 
 	unsigned int height, 
 	unsigned int arraySize, 
@@ -690,7 +698,11 @@ Microsoft::WRL::ComPtr<ID3D12Resource> Graphics::CreateTexture(
 		0,
 		IID_PPV_ARGS(texture.GetAddressOf()));
 
-	return texture;
+	// Fill out texture details
+	TextureDetails details;
+	details.Texture = texture;
+
+	return details;
 }
 
 

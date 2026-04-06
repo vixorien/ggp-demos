@@ -2,6 +2,7 @@
 
 #include "Mesh.h"
 #include "Camera.h"
+#include "Graphics.h"
 
 #include <memory>
 #include <wrl/client.h> // Used for ComPtr
@@ -44,7 +45,7 @@ public:
 
 	// Constructor that takes an existing cube map SRV
 	Sky(
-		unsigned int skyboxDescriptorIndex,
+		TextureDetails skyCubeDetails,
 		std::shared_ptr<Mesh> mesh
 	);
 
@@ -98,7 +99,7 @@ private:
 	
 	std::shared_ptr<Mesh> skyMesh;
 
-	unsigned int skyboxDescriptorIndex;
+	TextureDetails skyCubeMap;
 
 	// Compute pipeline for IBL preprocessing
 	const unsigned int BrdfLookUpTableSize = 512;
@@ -117,13 +118,9 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> specularMapPSO;
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> irradianceMapPSO;
 
-	Microsoft::WRL::ComPtr<ID3D12Resource> brdfLookUpTable;
-	Microsoft::WRL::ComPtr<ID3D12Resource> specularMap;
-	Microsoft::WRL::ComPtr<ID3D12Resource> irradianceMap;
-
-	unsigned int brdfLookUpTableDescriptorIndex = -1;
-	unsigned int specularMapDescriptorIndex = -1;
-	unsigned int irradianceMapDescriptorIndex = -1;
+	TextureDetails brdfLookUpTable;
+	TextureDetails specularMap;
+	TextureDetails irradianceMap;
 
 	bool useSphericalHarmonicsForIrradiance;
 };

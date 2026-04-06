@@ -264,41 +264,41 @@ void Game::CreateRootSigAndPipelineState()
 void Game::CreateGeometry()
 {
 	// Load textures
-	unsigned int cobblestoneAlbedo = Graphics::LoadTexture(FixPath(AssetPath + L"Textures/PBR/cobblestone_albedo.png").c_str());
-	unsigned int cobblestoneNormals = Graphics::LoadTexture(FixPath(AssetPath + L"Textures/PBR/cobblestone_normals.png").c_str());
-	unsigned int cobblestoneRoughness = Graphics::LoadTexture(FixPath(AssetPath + L"Textures/PBR/cobblestone_roughness.png").c_str());
-	unsigned int cobblestoneMetal = Graphics::LoadTexture(FixPath(AssetPath + L"Textures/PBR/cobblestone_metal.png").c_str());
+	TextureDetails cobblestoneAlbedo = Graphics::LoadTexture(FixPath(AssetPath + L"Textures/PBR/cobblestone_albedo.png").c_str());
+	TextureDetails cobblestoneNormals = Graphics::LoadTexture(FixPath(AssetPath + L"Textures/PBR/cobblestone_normals.png").c_str());
+	TextureDetails cobblestoneRoughness = Graphics::LoadTexture(FixPath(AssetPath + L"Textures/PBR/cobblestone_roughness.png").c_str());
+	TextureDetails cobblestoneMetal = Graphics::LoadTexture(FixPath(AssetPath + L"Textures/PBR/cobblestone_metal.png").c_str());
 
-	unsigned int bronzeAlbedo = Graphics::LoadTexture(FixPath(AssetPath + L"Textures/PBR/bronze_albedo.png").c_str());
-	unsigned int bronzeNormals = Graphics::LoadTexture(FixPath(AssetPath + L"Textures/PBR/bronze_normals.png").c_str());
-	unsigned int bronzeRoughness = Graphics::LoadTexture(FixPath(AssetPath + L"Textures/PBR/bronze_roughness.png").c_str());
-	unsigned int bronzeMetal = Graphics::LoadTexture(FixPath(AssetPath + L"Textures/PBR/bronze_metal.png").c_str());
+	TextureDetails bronzeAlbedo = Graphics::LoadTexture(FixPath(AssetPath + L"Textures/PBR/bronze_albedo.png").c_str());
+	TextureDetails bronzeNormals = Graphics::LoadTexture(FixPath(AssetPath + L"Textures/PBR/bronze_normals.png").c_str());
+	TextureDetails bronzeRoughness = Graphics::LoadTexture(FixPath(AssetPath + L"Textures/PBR/bronze_roughness.png").c_str());
+	TextureDetails bronzeMetal = Graphics::LoadTexture(FixPath(AssetPath + L"Textures/PBR/bronze_metal.png").c_str());
 
-	unsigned int scratchedAlbedo = Graphics::LoadTexture(FixPath(AssetPath + L"Textures/PBR/scratched_albedo.png").c_str());
-	unsigned int scratchedNormals = Graphics::LoadTexture(FixPath(AssetPath + L"Textures/PBR/scratched_normals.png").c_str());
-	unsigned int scratchedRoughness = Graphics::LoadTexture(FixPath(AssetPath + L"Textures/PBR/scratched_roughness.png").c_str());
-	unsigned int scratchedMetal = Graphics::LoadTexture(FixPath(AssetPath + L"Textures/PBR/scratched_metal.png").c_str());
+	TextureDetails scratchedAlbedo = Graphics::LoadTexture(FixPath(AssetPath + L"Textures/PBR/scratched_albedo.png").c_str());
+	TextureDetails scratchedNormals = Graphics::LoadTexture(FixPath(AssetPath + L"Textures/PBR/scratched_normals.png").c_str());
+	TextureDetails scratchedRoughness = Graphics::LoadTexture(FixPath(AssetPath + L"Textures/PBR/scratched_roughness.png").c_str());
+	TextureDetails scratchedMetal = Graphics::LoadTexture(FixPath(AssetPath + L"Textures/PBR/scratched_metal.png").c_str());
 
 	// Create materials
 	// Note: Samplers are handled by a single static sampler in the
 	// root signature for this demo, rather than per-material
 	std::shared_ptr<Material> cobbleMat = std::make_shared<Material>(pipelineState, XMFLOAT3(1, 1, 1));
-	cobbleMat->SetAlbedoIndex(bronzeAlbedo);
-	cobbleMat->SetNormalMapIndex(bronzeNormals);
-	cobbleMat->SetRoughnessIndex(bronzeRoughness);
-	cobbleMat->SetMetalnessIndex(bronzeMetal);
+	cobbleMat->SetAlbedoIndex(bronzeAlbedo.SRV.GPUDescriptorIndex);
+	cobbleMat->SetNormalMapIndex(bronzeNormals.SRV.GPUDescriptorIndex);
+	cobbleMat->SetRoughnessIndex(bronzeRoughness.SRV.GPUDescriptorIndex);
+	cobbleMat->SetMetalnessIndex(bronzeMetal.SRV.GPUDescriptorIndex);
 
 	std::shared_ptr<Material> bronzeMat = std::make_shared<Material>(pipelineState, XMFLOAT3(1, 1, 1));
-	bronzeMat->SetAlbedoIndex(cobblestoneAlbedo);
-	bronzeMat->SetNormalMapIndex(cobblestoneNormals);
-	bronzeMat->SetRoughnessIndex(cobblestoneRoughness);
-	bronzeMat->SetMetalnessIndex(cobblestoneMetal);
+	bronzeMat->SetAlbedoIndex(cobblestoneAlbedo.SRV.GPUDescriptorIndex);
+	bronzeMat->SetNormalMapIndex(cobblestoneNormals.SRV.GPUDescriptorIndex);
+	bronzeMat->SetRoughnessIndex(cobblestoneRoughness.SRV.GPUDescriptorIndex);
+	bronzeMat->SetMetalnessIndex(cobblestoneMetal.SRV.GPUDescriptorIndex);
 
 	std::shared_ptr<Material> scratchedMat = std::make_shared<Material>(pipelineState, XMFLOAT3(1, 1, 1));
-	scratchedMat->SetAlbedoIndex(scratchedAlbedo);
-	scratchedMat->SetNormalMapIndex(scratchedNormals);
-	scratchedMat->SetRoughnessIndex(scratchedRoughness);
-	scratchedMat->SetMetalnessIndex(scratchedMetal);
+	scratchedMat->SetAlbedoIndex(scratchedAlbedo.SRV.GPUDescriptorIndex);
+	scratchedMat->SetNormalMapIndex(scratchedNormals.SRV.GPUDescriptorIndex);
+	scratchedMat->SetRoughnessIndex(scratchedRoughness.SRV.GPUDescriptorIndex);
+	scratchedMat->SetMetalnessIndex(scratchedMetal.SRV.GPUDescriptorIndex);
 
 	// Load meshes
 	std::shared_ptr<Mesh> cube = std::make_shared<Mesh>("Cube", FixPath(AssetPath + L"Meshes/cube.obj").c_str());

@@ -12,9 +12,9 @@
 
 struct DescriptorDetails
 {
-	D3D12_CPU_DESCRIPTOR_HANDLE CPUHandle;
-	D3D12_GPU_DESCRIPTOR_HANDLE GPUHandle;
-	unsigned int GPUDescriptorIndex;
+	D3D12_CPU_DESCRIPTOR_HANDLE CPUHandle{};
+	D3D12_GPU_DESCRIPTOR_HANDLE GPUHandle{};
+	unsigned int GPUDescriptorIndex = -1;
 };
 
 struct TextureDetails
@@ -89,15 +89,15 @@ namespace Graphics
 	void AdvanceSwapChainIndex();
 
 	// Resource creation
-	unsigned int LoadTexture(const wchar_t* file, bool generateMips = true);
-	unsigned int CreateCubemap(
+	TextureDetails LoadTexture(const wchar_t* file, bool generateMips = true);
+	TextureDetails CreateCubemap(
 		const wchar_t* right,
 		const wchar_t* left,
 		const wchar_t* up,
 		const wchar_t* down,
 		const wchar_t* front,
 		const wchar_t* back);
-	Microsoft::WRL::ComPtr<ID3D12Resource> CreateTexture(
+	TextureDetails CreateTexture(
 		unsigned int width, 
 		unsigned int height, 
 		unsigned int arraySize = 1,
