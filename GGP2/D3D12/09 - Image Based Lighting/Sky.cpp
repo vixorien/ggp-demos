@@ -14,11 +14,12 @@ using namespace DirectX;
 // Constructor that takes an existing cube map
 Sky::Sky(
 	TextureDetails skyCubeDetails,
-	std::shared_ptr<Mesh> mesh)
+	std::shared_ptr<Mesh> mesh,
+	bool useSphericalHarmonicsForIrradiance)
 	:
 	skyCubeMap(skyCubeDetails),
 	skyMesh(mesh),
-	useSphericalHarmonicsForIrradiance(false)
+	useSphericalHarmonicsForIrradiance(useSphericalHarmonicsForIrradiance)
 {
 	// Init render states and compute IBL resources from environment map
 	InitRenderStates();
@@ -309,7 +310,10 @@ void Sky::CreateIBLResources()
 	// Perform individual compute steps to generate IBL resources
 	CreateIBLBrdfLookUpTable();
 	CreateIBLSpecularMap();
-	CreateIBLIrradianceMap();
+	if (useSphericalHarmonicsForIrradiance)
+		CreateIBLIrradianceSphericalHarmonics();
+	else
+		CreateIBLIrradianceMap();
 }
 
 void Sky::CreateIBLBrdfLookUpTable()
@@ -476,19 +480,40 @@ void Sky::CreateIBLIrradianceMap()
 		Graphics::CommandList->SetPipelineState(irradianceMapPSO.Get());
 		Graphics::CommandList->Dispatch(IrradianceMapSize / 8, IrradianceMapSize / 8, 6); // 6 on Z for cube map!
 	}
-
-	// TEST
-	std::vector<unsigned char> pixels;
-	Graphics::ReadTextureDataFromGPU(irradianceMap.Texture, pixels);
-
 }
 
-void Sky::CreateIBLIrradianceSphericalHarmonics(Microsoft::WRL::ComPtr<ID3D12Resource> skyCube)
+void Sky::CreateIBLIrradianceSphericalHarmonics()
 {
 	std::vector<unsigned char> pixelData;
-	Graphics::ReadTextureDataFromGPU(skyCube, pixelData);
+	Graphics::ReadTextureDataFromGPU(skyCubeMap.Texture, pixelData);
 
+	// Loop through the pixels of the texture
+	D3D12_RESOURCE_DESC desc = skyCubeMap.Texture->GetDesc();
+	for (unsigned int face = 0; face < 6; face++)
+	{
+		for (unsigned int y = 0; y < desc.Height; y++)
+		{
+			for (unsigned int x = 0; x < desc.Width; x++)
+			{
+				// Index for the first of 4 pixel values
+				unsigned int index =
+					face * desc.Width * desc.Height + // Skip to correct face
+					x + (y * desc.Width); // Get specific pixel
 
+				index *= 4; // 4 values per pixel
+
+				// Convert to color
+				XMFLOAT4 color(
+					pixelData[index + 0] / 255.0f,
+					pixelData[index + 1] / 255.0f,
+					pixelData[index + 2] / 255.0f,
+					pixelData[index + 3] / 255.0f
+				);
+
+				
+			}
+		}
+	}
 }
 
 void Sky::Draw(std::shared_ptr<Camera> camera)

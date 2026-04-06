@@ -347,7 +347,8 @@ void Game::CreateGeometry()
 		FixPath(AssetPath + L"Skies/Clouds Blue/down.png").c_str(),
 		FixPath(AssetPath + L"Skies/Clouds Blue/front.png").c_str(),
 		FixPath(AssetPath + L"Skies/Clouds Blue/back.png").c_str(),
-		cube));
+		cube,
+		true));
 
 	// Second is loading preexisting IBL maps
 	skies.push_back(std::make_shared<Sky>(

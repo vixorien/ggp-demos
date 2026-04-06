@@ -46,7 +46,8 @@ public:
 	// Constructor that takes an existing cube map SRV
 	Sky(
 		TextureDetails skyCubeDetails,
-		std::shared_ptr<Mesh> mesh
+		std::shared_ptr<Mesh> mesh,
+		bool useSphericalHarmonicsForIrradiance = false
 	);
 
 	// Constructor that loads a DDS cube map file
@@ -112,7 +113,7 @@ private:
 	void CreateIBLBrdfLookUpTable();
 	void CreateIBLSpecularMap();
 	void CreateIBLIrradianceMap();
-	void CreateIBLIrradianceSphericalHarmonics(Microsoft::WRL::ComPtr<ID3D12Resource> skyCube);
+	void CreateIBLIrradianceSphericalHarmonics();
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> computeRootSig;
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> brdfLookUpTablePSO;
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> specularMapPSO;
