@@ -22,6 +22,9 @@ struct PSPerFrameData
 	
 	Light lights[MAX_LIGHTS];
 	
+	float4 SHColors[9];
+	uint UseSH;
+	
 	uint IndirectLightingEnabled;
 };
 
@@ -132,7 +135,11 @@ float4 main(VertexToPixel input) : SV_TARGET
 	Texture2D BrdfLUT = ResourceDescriptorHeap[cbFrame.brdfLUTIndex];
 	
 	// -- Diffuse IBL --
-	float3 indirectDiffuse = IrradianceMap.Sample(BasicSampler, input.normal).rgb;
+	float3 indirectDiffuse = 0;
+	if(cbFrame.UseSH)
+		indirectDiffuse = GetSHColor(input.normal, cbFrame.SHColors);	
+	else
+		indirectDiffuse = IrradianceMap.Sample(BasicSampler, input.normal).rgb;
 	
 	// -- Specular look up table --
 	float3 viewToCam = normalize(cbFrame.cameraPosition - input.worldPos);

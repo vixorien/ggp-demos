@@ -43,7 +43,7 @@ void main( uint3 id : SV_DispatchThreadID )
 	
 	// If Z is pointing at the Y axis, a cross product
 	// won't work right, so use X instead
-	if(dot(zDir, yAxis > 0.99f))
+	if(dot(zDir, yAxis) > 0.99f)
 		xDir = normalize(cross(xAxis, zDir));
 	else
 		xDir = normalize(cross(yAxis, zDir));

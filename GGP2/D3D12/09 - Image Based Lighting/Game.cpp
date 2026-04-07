@@ -600,6 +600,14 @@ void Game::Draw(float deltaTime, float totalTime)
 			psFrame.irradianceIndex = skies[currentSky]->GetIrradianceMapDescriptorIndex();
 			psFrame.specularIndex = skies[currentSky]->GetSpecularMapDescriptorIndex();
 			psFrame.IndirectLightingEnabled = indirectLightingEnabled;
+			psFrame.UseSH = skies[currentSky]->GetUseSH();
+			float* sh = skies[currentSky]->GetSHIrradianceValues();
+			for (int i = 0; i < 9; i++)
+			{
+				psFrame.SHIrradianceValues[i].x = sh[i * 3 + 0];
+				psFrame.SHIrradianceValues[i].y = sh[i * 3 + 1];
+				psFrame.SHIrradianceValues[i].z = sh[i * 3 + 2];
+			}
 			memcpy(psFrame.lights, &lights[0], sizeof(Light) * lightCount);
 
 			D3D12_GPU_DESCRIPTOR_HANDLE cbHandlePS = Graphics::FillNextConstantBufferAndGetGPUDescriptorHandle(
@@ -608,72 +616,6 @@ void Game::Draw(float deltaTime, float totalTime)
 			drawData.psPerFrameCBIndex = Graphics::GetDescriptorIndex(cbHandlePS);
 		}
 
-		// Loop through the entities
-		for (auto& e : entities)
-		{
-			// Grab the material for this entity
-			std::shared_ptr<Material> mat = e->GetMaterial();
-
-			// Set the pipeline state for this material
-			{
-				Graphics::CommandList->SetPipelineState(mat->GetPipelineState().Get());
-			}
-
-			drawData.vsVertexBufferIndex = Graphics::GetDescriptorIndex(e->GetMesh()->GetVertexBufferDescriptorHandle());
-
-			// Set up the data we intend to use for drawing this entity
-			{
-				VertexShaderPerObjectData vsData = {};
-				vsData.world = e->GetTransform()->GetWorldMatrix();
-				vsData.worldInverseTranspose = e->GetTransform()->GetWorldInverseTransposeMatrix();
-
-				// Send this to a chunk of the constant buffer heap
-				// and grab the GPU handle for it so we can set it for this draw
-				D3D12_GPU_DESCRIPTOR_HANDLE cbHandleVS = Graphics::FillNextConstantBufferAndGetGPUDescriptorHandle(
-					(void*)(&vsData), sizeof(VertexShaderPerObjectData));
-
-				drawData.vsPerObjectCBIndex = Graphics::GetDescriptorIndex(cbHandleVS);
-			}
-
-			// Pixel shader data and cbuffer setup
-			{
-				PixelShaderPerObjectData psData = {};
-				psData.uvScale = mat->GetUVScale();
-				psData.uvOffset = mat->GetUVOffset();
-				psData.roughness = mat->GetRoughness();
-				psData.metalness = mat->GetMetalness();
-				psData.albedoIndex = mat->GetAlbedoIndex();
-				psData.normalMapIndex = mat->GetNormalMapIndex();
-				psData.roughnessIndex = mat->GetRoughnessIndex();
-				psData.metalnessIndex = mat->GetMetalnessIndex();
-				psData.colorTint = mat->GetColorTint();
-
-				// Send this to a chunk of the constant buffer heap
-				// and grab the GPU handle for it so we can set it for this draw
-				D3D12_GPU_DESCRIPTOR_HANDLE cbHandlePS = Graphics::FillNextConstantBufferAndGetGPUDescriptorHandle(
-					(void*)(&psData), sizeof(PixelShaderPerObjectData));
-
-				drawData.psPerObjectCBIndex = Graphics::GetDescriptorIndex(cbHandlePS);
-			}
-
-			Graphics::CommandList->SetGraphicsRoot32BitConstants(
-				0, 
-				sizeof(DrawDescriptorIndices) / sizeof(unsigned int), 
-				&drawData,
-				0);
-
-			// Grab the mesh and its buffer views
-			std::shared_ptr<Mesh> mesh = e->GetMesh();
-			D3D12_INDEX_BUFFER_VIEW  ibv = mesh->GetIndexBufferView();
-
-			// Set the geometry
-			Graphics::CommandList->IASetIndexBuffer(&ibv);
-
-			// Draw
-			Graphics::CommandList->DrawIndexedInstanced((UINT)mesh->GetIndexCount(), 1, 0, 0, 0);
-		}
-
-		// Draw irradiance preview?
 		if (previewIrradiance)
 		{
 			// Set states
@@ -688,8 +630,8 @@ void Game::Draw(float deltaTime, float totalTime)
 				XMMATRIX w = XMMatrixTranslation(0, -3, 0);
 
 				VertexShaderPerObjectData vsData = {};
-				XMStoreFloat4x4(&vsData.world, w);
-				XMStoreFloat4x4(&vsData.worldInverseTranspose, XMMatrixInverse(0, XMMatrixTranspose(w)));
+				XMStoreFloat4x4(&vsData.world, XMMatrixIdentity());
+				XMStoreFloat4x4(&vsData.worldInverseTranspose, XMMatrixIdentity());
 
 				// Send this to a chunk of the constant buffer heap
 				// and grab the GPU handle for it so we can set it for this draw
@@ -732,6 +674,74 @@ void Game::Draw(float deltaTime, float totalTime)
 
 			// Draw
 			Graphics::CommandList->DrawIndexedInstanced((UINT)envPreviewMesh->GetIndexCount(), 1, 0, 0, 0);
+		}
+		else
+		{
+
+			// Loop through the entities
+			for (auto& e : entities)
+			{
+				// Grab the material for this entity
+				std::shared_ptr<Material> mat = e->GetMaterial();
+
+				// Set the pipeline state for this material
+				{
+					Graphics::CommandList->SetPipelineState(mat->GetPipelineState().Get());
+				}
+
+				drawData.vsVertexBufferIndex = Graphics::GetDescriptorIndex(e->GetMesh()->GetVertexBufferDescriptorHandle());
+
+				// Set up the data we intend to use for drawing this entity
+				{
+					VertexShaderPerObjectData vsData = {};
+					vsData.world = e->GetTransform()->GetWorldMatrix();
+					vsData.worldInverseTranspose = e->GetTransform()->GetWorldInverseTransposeMatrix();
+
+					// Send this to a chunk of the constant buffer heap
+					// and grab the GPU handle for it so we can set it for this draw
+					D3D12_GPU_DESCRIPTOR_HANDLE cbHandleVS = Graphics::FillNextConstantBufferAndGetGPUDescriptorHandle(
+						(void*)(&vsData), sizeof(VertexShaderPerObjectData));
+
+					drawData.vsPerObjectCBIndex = Graphics::GetDescriptorIndex(cbHandleVS);
+				}
+
+				// Pixel shader data and cbuffer setup
+				{
+					PixelShaderPerObjectData psData = {};
+					psData.uvScale = mat->GetUVScale();
+					psData.uvOffset = mat->GetUVOffset();
+					psData.roughness = mat->GetRoughness();
+					psData.metalness = mat->GetMetalness();
+					psData.albedoIndex = mat->GetAlbedoIndex();
+					psData.normalMapIndex = mat->GetNormalMapIndex();
+					psData.roughnessIndex = mat->GetRoughnessIndex();
+					psData.metalnessIndex = mat->GetMetalnessIndex();
+					psData.colorTint = mat->GetColorTint();
+
+					// Send this to a chunk of the constant buffer heap
+					// and grab the GPU handle for it so we can set it for this draw
+					D3D12_GPU_DESCRIPTOR_HANDLE cbHandlePS = Graphics::FillNextConstantBufferAndGetGPUDescriptorHandle(
+						(void*)(&psData), sizeof(PixelShaderPerObjectData));
+
+					drawData.psPerObjectCBIndex = Graphics::GetDescriptorIndex(cbHandlePS);
+				}
+
+				Graphics::CommandList->SetGraphicsRoot32BitConstants(
+					0,
+					sizeof(DrawDescriptorIndices) / sizeof(unsigned int),
+					&drawData,
+					0);
+
+				// Grab the mesh and its buffer views
+				std::shared_ptr<Mesh> mesh = e->GetMesh();
+				D3D12_INDEX_BUFFER_VIEW  ibv = mesh->GetIndexBufferView();
+
+				// Set the geometry
+				Graphics::CommandList->IASetIndexBuffer(&ibv);
+
+				// Draw
+				Graphics::CommandList->DrawIndexedInstanced((UINT)mesh->GetIndexCount(), 1, 0, 0, 0);
+			}
 		}
 	}
 
