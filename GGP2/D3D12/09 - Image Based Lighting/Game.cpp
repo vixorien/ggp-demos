@@ -76,6 +76,7 @@ void Game::Initialize()
 		100.0f,					// Far clip
 		CameraProjectionType::Perspective);
 
+	drawSky = true;
 	directLightingEnabled = true;
 	indirectLightingEnabled = true;
 	currentSky = 0;
@@ -386,6 +387,15 @@ void Game::CreateGeometry()
 		FixPath(AssetPath + L"Skies/Clouds Blue/down.png").c_str(),
 		FixPath(AssetPath + L"Skies/Clouds Blue/front.png").c_str(),
 		FixPath(AssetPath + L"Skies/Clouds Blue/back.png").c_str(),
+		cube));
+
+	skies.push_back(std::make_shared<Sky>(
+		FixPath(AssetPath + L"Skies/Clouds Pink/right.png").c_str(),
+		FixPath(AssetPath + L"Skies/Clouds Pink/left.png").c_str(),
+		FixPath(AssetPath + L"Skies/Clouds Pink/up.png").c_str(),
+		FixPath(AssetPath + L"Skies/Clouds Pink/down.png").c_str(),
+		FixPath(AssetPath + L"Skies/Clouds Pink/front.png").c_str(),
+		FixPath(AssetPath + L"Skies/Clouds Pink/back.png").c_str(),
 		cube));
 
 	// Second is loading preexisting IBL maps
@@ -726,7 +736,8 @@ void Game::Draw(float deltaTime, float totalTime)
 	}
 
 	// Skybox after opaque objects
-	skies[currentSky]->Draw(camera);
+	if(drawSky)
+		skies[currentSky]->Draw(camera);
 
 	// ImGui Render after all other scene objects
 	{
@@ -823,6 +834,7 @@ void Game::BuildUI()
 		if (ImGui::TreeNode("Image Based Lighting"))
 		{
 			ImGui::Text("Current Sky: %i", currentSky);
+			ImGui::Checkbox("Draw Sky", &drawSky);
 			ImGui::Checkbox("Preview Irradiance", &previewIrradiance);
 			
 			if (previewIrradiance)

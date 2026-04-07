@@ -60,6 +60,7 @@ private:
 	bool directLightingEnabled;
 	bool indirectLightingEnabled;
 
+	bool drawSky;
 	bool previewIrradiance;
 	std::shared_ptr<Mesh> envPreviewMesh;
 

@@ -822,6 +822,21 @@ Microsoft::WRL::ComPtr<ID3D12Resource> Graphics::CreateStaticBuffer(size_t dataS
 // Only gets the FIRST MIP LEVEL and ASSUMES RGBA or BGRA format
 void Graphics::ReadTextureDataFromGPU(Microsoft::WRL::ComPtr<ID3D12Resource> texture, std::vector<unsigned char>& pixelData)
 {
+	// Create a temporary command list and allocator
+	Microsoft::WRL::ComPtr<ID3D12CommandAllocator> localAllocator;
+	Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> localList;
+
+	Device->CreateCommandAllocator(
+		D3D12_COMMAND_LIST_TYPE_DIRECT,
+		IID_PPV_ARGS(localAllocator.GetAddressOf()));
+
+	Device->CreateCommandList(
+		0,								// Which physical GPU will handle these tasks?  0 for single GPU setup
+		D3D12_COMMAND_LIST_TYPE_DIRECT,	// Type of command list - direct is for standard API calls
+		localAllocator.Get(),			// The allocator for this list (to start)
+		0,								// Initial pipeline state - none for now
+		IID_PPV_ARGS(localList.GetAddressOf()));
+
 	D3D12_RESOURCE_DESC textureDesc{};
 	textureDesc = texture->GetDesc();
 
@@ -880,7 +895,7 @@ void Graphics::ReadTextureDataFromGPU(Microsoft::WRL::ComPtr<ID3D12Resource> tex
 	tr.Transition.StateBefore = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE; // Default state after load
 	tr.Transition.StateAfter = D3D12_RESOURCE_STATE_COPY_SOURCE;
 	tr.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-	CommandList->ResourceBarrier(1, &tr);
+	localList->ResourceBarrier(1, &tr);
 
 	// Copy data from original texture to readback texture
 	for (unsigned int arrayElement = 0; arrayElement < textureDesc.DepthOrArraySize; arrayElement++)
@@ -907,18 +922,19 @@ void Graphics::ReadTextureDataFromGPU(Microsoft::WRL::ComPtr<ID3D12Resource> tex
 
 		// Copy the subresource
 		//unsigned int destOffset = footprint.Footprint.RowPitch * footprint.Footprint.Height * arrayElement;
-		CommandList->CopyTextureRegion(&destLoc, 0, 0, 0, &srcLoc, 0);
+		localList->CopyTextureRegion(&destLoc, 0, 0, 0, &srcLoc, 0);
 	}
 
 	// Transition original texture back
 	tr.Transition.StateBefore = D3D12_RESOURCE_STATE_COPY_SOURCE;
 	tr.Transition.StateAfter = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
-	CommandList->ResourceBarrier(1, &tr);
+	localList->ResourceBarrier(1, &tr);
 
 	// Perform copy
-	CloseAndExecuteCommandList();
+	localList->Close();
+	ID3D12CommandList* list[] = { localList.Get() };
+	CommandQueue->ExecuteCommandLists(1, list);
 	WaitForGPU();
-	ResetAllocatorAndCommandList(0);
 
 	// Resize the vector
 	pixelData.resize(bufferSizeInBytes);
