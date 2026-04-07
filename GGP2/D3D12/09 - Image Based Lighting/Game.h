@@ -46,15 +46,22 @@ private:
 	Microsoft::WRL::ComPtr<ID3D12RootSignature> rootSignature;
 	Microsoft::WRL::ComPtr<ID3D12PipelineState> pipelineState;
 
+	Microsoft::WRL::ComPtr<ID3D12RootSignature> envPrevRootSig;
+	Microsoft::WRL::ComPtr<ID3D12PipelineState> envPrevPSO;
+
 	// Scene
 	int lightCount;
 	std::vector<Light> lights;
 	std::shared_ptr<FPSCamera> camera;
 	std::vector<std::shared_ptr<GameEntity>> entities;
 	std::vector<std::shared_ptr<Sky>> skies;
+
 	unsigned int currentSky;
 	bool directLightingEnabled;
 	bool indirectLightingEnabled;
+
+	bool previewIrradiance;
+	std::shared_ptr<Mesh> envPreviewMesh;
 
 	// Other graphics data
 	D3D12_VIEWPORT viewport{};

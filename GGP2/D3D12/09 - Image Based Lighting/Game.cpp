@@ -79,6 +79,7 @@ void Game::Initialize()
 	directLightingEnabled = true;
 	indirectLightingEnabled = true;
 	currentSky = 0;
+	previewIrradiance = false;
 }
 
 
@@ -109,6 +110,7 @@ void Game::CreateRootSigAndPipelineState()
 	// Blobs to hold raw shader byte code used in several steps below
 	Microsoft::WRL::ComPtr<ID3DBlob> vertexShaderByteCode;
 	Microsoft::WRL::ComPtr<ID3DBlob> pixelShaderByteCode;
+	Microsoft::WRL::ComPtr<ID3DBlob> envPrevPSByteCode;
 
 	// Load shaders
 	{
@@ -116,6 +118,7 @@ void Game::CreateRootSigAndPipelineState()
 		// - Essentially just "open the file and plop its contents here"
 		D3DReadFileToBlob(FixPath(L"VertexShader.cso").c_str(), vertexShaderByteCode.GetAddressOf());
 		D3DReadFileToBlob(FixPath(L"PixelShader.cso").c_str(), pixelShaderByteCode.GetAddressOf());
+		D3DReadFileToBlob(FixPath(L"EnvPreviewPS.cso").c_str(), envPrevPSByteCode.GetAddressOf());
 	}
 
 	// Root Signature
@@ -182,6 +185,26 @@ void Game::CreateRootSigAndPipelineState()
 			serializedRootSig->GetBufferPointer(),
 			serializedRootSig->GetBufferSize(),
 			IID_PPV_ARGS(rootSignature.GetAddressOf()));
+
+		
+		
+		// Make a second for the environment preview setup
+		rootParams[0].Constants.Num32BitValues = sizeof(EnvPreviewData) / sizeof(unsigned int);
+
+		D3D12SerializeRootSignature(
+			&rootSig,
+			D3D_ROOT_SIGNATURE_VERSION_1,
+			&serializedRootSig,
+			&errors);
+
+		if (errors != 0)
+			OutputDebugString((wchar_t*)errors->GetBufferPointer());
+		
+		Graphics::Device->CreateRootSignature(
+			0,
+			serializedRootSig->GetBufferPointer(),
+			serializedRootSig->GetBufferSize(),
+			IID_PPV_ARGS(envPrevRootSig.GetAddressOf()));
 	}
 
 	// Pipeline state
@@ -230,6 +253,14 @@ void Game::CreateRootSigAndPipelineState()
 
 		// Create the pipe state object
 		Graphics::Device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(pipelineState.GetAddressOf()));
+
+		
+		// Create a second for the env preview
+		psoDesc.PS.pShaderBytecode = envPrevPSByteCode->GetBufferPointer();
+		psoDesc.PS.BytecodeLength = envPrevPSByteCode->GetBufferSize();
+		psoDesc.pRootSignature = envPrevRootSig.Get();
+		Graphics::Device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(envPrevPSO.GetAddressOf()));
+
 	}
 
 	// Set up the viewport and scissor rectangle
@@ -307,6 +338,9 @@ void Game::CreateGeometry()
 	std::shared_ptr<Mesh> torus = std::make_shared<Mesh>("Torus", FixPath(AssetPath + L"Meshes/torus.obj").c_str());
 	std::shared_ptr<Mesh> cylinder = std::make_shared<Mesh>("Cylinder", FixPath(AssetPath + L"Meshes/cylinder.obj").c_str());
 
+	// Save sphere for later
+	envPreviewMesh = sphere;
+
 	// Create entities
 	std::shared_ptr<GameEntity> entityCube = std::make_shared<GameEntity>(cube, scratchedMat);
 	entityCube->GetTransform()->SetPosition(3, 0, 0);
@@ -323,17 +357,22 @@ void Game::CreateGeometry()
 	entities.push_back(entitySphere);
 
 	// Create roughness grids
-	for (float metal = 0.0f; metal <= 1.0f; metal++)
+	for (int row = 0; row < 3; row++)//float metal = 0.0f; metal <= 1.0f; metal++)
 	{
 		for (float rough = 0.0f; rough <= 1.0f; rough += 0.1f)
 		{
 			// Make new material for this object
 			std::shared_ptr<Material> mat = std::make_shared<Material>(
-				pipelineState, XMFLOAT3(1, 1, 1), XMFLOAT2(1,1), XMFLOAT2(0,0), rough, metal);
+				pipelineState, 
+				row == 0 ? XMFLOAT3(0, 0, 0) : XMFLOAT3(1, 1, 1), // Last row is black
+				XMFLOAT2(1,1),
+				XMFLOAT2(0,0), 
+				rough,
+				row == 2); // Top row is metal only
 
 			// Make an entity and line up in grid
 			std::shared_ptr<GameEntity> e = std::make_shared<GameEntity>(sphere, mat);
-			e->GetTransform()->SetPosition(rough * 20 - 10, metal * 3.0f + 3.0f, 0);
+			e->GetTransform()->SetPosition(rough * 20 - 10, row * 2.5f + 3.0f, 0);
 			entities.push_back(e);
 		}
 	}
@@ -347,8 +386,7 @@ void Game::CreateGeometry()
 		FixPath(AssetPath + L"Skies/Clouds Blue/down.png").c_str(),
 		FixPath(AssetPath + L"Skies/Clouds Blue/front.png").c_str(),
 		FixPath(AssetPath + L"Skies/Clouds Blue/back.png").c_str(),
-		cube,
-		true));
+		cube));
 
 	// Second is loading preexisting IBL maps
 	skies.push_back(std::make_shared<Sky>(
@@ -598,6 +636,7 @@ void Game::Draw(float deltaTime, float totalTime)
 				psData.normalMapIndex = mat->GetNormalMapIndex();
 				psData.roughnessIndex = mat->GetRoughnessIndex();
 				psData.metalnessIndex = mat->GetMetalnessIndex();
+				psData.colorTint = mat->GetColorTint();
 
 				// Send this to a chunk of the constant buffer heap
 				// and grab the GPU handle for it so we can set it for this draw
@@ -622,6 +661,67 @@ void Game::Draw(float deltaTime, float totalTime)
 
 			// Draw
 			Graphics::CommandList->DrawIndexedInstanced((UINT)mesh->GetIndexCount(), 1, 0, 0, 0);
+		}
+
+		// Draw irradiance preview?
+		if (previewIrradiance)
+		{
+			// Set states
+			Graphics::CommandList->SetPipelineState(envPrevPSO.Get());
+			Graphics::CommandList->SetGraphicsRootSignature(envPrevRootSig.Get());
+
+			// Set up VS
+			drawData.vsVertexBufferIndex = Graphics::GetDescriptorIndex(envPreviewMesh->GetVertexBufferDescriptorHandle());
+
+			// Set up VS constant buffer
+			{
+				XMMATRIX w = XMMatrixTranslation(0, -3, 0);
+
+				VertexShaderPerObjectData vsData = {};
+				XMStoreFloat4x4(&vsData.world, w);
+				XMStoreFloat4x4(&vsData.worldInverseTranspose, XMMatrixInverse(0, XMMatrixTranspose(w)));
+
+				// Send this to a chunk of the constant buffer heap
+				// and grab the GPU handle for it so we can set it for this draw
+				D3D12_GPU_DESCRIPTOR_HANDLE cbHandleVS = Graphics::FillNextConstantBufferAndGetGPUDescriptorHandle(
+					(void*)(&vsData), sizeof(VertexShaderPerObjectData));
+
+				drawData.vsPerObjectCBIndex = Graphics::GetDescriptorIndex(cbHandleVS);
+			}
+
+			// Pixel shader data and cbuffer setup
+			{
+				EnvPreviewData psData = {};
+				psData.SkyboxDescriptorIndex = skies[currentSky]->GetIrradianceMapDescriptorIndex();
+				psData.UseSH = skies[currentSky]->GetUseSH();
+				float* sh = skies[currentSky]->GetSHIrradianceValues();
+				for (int i = 0; i < 9; i++)
+				{
+					psData.SHIrradianceValues[i].x = sh[i * 3 + 0];
+					psData.SHIrradianceValues[i].y = sh[i * 3 + 1];
+					psData.SHIrradianceValues[i].z = sh[i * 3 + 2];
+				}
+
+				// Send this to a chunk of the constant buffer heap
+				// and grab the GPU handle for it so we can set it for this draw
+				D3D12_GPU_DESCRIPTOR_HANDLE cbHandlePS = Graphics::FillNextConstantBufferAndGetGPUDescriptorHandle(
+					(void*)(&psData), sizeof(EnvPreviewData));
+
+				drawData.psPerObjectCBIndex = Graphics::GetDescriptorIndex(cbHandlePS);
+			}
+
+			Graphics::CommandList->SetGraphicsRoot32BitConstants(
+				0,
+				sizeof(DrawDescriptorIndices) / sizeof(unsigned int),
+				&drawData,
+				0);
+
+			// Set index buffer
+			D3D12_INDEX_BUFFER_VIEW ibv = envPreviewMesh->GetIndexBufferView();
+			Graphics::CommandList->IASetIndexBuffer(&ibv);
+
+			// Draw
+			Graphics::CommandList->DrawIndexedInstanced((UINT)envPreviewMesh->GetIndexCount(), 1, 0, 0, 0);
 		}
 	}
 
@@ -723,6 +823,15 @@ void Game::BuildUI()
 		if (ImGui::TreeNode("Image Based Lighting"))
 		{
 			ImGui::Text("Current Sky: %i", currentSky);
+			ImGui::Checkbox("Preview Irradiance", &previewIrradiance);
+			
+			if (previewIrradiance)
+			{
+				bool useSH = skies[currentSky]->GetUseSH();
+				if (ImGui::Checkbox("Spherical Harmonics", &useSH))
+					skies[currentSky]->SetUseSH(useSH);
+			}
+
 			if (ImGui::Button("Next Sky"))
 				currentSky = (currentSky + 1) % skies.size();
 

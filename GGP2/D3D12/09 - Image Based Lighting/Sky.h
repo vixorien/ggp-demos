@@ -12,9 +12,6 @@ struct SkyDrawIndices
 	unsigned int vsVertexBufferIndex;
 	unsigned int vsCBIndex;
 	unsigned int psSkyboxIndex;
-
-	unsigned int useSH;
-	DirectX::XMFLOAT4 shValues[9];
 };
 
 struct BrdfLUTComputeIndices
@@ -49,15 +46,13 @@ public:
 	// Constructor that takes an existing cube map SRV
 	Sky(
 		TextureDetails skyCubeDetails,
-		std::shared_ptr<Mesh> mesh,
-		bool useSphericalHarmonicsForIrradiance = false
+		std::shared_ptr<Mesh> mesh
 	);
 
 	// Constructor that loads a DDS cube map file
 	Sky(
 		const wchar_t* cubemapDDSFile, 
-		std::shared_ptr<Mesh> mesh,
-		bool useSphericalHarmonicsForIrradiance = false
+		std::shared_ptr<Mesh> mesh
 	);
 
 	// Constructor that loads 6 textures and makes a cube map
@@ -68,8 +63,7 @@ public:
 		const wchar_t* down,
 		const wchar_t* front,
 		const wchar_t* back,
-		std::shared_ptr<Mesh> mesh,
-		bool useSphericalHarmonicsForIrradiance = false
+		std::shared_ptr<Mesh> mesh
 	);
 
 	// Constructor that loads a cube map and other
@@ -92,6 +86,13 @@ public:
 	unsigned int GetIrradianceMapDescriptorIndex();
 	unsigned int GetSpecularMapDescriptorIndex();
 	unsigned int GetTotalSpecularMipLevels();
+
+	float* GetSHIrradianceValues();
+
+	bool GetUseSH();
+	void SetUseSH(bool useSH);
+
+	void CalculateSphericalHarmonics();
 
 private:
 
@@ -126,7 +127,8 @@ private:
 	TextureDetails specularMap;
 	TextureDetails irradianceMap;
 
-	bool useSphericalHarmonicsForIrradiance;
+	bool useSHForIrradiance;
+	bool shCalculated;
 	float shIrradiance[9 * 3]; // 9 coefficients * 3 color channels
 };
 

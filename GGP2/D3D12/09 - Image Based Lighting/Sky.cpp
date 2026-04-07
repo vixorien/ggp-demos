@@ -14,12 +14,12 @@ using namespace DirectX;
 // Constructor that takes an existing cube map
 Sky::Sky(
 	TextureDetails skyCubeDetails,
-	std::shared_ptr<Mesh> mesh,
-	bool useSphericalHarmonicsForIrradiance)
+	std::shared_ptr<Mesh> mesh)
 	:
 	skyCubeMap(skyCubeDetails),
 	skyMesh(mesh),
-	useSphericalHarmonicsForIrradiance(useSphericalHarmonicsForIrradiance)
+	useSHForIrradiance(false),
+	shCalculated(false)
 {
 	// Init render states and compute IBL resources from environment map
 	InitRenderStates();
@@ -29,11 +29,11 @@ Sky::Sky(
 // Constructor that loads a DDS cube map file
 Sky::Sky(
 	const wchar_t* cubemapDDSFile,
-	std::shared_ptr<Mesh> mesh,
-	bool useSphericalHarmonicsForIrradiance)
+	std::shared_ptr<Mesh> mesh)
 	:
 	skyMesh(mesh),
-	useSphericalHarmonicsForIrradiance(useSphericalHarmonicsForIrradiance)
+	useSHForIrradiance(false),
+	shCalculated(false)
 {
 	// Init render states
 	InitRenderStates();
@@ -53,11 +53,11 @@ Sky::Sky(
 	const wchar_t* down, 
 	const wchar_t* front, 
 	const wchar_t* back, 
-	std::shared_ptr<Mesh> mesh,
-	bool useSphericalHarmonicsForIrradiance)
+	std::shared_ptr<Mesh> mesh)
 	:
 	skyMesh(mesh),
-	useSphericalHarmonicsForIrradiance(useSphericalHarmonicsForIrradiance)
+	useSHForIrradiance(false),
+	shCalculated(false)
 {
 	// Init render states
 	InitRenderStates();
@@ -79,7 +79,8 @@ Sky::Sky(
 	:
 	skyMesh(mesh),
 	totalSpecMipLevels(totalSpecMipLevels),
-	useSphericalHarmonicsForIrradiance(false)
+	useSHForIrradiance(false),
+	shCalculated(false)
 {
 	// Init render states
 	InitRenderStates();
@@ -101,6 +102,20 @@ unsigned int Sky::GetBrdfLookUpTableDescriptorIndex() { return brdfLookUpTable.S
 unsigned int Sky::GetIrradianceMapDescriptorIndex() { return irradianceMap.SRV.GPUDescriptorIndex; }
 unsigned int Sky::GetSpecularMapDescriptorIndex() { return specularMap.SRV.GPUDescriptorIndex; }
 unsigned int Sky::GetTotalSpecularMipLevels() { return totalSpecMipLevels; }
+
+float* Sky::GetSHIrradianceValues() { return shIrradiance; }
+
+bool Sky::GetUseSH() { return useSHForIrradiance; }
+void Sky::SetUseSH(bool useSH) { useSHForIrradiance = useSH; if(useSH) CalculateSphericalHarmonics(); }
+
+void Sky::CalculateSphericalHarmonics()
+{
+	if (shCalculated)
+		return;
+
+	CreateIBLIrradianceSphericalHarmonics();
+	shCalculated = true;
+}
 
 void Sky::InitRenderStates()
 {
@@ -310,10 +325,7 @@ void Sky::CreateIBLResources()
 	// Perform individual compute steps to generate IBL resources
 	CreateIBLBrdfLookUpTable();
 	CreateIBLSpecularMap();
-	if (useSphericalHarmonicsForIrradiance)
-		CreateIBLIrradianceSphericalHarmonics();
-	else
-		CreateIBLIrradianceMap();
+	CreateIBLIrradianceMap();
 }
 
 void Sky::CreateIBLBrdfLookUpTable()
@@ -518,6 +530,10 @@ void Sky::CreateIBLIrradianceSphericalHarmonics()
 					pixelData[index + 3] / 255.0f
 				);
 
+				// Gamma un-correct
+				XMVECTOR c = XMLoadFloat4(&texelColor);
+				XMStoreFloat4(&texelColor, XMVectorPow(c, XMVectorReplicate(2.2f)));
+
 				// Calculate a 3D direction from x/y/face
 				XMFLOAT3 dir{};
 				float dx = x / (float)desc.Width * 2 - 1;
@@ -579,10 +595,6 @@ void Sky::CreateIBLIrradianceSphericalHarmonics()
 	float norm = (4.0f * XM_PI) / totalWeight;
 	for (int i = 0; i < 9 * 3; i++)
 		shIrradiance[i] *= norm;
-	
-	// TESTING
-	for (int i = 0; i < 9 * 3; i++)
-		printf("%f\n", shIrradiance[i]);
 }
 
 void Sky::Draw(std::shared_ptr<Camera> camera)
@@ -595,15 +607,6 @@ void Sky::Draw(std::shared_ptr<Camera> camera)
 	SkyDrawIndices drawData{};
 	drawData.psSkyboxIndex = skyCubeMap.SRV.GPUDescriptorIndex;
 	drawData.vsVertexBufferIndex = Graphics::GetDescriptorIndex(skyMesh->GetVertexBufferDescriptorHandle());
-
-	// SH data
-	drawData.useSH = true;
-	for (int i = 0; i < 9; i++)
-	{
-		drawData.shValues[i].x = shIrradiance[i * 3 + 0];
-		drawData.shValues[i].y = shIrradiance[i * 3 + 1];
-		drawData.shValues[i].z = shIrradiance[i * 3 + 2];
-	}
 
 	// Per frame data
 	{

@@ -33,6 +33,7 @@ struct PSPerObjectData
 	uint metalnessIndex;
 	float2 uvScale;
 	float2 uvOffset;
+	float3 colorTint;
 	float roughness;
 	float metalness;
 };
@@ -67,7 +68,7 @@ float4 main(VertexToPixel input) : SV_TARGET
 	input.uv = input.uv * cbObject.uvScale + cbObject.uvOffset;
 	
 	// Default material details
-	float4 surfaceColor = float4(1,1,1,1);
+	float4 surfaceColor = float4(cbObject.colorTint, 1);
 	float roughness = cbObject.roughness;
 	float metal = cbObject.metalness;
 	

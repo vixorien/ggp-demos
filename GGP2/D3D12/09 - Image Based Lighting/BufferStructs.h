@@ -49,6 +49,14 @@ struct PixelShaderPerObjectData
 	unsigned int metalnessIndex;
 	DirectX::XMFLOAT2 uvScale;
 	DirectX::XMFLOAT2 uvOffset;
+	DirectX::XMFLOAT3 colorTint;
 	float roughness;
 	float metalness;
+};
+
+struct EnvPreviewData
+{
+	DirectX::XMFLOAT4 SHIrradianceValues[9];
+	unsigned int UseSH;
+	unsigned int SkyboxDescriptorIndex;
 };
