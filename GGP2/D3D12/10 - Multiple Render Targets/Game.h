@@ -7,6 +7,8 @@
 #include "Lights.h"
 #include "Sky.h"
 
+#include "ImGui/imgui.h"
+
 #include <d3d12.h>
 #include <wrl/client.h>
 #include <vector>
@@ -37,6 +39,7 @@ private:
 	// UI functions and variables
 	void UINewFrame(float deltaTime);
 	void BuildUI();
+	void ImageWithHover(D3D12_GPU_DESCRIPTOR_HANDLE gpuDescHandle, const ImVec2& size);
 	bool showUIDemoWindow;
 
 	// Pipeline
@@ -53,5 +56,15 @@ private:
 	// Other graphics data
 	D3D12_VIEWPORT viewport{};
 	D3D12_RECT scissorRect{};
+
+	// Multiple render targets
+	const unsigned int MaxRenderTargets = 10;
+	const unsigned int AlbedoRT = 0;
+	const unsigned int NormalRT = 1;
+	const unsigned int MaterialRT = 2;
+	const unsigned int DepthRT = 3;
+
+	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> rtvDescriptorHeap;
+	TextureDetails RenderTargets[4];
 };
 

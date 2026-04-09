@@ -192,8 +192,11 @@ void Game::CreateRootSigAndPipelineState()
 		psoDesc.PS.BytecodeLength = pixelShaderByteCode->GetBufferSize();
 
 		// -- Render targets ---
-		psoDesc.NumRenderTargets = 1;
+		psoDesc.NumRenderTargets = 4;
 		psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+		psoDesc.RTVFormats[1] = DXGI_FORMAT_R8G8B8A8_UNORM;
+		psoDesc.RTVFormats[2] = DXGI_FORMAT_R8G8B8A8_UNORM;
+		psoDesc.RTVFormats[3] = DXGI_FORMAT_R32_FLOAT;
 		psoDesc.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
 		psoDesc.SampleDesc.Count = 1;
 		psoDesc.SampleDesc.Quality = 0;
@@ -242,6 +245,65 @@ void Game::CreateRootSigAndPipelineState()
 		scissorRect.right = Window::Width();
 		scissorRect.bottom = Window::Height();
 	}
+
+	// Create RTV heap for render targets
+	D3D12_DESCRIPTOR_HEAP_DESC dhDesc{};
+	dhDesc.NumDescriptors = MaxRenderTargets;
+	dhDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+	Graphics::Device->CreateDescriptorHeap(&dhDesc, IID_PPV_ARGS(rtvDescriptorHeap.GetAddressOf()));
+
+	D3D12_CPU_DESCRIPTOR_HANDLE rtv_cpu_start = rtvDescriptorHeap->GetCPUDescriptorHandleForHeapStart();
+	unsigned int descSize = Graphics::Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+
+	// Create render targets (note that depth uses R32 format!)
+	RenderTargets[AlbedoRT] = Graphics::CreateTexture(Window::Width(), Window::Height(), 1, 1, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
+	RenderTargets[NormalRT] = Graphics::CreateTexture(Window::Width(), Window::Height(), 1, 1, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
+	RenderTargets[MaterialRT] = Graphics::CreateTexture(Window::Width(), Window::Height(), 1, 1, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
+	RenderTargets[DepthRT] = Graphics::CreateTexture(Window::Width(), Window::Height(), 1, 1, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET, DXGI_FORMAT_R32_FLOAT);
+
+	// Update the texture details to point to contiguous spots in the RTV heap
+	for (unsigned int i = 0; i < 4; i++)
+	{
+		RenderTargets[i].RTV = rtv_cpu_start;
+		RenderTargets[i].RTV.ptr += descSize * i;
+	}
+
+	// Create RTVs for render targets
+	D3D12_RENDER_TARGET_VIEW_DESC rtvDesc{};
+	rtvDesc.ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+	rtvDesc.Texture2D.MipSlice = 0;
+	rtvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+
+	// Create the RTVs next to each other in the heap
+	Graphics::Device->CreateRenderTargetView(RenderTargets[AlbedoRT].Texture.Get(), &rtvDesc, RenderTargets[AlbedoRT].RTV);
+	Graphics::Device->CreateRenderTargetView(RenderTargets[NormalRT].Texture.Get(), &rtvDesc, RenderTargets[NormalRT].RTV);
+	Graphics::Device->CreateRenderTargetView(RenderTargets[MaterialRT].Texture.Get(), &rtvDesc, RenderTargets[MaterialRT].RTV);
+
+	// Depth needs different format
+	rtvDesc.Format = DXGI_FORMAT_R32_FLOAT;
+	Graphics::Device->CreateRenderTargetView(RenderTargets[DepthRT].Texture.Get(), &rtvDesc, RenderTargets[DepthRT].RTV);
+
+	// Create SRVs, too
+	D3D12_SHADER_RESOURCE_VIEW_DESC srv{};
+	srv.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srv.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srv.Texture2D.MipLevels = 1;
+	srv.Texture2D.MostDetailedMip = 0;
+	srv.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+
+	// Reserve 4 SRVs
+	for (unsigned int i = 0; i < 4; i++)
+		Graphics::ReserveDescriptorHeapSlot(&RenderTargets[i].SRV.CPUHandle, &RenderTargets[i].SRV.GPUHandle);
+	
+	// Create
+	Graphics::Device->CreateShaderResourceView(RenderTargets[AlbedoRT].Texture.Get(), &srv, RenderTargets[AlbedoRT].SRV.CPUHandle);
+	Graphics::Device->CreateShaderResourceView(RenderTargets[NormalRT].Texture.Get(), &srv, RenderTargets[NormalRT].SRV.CPUHandle);
+	Graphics::Device->CreateShaderResourceView(RenderTargets[MaterialRT].Texture.Get(), &srv, RenderTargets[MaterialRT].SRV.CPUHandle);
+
+	// Depth has different format
+	srv.Format = DXGI_FORMAT_R32_FLOAT;
+	Graphics::Device->CreateShaderResourceView(RenderTargets[DepthRT].Texture.Get(), &srv, RenderTargets[DepthRT].SRV.CPUHandle);
+
 }
 
 
@@ -466,6 +528,17 @@ void Game::Draw(float deltaTime, float totalTime)
 			1.0f,	// Max depth = 1.0f
 			0,		// Not clearing stencil, but need a value
 			0, 0);	// No scissor rects
+
+		// Transition RTs and clear, too
+		for (unsigned int i = 0; i < 4; i++)
+		{
+			rb.Transition.pResource = RenderTargets[i].Texture.Get();
+			rb.Transition.StateBefore = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+			rb.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
+			Graphics::CommandList->ResourceBarrier(1, &rb);
+
+			Graphics::CommandList->ClearRenderTargetView(RenderTargets[i].RTV, color, 0, 0);
+		}
 	}
 
 	// Rendering here!
@@ -479,10 +552,14 @@ void Game::Draw(float deltaTime, float totalTime)
 		// Root sig
 		Graphics::CommandList->SetGraphicsRootSignature(rootSignature.Get());
 
-
+		// Set multiple render targets
+			Graphics::CommandList->OMSetRenderTargets(
+				4,                             // Set 4 at once
+				&RenderTargets[AlbedoRT].RTV,  // Address of first
+				true,                          // True means all 4 are next to each other
+				&Graphics::DSVHandle);         // Depth buffer DSV
 
 		// Set up other commands for rendering
-		Graphics::CommandList->OMSetRenderTargets(1, &Graphics::RTVHandles[Graphics::SwapChainIndex()], true, &Graphics::DSVHandle);
 		Graphics::CommandList->RSSetViewports(1, &viewport);
 		Graphics::CommandList->RSSetScissorRects(1, &scissorRect);
 		Graphics::CommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -581,6 +658,22 @@ void Game::Draw(float deltaTime, float totalTime)
 	// Skybox after opaque objects
 	sky->Draw(camera);
 
+	// Back to back buffer
+	Graphics::CommandList->OMSetRenderTargets(1, &Graphics::RTVHandles[Graphics::SwapChainIndex()], true, &Graphics::DSVHandle);
+
+	// Transition RTs to pixel shader resources
+	for (unsigned int i = 0; i < 4; i++)
+	{
+		D3D12_RESOURCE_BARRIER rb = {};
+		rb.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+		rb.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+		rb.Transition.pResource = RenderTargets[i].Texture.Get();
+		rb.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
+		rb.Transition.StateAfter = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
+		rb.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+		Graphics::CommandList->ResourceBarrier(1, &rb);
+	}
+
 	// ImGui Render after all other scene objects
 	{
 		ImGui::Render();
@@ -671,9 +764,68 @@ void Game::BuildUI()
 			// Finalize the tree node
 			ImGui::TreePop();
 		}
+
+		// === Multiple Render Targets ===
+		if (ImGui::TreeNode("Render Targets"))
+		{
+			float width = ImGui::GetWindowWidth();
+			ImVec2 size = ImVec2(
+				width,
+				width / Window::AspectRatio());
+
+			for (unsigned int i = 0; i < 4; i++)
+			{
+				// Convert descriptor index BACK into actual GPU handle
+				ImageWithHover(RenderTargets[i].SRV.GPUHandle, size);
+			}
+
+			// Finalize the tree node
+			ImGui::TreePop();
+		}
+
+
 	}
 	ImGui::End();
 }
+
+void Game::ImageWithHover(D3D12_GPU_DESCRIPTOR_HANDLE gpuDescHandle, const ImVec2& size)
+{
+	// Draw the image
+	ImGui::Image(ImTextureRef(gpuDescHandle.ptr), size);
+
+	// Check for hover
+	if (ImGui::IsItemHovered())
+	{
+		// Zoom amount and aspect of the image
+		float zoom = 0.03f;
+		float aspect = (float)size.x / size.y;
+
+		// Get the coords of the image
+		ImVec2 topLeft = ImGui::GetItemRectMin();
+		ImVec2 bottomRight = ImGui::GetItemRectMax();
+
+		// Get the mouse pos as a percent across the image, clamping near the edge
+		ImVec2 mousePosGlobal = ImGui::GetMousePos();
+		ImVec2 mousePos = ImVec2(mousePosGlobal.x - topLeft.x, mousePosGlobal.y - topLeft.y);
+		ImVec2 uvPercent = ImVec2(mousePos.x / size.x, mousePos.y / size.y);
+
+		uvPercent.x = max(uvPercent.x, zoom / 2);
+		uvPercent.x = min(uvPercent.x, 1 - zoom / 2);
+		uvPercent.y = max(uvPercent.y, zoom / 2 * aspect);
+		uvPercent.y = min(uvPercent.y, 1 - zoom / 2 * aspect);
+
+		// Figure out the uv coords for the zoomed image
+		ImVec2 uvTL = ImVec2(uvPercent.x - zoom / 2, uvPercent.y - zoom / 2 * aspect);
+		ImVec2 uvBR = ImVec2(uvPercent.x + zoom / 2, uvPercent.y + zoom / 2 * aspect);
+
+		// Draw a floating box with a zoomed view of the image
+		ImGui::BeginTooltip();
+		ImGui::Image(ImTextureRef(gpuDescHandle.ptr), ImVec2(256, 256), uvTL, uvBR);
+		ImGui::EndTooltip();
+	}
+}
+
+
 
 
 

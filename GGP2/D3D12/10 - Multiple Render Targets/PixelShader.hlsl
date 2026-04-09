@@ -37,13 +37,21 @@ struct VertexToPixel
 	float3 worldPos			: POSITION;
 };
 
+struct PS_Output
+{
+	float4 Color      : SV_TARGET0;
+	float4 Normal     : SV_TARGET1;
+	float4 Material   : SV_TARGET2;
+	float  Depth       : SV_TARGET3;
+};
+
 // Texture related
 SamplerState BasicSampler		: register(s0);
 
 // --------------------------------------------------------
 // The entry point (main method) for our pixel shader
 // --------------------------------------------------------
-float4 main(VertexToPixel input) : SV_TARGET
+PS_Output main(VertexToPixel input)
 {
 	ConstantBuffer<PSPerFrameData> cbFrame = ResourceDescriptorHeap[psPerFrameCBIndex];
 	ConstantBuffer<PSPerObjectData> cbObject = ResourceDescriptorHeap[psPerObjectCBIndex];
@@ -103,6 +111,11 @@ float4 main(VertexToPixel input) : SV_TARGET
 		}
 	}
 
-	// Gamma correct and return
-	return float4(pow(totalLight, 1.0f / 2.2f), 1.0f);
+	// Set up return struct
+	PS_Output output;
+	output.Color = float4(pow(totalLight, 1.0f / 2.2f), 1.0f);
+	output.Normal = float4(input.normal * 0.5f + 0.5f, 1.0f);
+	output.Material = float4(roughness, metal, 0, 1);
+	output.Depth = input.screenPosition.z;
+	return output;
 }

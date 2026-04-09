@@ -22,6 +22,7 @@ struct TextureDetails
 	Microsoft::WRL::ComPtr<ID3D12Resource> Texture;
 	DescriptorDetails SRV;
 	DescriptorDetails UAV;
+	D3D12_CPU_DESCRIPTOR_HANDLE RTV{};
 };
 
 namespace Graphics

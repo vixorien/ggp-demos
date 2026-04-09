@@ -689,13 +689,21 @@ TextureDetails Graphics::CreateTexture(
 	desc.SampleDesc.Quality = 0;
 	desc.Width = width;
 
+	// Default clear value
+	D3D12_CLEAR_VALUE clear{};
+	clear.Color[0] = 0.0f;
+	clear.Color[1] = 0.0f;
+	clear.Color[2] = 0.0f;
+	clear.Color[3] = 1.0f;
+	clear.Format = colorFormat;
+
 	Microsoft::WRL::ComPtr<ID3D12Resource> texture;
 	Graphics::Device->CreateCommittedResource(
 		&props,
 		D3D12_HEAP_FLAG_NONE,
 		&desc,
 		D3D12_RESOURCE_STATE_COMMON,
-		0,
+		&clear,
 		IID_PPV_ARGS(texture.GetAddressOf()));
 
 	// Fill out texture details
