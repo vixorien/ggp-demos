@@ -38,6 +38,9 @@ struct PixelShaderPerFrameData
 
 	Light lights[MAX_LIGHTS];
 
+	DirectX::XMFLOAT4 SHIrradianceValues[9];
+	unsigned int UseSH;
+	
 	unsigned int IndirectLightingEnabled;
 };
 

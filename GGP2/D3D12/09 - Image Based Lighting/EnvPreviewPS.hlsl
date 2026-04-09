@@ -36,15 +36,19 @@ float4 main(VertexToPixel input) : SV_TARGET
 {
 	ConstantBuffer<PSData> cb = ResourceDescriptorHeap[psPerObjectCBIndex];
 	
-	
 	input.normal = normalize(input.normal);
 	
+	float3 color = 0;
 	if (cb.UseSH)
 	{
-		float3 color = GetSHColor(input.normal, cb.SHColors);
-		return float4(color, 1);
+		color = GetSHColor(input.normal, cb.SHColors);
 	}
+	else
+	{
+		TextureCube IrrTexture = ResourceDescriptorHeap[cb.SkyboxIndex];
+		color = IrrTexture.Sample(BasicSampler, input.normal);
+	}
+		
+	return float4(pow(color, 1.0f / 2.2f), 1);
 	
-	TextureCube SkyTexture = ResourceDescriptorHeap[cb.SkyboxIndex];
-	return SkyTexture.Sample(BasicSampler, input.normal);
 }
