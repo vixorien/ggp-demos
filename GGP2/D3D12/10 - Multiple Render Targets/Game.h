@@ -59,12 +59,15 @@ private:
 
 	// Multiple render targets
 	const unsigned int MaxRenderTargets = 10;
-	const unsigned int AlbedoRT = 0;
+	const unsigned int ColorRT = 0;
 	const unsigned int NormalRT = 1;
 	const unsigned int MaterialRT = 2;
 	const unsigned int DepthRT = 3;
 
 	Microsoft::WRL::ComPtr<ID3D12DescriptorHeap> rtvDescriptorHeap;
 	TextureDetails RenderTargets[4];
+
+	// Going to assume the same root signature is compatible with this PSO
+	Microsoft::WRL::ComPtr<ID3D12PipelineState> fullScreenTexturePSO;
 };
 
