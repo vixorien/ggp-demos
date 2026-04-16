@@ -7,6 +7,7 @@ struct HitResult
 {
 	float Dist;
 	float3 Color;
+	float Metal;
 };
 
 struct Ray
@@ -18,17 +19,17 @@ struct Ray
 struct DrawData
 {
 	matrix inverseViewProjection;
+	
 	float3 cameraPosition;
-	
-	int screenWidth;
-	int screenHeight;
-	
 	float totalTime;
 	
 	int reflectionCount;
 	float ambientAmount;
 	int shadows;
 	float shadowSpread;
+	
+	int screenWidth;
+	int screenHeight;
 };
 
 
@@ -65,17 +66,24 @@ Ray GetRayThroughPixel(float3 camPos, float x, float y, float width, float heigh
 float3 GetSkyColor(float3 dir)
 {
 	TextureCube sky = ResourceDescriptorHeap[skyboxIndex];
-	return sky.SampleLevel(BasicSampler, dir, 0).rgb;
+	return pow(sky.SampleLevel(BasicSampler, dir, 0).rgb, 2.2f);
 }
 
-float3 GetCheckerColor(float2 pos, float scale, float3 colorA, float3 colorB)
+float3 GetAmbientColor(float3 dir)
+{
+	return float3(0.18f, 0.33f, 0.6f);
+}
+
+float3 GetCheckerColor(float2 pos, float scale, float3 colorA, float3 colorB, out bool metal)
 {
 	float fx = frac(pos.x / scale);
 	float fy = frac(pos.y / scale);
-	return lerp(colorA, colorB, fy < 0.5f ? fx < 0.5f : fx >= 0.5f);
+	bool toggle = fy < 0.5f ? fx < 0.5f : fx >= 0.5f;
+	metal = toggle;
+	return lerp(colorA, colorB, toggle);
 }
 
-float FresnelSchlick(float f0, float3 n, float3 v)
+float3 FresnelSchlick(float3 f0, float3 n, float3 v)
 {
 	return f0 + (1-f0) * pow(1 - saturate(dot(n,v)), 5.0f);
 }
@@ -142,30 +150,35 @@ HitResult EvaluateScene(float3 samplePos, float time)
 	
 	// Initial floor plane
 	bestHit.Dist = PlaneSDF(samplePos, float3(0,0,0), float3(0,1,0), 0.0f);
-	bestHit.Color = GetCheckerColor(samplePos.xz, 5.0f, 0.75f, 0.45f);
+	bestHit.Color = GetCheckerColor(samplePos.xz, 5.0f, 0.75f, 0.45f, bestHit.Metal);
 	
 	// First sphere
 	hit.Dist = SphereSDF(samplePos, float3(sin(time) * 3.0f, 2, 0), 1.0f);
-	hit.Color = float3(1, 0.75f, 0.25f);
+	hit.Color = float3(0.1f, 0.75f, 0.25f);
+	hit.Metal = 0;
 	bestHit = UnionHit(bestHit, hit);
 	
 	// Second sphere
 	hit.Dist = SphereSDF(samplePos, float3(3, 4, sin(time * 1.5f) * 3.0f), 2.0f);
 	hit.Color = float3(0.25f, 1, 0.75f);
+	hit.Metal = 1;
 	bestHit = UnionHit(bestHit, hit);
 	
 	// Box
 	hit.Dist = BoxSDF(samplePos, float3(0,6,5), float3(5, 5, 2));
 	hit.Color = float3(0.75f, 0.25f, 1);
+	hit.Metal = 0;
 	bestHit = UnionHit(bestHit, hit);
 	
 	// Rounded box
 	hit.Dist = BoxRoundSDF(samplePos, float3(11, 6, 5), float3(5, 5, 2), 1.0f);
 	hit.Color = float3(1.0f, 0.2f, 0.2f);
+	hit.Metal = 1;
 	bestHit = UnionHit(bestHit, hit);
 	
 	// Complex shape
 	hit.Color = float3(1.0f, 0.2f, 0.2f);
+	hit.Metal = 1;
 	hit.Dist = SphereSDF(samplePos, float3(-10, 5, 5), 3.0f);
 	hit.Dist = SubtractionSDF(BoxRoundSDF(samplePos, float3(-10, 5, 5), float3(4,1,1), 0.5f), hit.Dist);
 	hit.Dist = SubtractionSDF(BoxRoundSDF(samplePos, float3(-10, 5, 5), float3(1,4,1), 0.5f), hit.Dist);
@@ -174,6 +187,7 @@ HitResult EvaluateScene(float3 samplePos, float time)
 	
 	// Another complex shape
 	hit.Color = float3(1.0f, 1.0f, 0.2f);
+	hit.Metal = 0;
 	hit.Dist = BoxRoundSDF(samplePos, float3(10, 5, 0), float3(2,2,1), 0.25f);
 	hit.Dist = IntersectionSDF(SphereSDF(samplePos, float3(10, 6, 0), 2.0f), hit.Dist);
 	bestHit = UnionHit(bestHit, hit);
@@ -236,13 +250,14 @@ float3 RayMarch(Ray ray, float3 camPos, float time, int reflCount, int shadows, 
 		
 		// Ray march
 		bool anyHit = false;
+		HitResult hit;
 		for (int i = 0; i < 256; i++)
 		{
 			// Calculate new position
 			currPosition = startPos + ray.Direction * currentDist;
 		
 			// Ray march the scene
-			HitResult hit = EvaluateScene(currPosition, time);
+			hit = EvaluateScene(currPosition, time);
 			if (hit.Dist < EPSILON)
 			{
 				anyHit = true;
@@ -270,20 +285,22 @@ float3 RayMarch(Ray ray, float3 camPos, float time, int reflCount, int shadows, 
 				}
 				
 				// Specular (Phong)
-				float specular = pow(max(0, dot(-ray.Direction, lightRefl)), 32.0f);
-				specular *= FresnelSchlick(0.04f, normal, normalize(camPos - currPosition));
+				float3 specColor = lerp(0.04f, hit.Color, hit.Metal);
+				float3 specular = pow(max(0, dot(-ray.Direction, lightRefl)), 32.0f);
+				specular *= FresnelSchlick(specColor, normal, normalize(camPos - currPosition));
 				specular *= 3.0f; // Arbitrary specular constant (k)
 				specular *= diffuse; // Limit based on lambert & shadows, too
+				specular *= hit.Metal; // Drop entirely for non-metals
 				
-				// Ambient (hemispheric ambient)
-				float3 ambient = GetSkyColor(normal) * ambientAmount * hit.Color;
+				// Ambient
+				float3 ambient = GetAmbientColor(normal) * ambientAmount * hit.Color;
 			
 				// Combine
 				color *= (hit.Color * diffuse + specular + ambient);
 				
 				break;
 			}
-		
+			
 			// Step forward
 			currentDist += hit.Dist;
 		
@@ -297,6 +314,10 @@ float3 RayMarch(Ray ray, float3 camPos, float time, int reflCount, int shadows, 
 		{
 			color *= GetSkyColor(ray.Direction);
 			break;
+		}
+		else if(hit.Metal == 0)
+		{
+			return color;
 		}
 		
 		// New position and direction based on reflection

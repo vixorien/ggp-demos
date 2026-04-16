@@ -499,7 +499,8 @@ void Game::Draw(float deltaTime, float totalTime)
 		drawData.cameraPosition = camera->GetTransform()->GetPosition();
 		drawData.screenWidth = Window::Width();
 		drawData.screenHeight = Window::Height();
-		
+		drawData.totalTime = totalTime;
+
 		XMFLOAT4X4 view = camera->GetView();
 		XMFLOAT4X4 proj = camera->GetProjection();
 		XMMATRIX invVP = XMMatrixInverse(0, XMLoadFloat4x4(&view) * XMLoadFloat4x4(&proj));

@@ -3,8 +3,6 @@
 #include "Lights.h"
 #include <DirectXMath.h>
 
-
-
 struct DrawDescriptorIndices
 {
 	unsigned int vsVertexBufferIndex;
@@ -12,34 +10,6 @@ struct DrawDescriptorIndices
 	unsigned int vsPerObjectCBIndex;
 	unsigned int psPerFrameCBIndex;
 	unsigned int psPerObjectCBIndex;
-};
-
-struct SDF_Object
-{
-
-};
-
-struct DrawData
-{
-	DirectX::XMFLOAT4X4 inverseViewProjection;
-
-	DirectX::XMFLOAT3 cameraPosition;
-	float totalTime;
-
-	int reflectionCount;
-	float ambientAmount;
-	int shadows;
-	float shadowSpread;
-
-	int screenWidth;
-	int screenHeight;
-};
-
-struct ComputeDescriptorIndices
-{
-	unsigned int cbIndex;
-	unsigned int outputTextureIndex;
-	unsigned int skyboxIndex;
 };
 
 // Must match vertex shader definition!
