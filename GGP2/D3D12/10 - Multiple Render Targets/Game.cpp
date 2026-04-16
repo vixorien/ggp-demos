@@ -106,12 +106,18 @@ void Game::CreateRootSigAndPipelineState()
 	Microsoft::WRL::ComPtr<ID3DBlob> vertexShaderByteCode;
 	Microsoft::WRL::ComPtr<ID3DBlob> pixelShaderByteCode;
 
+	Microsoft::WRL::ComPtr<ID3DBlob> fullscreenVS;
+	Microsoft::WRL::ComPtr<ID3DBlob> simpleTexturePS;
+
 	// Load shaders
 	{
 		// Read our compiled vertex shader code into a blob
 		// - Essentially just "open the file and plop its contents here"
 		D3DReadFileToBlob(FixPath(L"VertexShader.cso").c_str(), vertexShaderByteCode.GetAddressOf());
 		D3DReadFileToBlob(FixPath(L"PixelShader.cso").c_str(), pixelShaderByteCode.GetAddressOf());
+
+		D3DReadFileToBlob(FixPath(L"FullscreenVS.cso").c_str(), fullscreenVS.GetAddressOf());
+		D3DReadFileToBlob(FixPath(L"SimpleTexturePS.cso").c_str(), simpleTexturePS.GetAddressOf());
 	}
 
 	// Root Signature
@@ -220,6 +226,23 @@ void Game::CreateRootSigAndPipelineState()
 
 		// Create the pipe state object
 		Graphics::Device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(pipelineState.GetAddressOf()));
+
+		// ============================================
+		// Also create the "full screen texture" PSO
+		// - Assuming the same root sig is compatible
+
+		psoDesc.PS.BytecodeLength = simpleTexturePS->GetBufferSize();
+		psoDesc.PS.pShaderBytecode = simpleTexturePS->GetBufferPointer();
+
+		psoDesc.VS.BytecodeLength = fullscreenVS->GetBufferSize();
+		psoDesc.VS.pShaderBytecode = fullscreenVS->GetBufferPointer();
+
+		psoDesc.NumRenderTargets = 1;
+		psoDesc.RTVFormats[1] = DXGI_FORMAT_UNKNOWN; // Means "not used" here
+		psoDesc.RTVFormats[2] = DXGI_FORMAT_UNKNOWN;
+		psoDesc.RTVFormats[3] = DXGI_FORMAT_UNKNOWN;
+		Graphics::Device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(fullScreenTexturePSO.GetAddressOf()));
+
 	}
 
 	// Set up the viewport and scissor rectangle
@@ -256,10 +279,10 @@ void Game::CreateRootSigAndPipelineState()
 	unsigned int descSize = Graphics::Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 
 	// Create render targets (note that depth uses R32 format!)
-	RenderTargets[AlbedoRT] = Graphics::CreateTexture(Window::Width(), Window::Height(), 1, 1, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
+	RenderTargets[ColorRT] = Graphics::CreateTexture(Window::Width(), Window::Height(), 1, 1, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
 	RenderTargets[NormalRT] = Graphics::CreateTexture(Window::Width(), Window::Height(), 1, 1, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
 	RenderTargets[MaterialRT] = Graphics::CreateTexture(Window::Width(), Window::Height(), 1, 1, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET);
-	RenderTargets[DepthRT] = Graphics::CreateTexture(Window::Width(), Window::Height(), 1, 1, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET, DXGI_FORMAT_R32_FLOAT);
+	RenderTargets[DepthRT] = Graphics::CreateTexture(Window::Width(), Window::Height(), 1, 1, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET, DXGI_FORMAT_R32_FLOAT, 1, 0, 0, 0);
 
 	// Update the texture details to point to contiguous spots in the RTV heap
 	for (unsigned int i = 0; i < 4; i++)
@@ -275,7 +298,7 @@ void Game::CreateRootSigAndPipelineState()
 	rtvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 
 	// Create the RTVs next to each other in the heap
-	Graphics::Device->CreateRenderTargetView(RenderTargets[AlbedoRT].Texture.Get(), &rtvDesc, RenderTargets[AlbedoRT].RTV);
+	Graphics::Device->CreateRenderTargetView(RenderTargets[ColorRT].Texture.Get(), &rtvDesc, RenderTargets[ColorRT].RTV);
 	Graphics::Device->CreateRenderTargetView(RenderTargets[NormalRT].Texture.Get(), &rtvDesc, RenderTargets[NormalRT].RTV);
 	Graphics::Device->CreateRenderTargetView(RenderTargets[MaterialRT].Texture.Get(), &rtvDesc, RenderTargets[MaterialRT].RTV);
 
@@ -296,7 +319,7 @@ void Game::CreateRootSigAndPipelineState()
 		Graphics::ReserveDescriptorHeapSlot(&RenderTargets[i].SRV.CPUHandle, &RenderTargets[i].SRV.GPUHandle);
 	
 	// Create
-	Graphics::Device->CreateShaderResourceView(RenderTargets[AlbedoRT].Texture.Get(), &srv, RenderTargets[AlbedoRT].SRV.CPUHandle);
+	Graphics::Device->CreateShaderResourceView(RenderTargets[ColorRT].Texture.Get(), &srv, RenderTargets[ColorRT].SRV.CPUHandle);
 	Graphics::Device->CreateShaderResourceView(RenderTargets[NormalRT].Texture.Get(), &srv, RenderTargets[NormalRT].SRV.CPUHandle);
 	Graphics::Device->CreateShaderResourceView(RenderTargets[MaterialRT].Texture.Get(), &srv, RenderTargets[MaterialRT].SRV.CPUHandle);
 
@@ -304,6 +327,9 @@ void Game::CreateRootSigAndPipelineState()
 	srv.Format = DXGI_FORMAT_R32_FLOAT;
 	Graphics::Device->CreateShaderResourceView(RenderTargets[DepthRT].Texture.Get(), &srv, RenderTargets[DepthRT].SRV.CPUHandle);
 
+	// Update SRV indices
+	for (unsigned int i = 0; i < 4; i++)
+		RenderTargets[i].SRV.GPUDescriptorIndex = Graphics::GetDescriptorIndex(RenderTargets[i].SRV.GPUHandle);
 }
 
 
@@ -530,6 +556,7 @@ void Game::Draw(float deltaTime, float totalTime)
 			0, 0);	// No scissor rects
 
 		// Transition RTs and clear, too
+		float depthClear[4] = { 1,0,0,0 };
 		for (unsigned int i = 0; i < 4; i++)
 		{
 			rb.Transition.pResource = RenderTargets[i].Texture.Get();
@@ -537,7 +564,10 @@ void Game::Draw(float deltaTime, float totalTime)
 			rb.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
 			Graphics::CommandList->ResourceBarrier(1, &rb);
 
-			Graphics::CommandList->ClearRenderTargetView(RenderTargets[i].RTV, color, 0, 0);
+			if (i == DepthRT)
+				Graphics::CommandList->ClearRenderTargetView(RenderTargets[i].RTV, depthClear, 0, 0);
+			else
+				Graphics::CommandList->ClearRenderTargetView(RenderTargets[i].RTV, color, 0, 0);
 		}
 	}
 
@@ -553,11 +583,11 @@ void Game::Draw(float deltaTime, float totalTime)
 		Graphics::CommandList->SetGraphicsRootSignature(rootSignature.Get());
 
 		// Set multiple render targets
-			Graphics::CommandList->OMSetRenderTargets(
-				4,                             // Set 4 at once
-				&RenderTargets[AlbedoRT].RTV,  // Address of first
-				true,                          // True means all 4 are next to each other
-				&Graphics::DSVHandle);         // Depth buffer DSV
+		Graphics::CommandList->OMSetRenderTargets(
+			4,                             // Set 4 at once
+			&RenderTargets[ColorRT].RTV,  // Address of first
+			true,                          // True means all 4 are next to each other
+			&Graphics::DSVHandle);         // Depth buffer DSV
 
 		// Set up other commands for rendering
 		Graphics::CommandList->RSSetViewports(1, &viewport);
@@ -672,6 +702,17 @@ void Game::Draw(float deltaTime, float totalTime)
 		rb.Transition.StateAfter = D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE;
 		rb.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
 		Graphics::CommandList->ResourceBarrier(1, &rb);
+	}
+
+	// Put the pixels on the screen
+	{
+		Graphics::CommandList->SetPipelineState(fullScreenTexturePSO.Get());
+		Graphics::CommandList->SetGraphicsRootSignature(rootSignature.Get());
+
+		// Set index of 1 texture
+		Graphics::CommandList->SetGraphicsRoot32BitConstants(0, 1, &RenderTargets[ColorRT].SRV.GPUDescriptorIndex, 0);
+
+		Graphics::CommandList->DrawInstanced(3, 1, 0, 0);
 	}
 
 	// ImGui Render after all other scene objects

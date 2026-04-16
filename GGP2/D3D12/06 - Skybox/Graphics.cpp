@@ -533,7 +533,13 @@ unsigned int Graphics::LoadTexture(const wchar_t* file, bool generateMips)
 	return srvIndex;
 }
 
-unsigned int Graphics::CreateCubemap(const wchar_t* right, const wchar_t* left, const wchar_t* up, const wchar_t* down, const wchar_t* front, const wchar_t* back)
+unsigned int Graphics::CreateCubemap(
+	const wchar_t* right,
+	const wchar_t* left,
+	const wchar_t* up, 
+	const wchar_t* down,
+	const wchar_t* front, 
+	const wchar_t* back)
 {
 	// Temporary textures
 	Microsoft::WRL::ComPtr<ID3D12Resource> faces[6]{};

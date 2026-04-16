@@ -666,7 +666,11 @@ TextureDetails Graphics::CreateTexture(
 	unsigned int arraySize, 
 	unsigned int mipLevels, 
 	D3D12_RESOURCE_FLAGS flags, 
-	DXGI_FORMAT colorFormat)
+	DXGI_FORMAT colorFormat,
+	float clearColorR,
+	float clearColorG, 
+	float clearColorB, 
+	float clearColorA)
 {
 	// Set up the heap and then resource itself
 	D3D12_HEAP_PROPERTIES props = {};
@@ -691,10 +695,10 @@ TextureDetails Graphics::CreateTexture(
 
 	// Default clear value
 	D3D12_CLEAR_VALUE clear{};
-	clear.Color[0] = 0.0f;
-	clear.Color[1] = 0.0f;
-	clear.Color[2] = 0.0f;
-	clear.Color[3] = 1.0f;
+	clear.Color[0] = clearColorR;
+	clear.Color[1] = clearColorG;
+	clear.Color[2] = clearColorB;
+	clear.Color[3] = clearColorA;
 	clear.Format = colorFormat;
 
 	Microsoft::WRL::ComPtr<ID3D12Resource> texture;
