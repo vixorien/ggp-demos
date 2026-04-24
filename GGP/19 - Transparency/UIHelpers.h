@@ -16,6 +16,7 @@ struct TransparencyOptions
 	bool AlphaClippingOn;
 	bool SortTransparentObjects;
 	bool RenderTransparentBackfaces;
+	bool CullingOff;
 };
 
 // Informing IMGUI about the new frame
