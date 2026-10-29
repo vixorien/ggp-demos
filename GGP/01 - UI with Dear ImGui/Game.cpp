@@ -248,6 +248,10 @@ void Game::OnResize()
 {
 }
 
+bool example_dont_do_this = false;
+float exampleFloat = 1.0f;
+XMFLOAT3 vector{ 1,2,3 };
+XMFLOAT4 color{ 1,1,0,1 };
 
 // --------------------------------------------------------
 // Update your game here - user input, move objects, AI, etc.
@@ -258,7 +262,20 @@ void Game::Update(float deltaTime, float totalTime)
 	// this frame's interface.  Note that the building
 	// of the UI could happen at any point during update.
 	UINewFrame(deltaTime);
-	BuildUI();
+	//BuildUI();
+
+	ImGui::Begin("My Cool Window");
+	{
+		ImGui::Button("My button");
+
+		ImGui::SliderFloat("Slider", &exampleFloat, 0, 10);
+		ImGui::DragFloat("Drag", &exampleFloat);
+
+		ImGui::DragFloat3("Vector", &vector.x);
+		ImGui::ColorEdit4("Color", &color.x);
+
+	}
+	ImGui::End();
 
 	// Example input checking: Quit if the escape key is pressed
 	if (Input::KeyDown(VK_ESCAPE))
