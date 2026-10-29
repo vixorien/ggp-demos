@@ -89,8 +89,11 @@ HRESULT LoadTexture(
 	unsigned int bitsPerPixel = 0;
 	GetFormatConversionDetails(wicFormat, &desiredWicFormat, &dxgiFormat, &bitsPerPixel);
 	
-	// Is a conversion necessary?
-	bool convert = memcmp(&wicFormat, &desiredWicFormat, sizeof(GUID)) != 0;
+	// Did we get a useful format?
+	if (bitsPerPixel == 0 || dxgiFormat == DXGI_FORMAT_UNKNOWN)
+	{
+		return E_FAIL;
+	}
 
 	// Create the memory to hold the pixels
 	unsigned int bytesPerRow = (imageWidth * bitsPerPixel) / 8;
@@ -98,6 +101,7 @@ HRESULT LoadTexture(
 	unsigned char* pixelData = new unsigned char[totalBytes];
 
 	// Do we need to convert?
+	bool convert = memcmp(&wicFormat, &desiredWicFormat, sizeof(GUID)) != 0;
 	if (!convert)
 	{
 		// No conversion, just copy the data as is
