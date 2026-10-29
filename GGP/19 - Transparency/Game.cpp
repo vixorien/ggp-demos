@@ -477,6 +477,9 @@ void Game::LoadAssetsAndCreateEntities()
 	rastDesc.CullMode = D3D11_CULL_FRONT;
 	rastDesc.FillMode = D3D11_FILL_SOLID;
 	Graphics::Device->CreateRasterizerState(&rastDesc, backfaceRasterState.GetAddressOf());
+
+	rastDesc.CullMode = D3D11_CULL_NONE;
+	Graphics::Device->CreateRasterizerState(&rastDesc, noCullRasterState.GetAddressOf());
 }
 
 // --------------------------------------------------------
@@ -755,9 +758,18 @@ void Game::Draw(float deltaTime, float totalTime)
 				Graphics::Context->RSSetState(0);
 			}
 
+
 			// Draw the front faces of this entity
-			DrawOneEntity(e, totalTime);
+			if (transparencyOptions.CullingOff)
+			{
+				Graphics::Context->RSSetState(noCullRasterState.Get());
+				DrawOneEntity(e, totalTime, true);
+				Graphics::Context->RSSetState(0);
+			}
+			else
+				DrawOneEntity(e, totalTime);
 		}
+
 		// Disable transparency afterwards
 		if (transparencyOptions.TransparencyOn)
 			Graphics::Context->OMSetBlendState(0, 0, 0xFFFFFFFF);

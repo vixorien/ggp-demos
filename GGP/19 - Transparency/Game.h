@@ -77,5 +77,6 @@ private:
 	std::vector<std::shared_ptr<GameEntity>> transparentSortList;
 	Microsoft::WRL::ComPtr<ID3D11BlendState> alphaBlendState;
 	Microsoft::WRL::ComPtr<ID3D11RasterizerState> backfaceRasterState;
+	Microsoft::WRL::ComPtr<ID3D11RasterizerState> noCullRasterState;
 };
 

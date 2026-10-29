@@ -234,6 +234,7 @@ void BuildUI(
 			ImGui::Checkbox("Alpha Clip On", &transparencyOptions.AlphaClippingOn);
 			ImGui::Checkbox("Sort Transparent Objects", &transparencyOptions.SortTransparentObjects);
 			ImGui::Checkbox("Backfaces", &transparencyOptions.RenderTransparentBackfaces);
+			ImGui::Checkbox("Turn culling off", &transparencyOptions.CullingOff);
 			ImGui::TreePop();
 		}
 	}
