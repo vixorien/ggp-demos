@@ -179,17 +179,9 @@ void Game::LoadAssetsAndCreateEntities()
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> tilesSRV;
 	Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> crateSRV;
 
-	//CreateWICTextureFromFile(Graphics::Device.Get(), Graphics::Context.Get(), FixPath(AssetPath + L"Textures/rock.png").c_str(), 0, rockSRV.GetAddressOf());
-	CreateWICTextureFromFile(Graphics::Device.Get(), Graphics::Context.Get(), FixPath(AssetPath + L"Textures/tiles.png").c_str(), 0, tilesSRV.GetAddressOf());
-	CreateWICTextureFromFile(Graphics::Device.Get(), Graphics::Context.Get(), FixPath(AssetPath + L"Textures/crate.png").c_str(), 0, crateSRV.GetAddressOf());
-
-	// Test
-	LoadTexture(
-		Graphics::Device,
-		Graphics::Context,
-		FixPath(AssetPath + L"Textures/rock.png").c_str(),
-		0,
-		rockSRV.GetAddressOf(),true);
+	LoadTexture(Graphics::Device, Graphics::Context, FixPath(AssetPath + L"Textures/rock.png").c_str(), 0, rockSRV.GetAddressOf());
+	LoadTexture(Graphics::Device, Graphics::Context, FixPath(AssetPath + L"Textures/tiles.png").c_str(), 0, tilesSRV.GetAddressOf());
+	LoadTexture(Graphics::Device, Graphics::Context, FixPath(AssetPath + L"Textures/crate.png").c_str(), 0, crateSRV.GetAddressOf());
 
 	// Load shaders
 	Microsoft::WRL::ComPtr<ID3D11VertexShader> basicVertexShader = LoadVertexShader(FixPath(L"VertexShader.cso").c_str());

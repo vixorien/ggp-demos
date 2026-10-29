@@ -2,82 +2,7 @@
 
 #include <wincodec.h>
 
-// --------------------------------------------------------
-// Gets the format gets based on a given WIC format.
-// 
-// wic - The WIC format to analyze
-// wicConvert - The final WIC format the data should be in
-// dxgi - The DXGI format corresponding to the converted WIC format
-// bpp - The bits-per-pixel of the final DXGI format
-// --------------------------------------------------------
-void GetFormatConversionDetails(
-	GUID wic, 
-	GUID* wicConvert, 
-	DXGI_FORMAT* dxgi,
-	unsigned int *bpp)
-{
-#define MATCH(format, wic) memcmp(&format, &wic, sizeof(GUID)) == 0
 
-	// Formats that convert to DXGI_FORMAT_R8G8B8A8_UNORM
-	if (MATCH(wic, GUID_WICPixelFormat32bppRGB) ||
-		MATCH(wic, GUID_WICPixelFormat32bppRGBA) ||
-		MATCH(wic, GUID_WICPixelFormat24bppRGB) ||
-
-		MATCH(wic, GUID_WICPixelFormat32bppPRGBA) ||
-		MATCH(wic, GUID_WICPixelFormat32bppPBGRA) || // BGRA -> RGBA
-		MATCH(wic, GUID_WICPixelFormat32bppBGRA) ||  // BGRA -> RGBA
-		MATCH(wic, GUID_WICPixelFormat32bppBGR) ||   // BGR -> RGBA
-		MATCH(wic, GUID_WICPixelFormat24bppBGR) ||   // BGR -> RGBA
-		
-		MATCH(wic, GUID_WICPixelFormat1bppIndexed) ||
-		MATCH(wic, GUID_WICPixelFormat2bppIndexed) ||
-		MATCH(wic, GUID_WICPixelFormat4bppIndexed) ||
-		MATCH(wic, GUID_WICPixelFormat8bppIndexed) ||
-		
-		MATCH(wic, GUID_WICPixelFormat32bppCMYK) ||
-		MATCH(wic, GUID_WICPixelFormat40bppCMYKAlpha)) 
-	{ 
-		*wicConvert = GUID_WICPixelFormat32bppRGBA; 
-		*dxgi = DXGI_FORMAT_R8G8B8A8_UNORM; 
-		*bpp = 32;
-	}
-
-	// 16-bit BGRA / BGR
-	else if (
-		MATCH(wic, GUID_WICPixelFormat16bppBGR555) ||
-		MATCH(wic, GUID_WICPixelFormat16bppBGRA5551)) 
-	{ 
-		*wicConvert = GUID_WICPixelFormat16bppBGRA5551;
-		*dxgi = DXGI_FORMAT_B5G5R5A1_UNORM; 
-		*bpp = 16;
-	}
-	else if (MATCH(wic, GUID_WICPixelFormat16bppBGR565)) 
-	{ 
-		*wicConvert = GUID_WICPixelFormat16bppBGR565;
-		*dxgi = DXGI_FORMAT_B5G6R5_UNORM; 
-		*bpp = 16;
-	}
-
-	// Single-channel
-	else if (
-		MATCH(wic, GUID_WICPixelFormat8bppGray) || 
-		MATCH(wic, GUID_WICPixelFormatBlackWhite)) 
-	{
-		*wicConvert = GUID_WICPixelFormat8bppGray;
-		*dxgi = DXGI_FORMAT_R8_UNORM; 
-		*bpp = 8;
-	}
-	else if (MATCH(wic, GUID_WICPixelFormat16bppGray)) { *wicConvert = wic; *dxgi = DXGI_FORMAT_R16_UNORM; *bpp = 16; }
-	else if (MATCH(wic, GUID_WICPixelFormat16bppGrayHalf)) { *wicConvert = wic; *dxgi = DXGI_FORMAT_R16_FLOAT; *bpp = 16; }
-	else if (MATCH(wic, GUID_WICPixelFormat32bppGrayFloat)) { *wicConvert = wic; *dxgi = DXGI_FORMAT_R32_FLOAT; *bpp = 32; }
-
-	// 64-bit & 128-bit RGBA
-	else if (MATCH(wic, GUID_WICPixelFormat64bppRGBA)) { *wicConvert = wic; *dxgi = DXGI_FORMAT_R16G16B16A16_UNORM; *bpp = 64; }
-	else if (MATCH(wic, GUID_WICPixelFormat64bppRGBAHalf)) { *wicConvert = wic; *dxgi = DXGI_FORMAT_R16G16B16A16_FLOAT; *bpp = 64; }
-	else if (MATCH(wic, GUID_WICPixelFormat128bppRGBAFloat)) { *wicConvert = wic; *dxgi = DXGI_FORMAT_R32G32B32A32_FLOAT; *bpp = 128; }
-
-#undef MATCH
-}
 
 // --------------------------------------------------------
 // Loads a texture onto the GPU
@@ -282,4 +207,77 @@ HRESULT LoadTexture(
 
 	// Success
 	return S_OK;
+}
+
+
+// --------------------------------------------------------
+// Gets conversion details based on a given WIC format.
+// 
+// wic - The WIC format to analyze
+// wicConvert - The final WIC format the data should be in
+// dxgi - The DXGI format corresponding to the converted WIC format
+// bpp - The bits-per-pixel of the final DXGI format
+// --------------------------------------------------------
+void GetFormatConversionDetails(
+	GUID wic,
+	GUID* wicConvert,
+	DXGI_FORMAT* dxgi,
+	unsigned int* bpp)
+{
+#define MATCH(format, wic) memcmp(&format, &wic, sizeof(GUID)) == 0
+
+	// Formats that convert to DXGI_FORMAT_R8G8B8A8_UNORM
+	if (MATCH(wic, GUID_WICPixelFormat32bppRGB) ||
+		MATCH(wic, GUID_WICPixelFormat32bppRGBA) ||
+		MATCH(wic, GUID_WICPixelFormat24bppRGB) ||
+
+		MATCH(wic, GUID_WICPixelFormat32bppPRGBA) ||
+		MATCH(wic, GUID_WICPixelFormat32bppPBGRA) || // BGRA -> RGBA
+		MATCH(wic, GUID_WICPixelFormat32bppBGRA) ||  // BGRA -> RGBA
+		MATCH(wic, GUID_WICPixelFormat32bppBGR) ||   // BGR -> RGBA
+		MATCH(wic, GUID_WICPixelFormat24bppBGR) ||   // BGR -> RGBA
+
+		MATCH(wic, GUID_WICPixelFormat1bppIndexed) ||
+		MATCH(wic, GUID_WICPixelFormat2bppIndexed) ||
+		MATCH(wic, GUID_WICPixelFormat4bppIndexed) ||
+		MATCH(wic, GUID_WICPixelFormat8bppIndexed) ||
+
+		MATCH(wic, GUID_WICPixelFormat32bppCMYK) ||
+		MATCH(wic, GUID_WICPixelFormat40bppCMYKAlpha))
+	{
+		*wicConvert = GUID_WICPixelFormat32bppRGBA;
+		*dxgi = DXGI_FORMAT_R8G8B8A8_UNORM;
+		*bpp = 32;
+	}
+
+	// 16-bit BGRA / BGR
+	else if (
+		MATCH(wic, GUID_WICPixelFormat16bppBGR555) ||
+		MATCH(wic, GUID_WICPixelFormat16bppBGRA5551))
+	{
+		*wicConvert = GUID_WICPixelFormat16bppBGRA5551;
+		*dxgi = DXGI_FORMAT_B5G5R5A1_UNORM;
+		*bpp = 16;
+	}
+	else if (MATCH(wic, GUID_WICPixelFormat16bppBGR565)) { *wicConvert = wic; *dxgi = DXGI_FORMAT_B5G6R5_UNORM; *bpp = 16; }
+
+	// Single-channel
+	else if (
+		MATCH(wic, GUID_WICPixelFormat8bppGray) ||
+		MATCH(wic, GUID_WICPixelFormatBlackWhite))
+	{
+		*wicConvert = GUID_WICPixelFormat8bppGray;
+		*dxgi = DXGI_FORMAT_R8_UNORM;
+		*bpp = 8;
+	}
+	else if (MATCH(wic, GUID_WICPixelFormat16bppGray)) { *wicConvert = wic; *dxgi = DXGI_FORMAT_R16_UNORM; *bpp = 16; }
+	else if (MATCH(wic, GUID_WICPixelFormat16bppGrayHalf)) { *wicConvert = wic; *dxgi = DXGI_FORMAT_R16_FLOAT; *bpp = 16; }
+	else if (MATCH(wic, GUID_WICPixelFormat32bppGrayFloat)) { *wicConvert = wic; *dxgi = DXGI_FORMAT_R32_FLOAT; *bpp = 32; }
+
+	// 64-bit & 128-bit RGBA
+	else if (MATCH(wic, GUID_WICPixelFormat64bppRGBA)) { *wicConvert = wic; *dxgi = DXGI_FORMAT_R16G16B16A16_UNORM; *bpp = 64; }
+	else if (MATCH(wic, GUID_WICPixelFormat64bppRGBAHalf)) { *wicConvert = wic; *dxgi = DXGI_FORMAT_R16G16B16A16_FLOAT; *bpp = 64; }
+	else if (MATCH(wic, GUID_WICPixelFormat128bppRGBAFloat)) { *wicConvert = wic; *dxgi = DXGI_FORMAT_R32G32B32A32_FLOAT; *bpp = 128; }
+
+#undef MATCH
 }
