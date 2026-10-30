@@ -1,7 +1,40 @@
 #include "TextureLoader.h"
-
 #include <wincodec.h>
 
+// --------------- Basic usage -----------------
+// 
+// The LoadTexture() function can load images
+// in the following formats (among others):
+//  - JPG
+//  - PNG
+//  - BMP
+//  - GIF (first frame only if animated)
+// 
+// The function will create a 2D texture
+// (an ID3D11Texture2D) on the GPU as well
+// as a basic ID3D11ShaderResourceView for it.
+// 
+// If the caller wants either of these D3D API
+// objects, the corresponding pointer-to-pointer
+// should be passed in.  For example, if you want
+// the SRV, pass in an ID3D11ShaderResourceView**.
+// 
+// API objects that are unneeded are cleaned up
+// before the function ends.
+// 
+// This function can (and will by default)
+// generate mipmaps for the texture.  If mipmap
+// generation is off, the resulting texture will
+// only have a single mipmap level.  Otherwise
+// it will contain all mip levels down to 1x1.
+// 
+// The SRV will have the D3D11_BIND_SHADER_RESOURCE
+// flag by default, and will also have the
+// D3D11_BIND_RENDER_TARGET flag if mipmap 
+// generation is used.  Additional flags may 
+// optionally be provided by the caller.
+// 
+// ---------------------------------------------
 
 
 // --------------------------------------------------------
