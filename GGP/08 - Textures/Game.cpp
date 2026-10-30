@@ -13,8 +13,6 @@
 #include "ImGui/imgui_impl_dx11.h"
 #include "ImGui/imgui_impl_win32.h"
 
-#include "WICTextureLoader.h"
-
 #include <DirectXMath.h>
 
 // Needed for a helper function to load pre-compiled shader files

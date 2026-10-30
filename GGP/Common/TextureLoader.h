@@ -11,7 +11,8 @@ HRESULT LoadTexture(
 	const wchar_t* imageFile,
 	ID3D11Texture2D** texture,
 	ID3D11ShaderResourceView** srv,
-	bool generateMips = true);
+	bool generateMips = true,
+	D3D11_BIND_FLAG bindFlags = D3D11_BIND_SHADER_RESOURCE);
 
 void GetFormatConversionDetails(
 	GUID wic,

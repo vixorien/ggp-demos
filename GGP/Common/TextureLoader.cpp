@@ -13,6 +13,7 @@
 // texture - Texture API object after creation (set to null if unneeded)
 // srv - Shader Resource View API object (set to null if unneeded)
 // generateMips - Should mip maps be generated?  Defaults to true
+// bindFlags - How will the texture be bound?  Defaults to SHADER_RESOURCE
 // --------------------------------------------------------
 HRESULT LoadTexture(
 	Microsoft::WRL::ComPtr<ID3D11Device> device, 
@@ -20,7 +21,8 @@ HRESULT LoadTexture(
 	const wchar_t* imageFile, 
 	ID3D11Texture2D** texture, 
 	ID3D11ShaderResourceView** srv,
-	bool generateMips)
+	bool generateMips,
+	D3D11_BIND_FLAG bindFlags)
 {
 	// Potential results from calls below
 	HRESULT hr = S_OK;
@@ -148,7 +150,7 @@ HRESULT LoadTexture(
 	desc.Height = imageHeight;
 	desc.MipLevels = generateMips ? 0 : 1;
 	desc.ArraySize = 1;
-	desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+	desc.BindFlags = bindFlags;
 	desc.MiscFlags = 0;
 	desc.Format = dxgiFormat;
 	desc.SampleDesc.Count = 1;
