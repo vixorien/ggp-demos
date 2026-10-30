@@ -175,13 +175,13 @@
     <ClCompile Include="..\Common\Input.cpp" />
     <ClCompile Include="..\Common\Main.cpp" />
     <ClCompile Include="..\Common\PathHelpers.cpp" />
+    <ClCompile Include="..\Common\TextureLoader.cpp" />
     <ClCompile Include="..\Common\Transform.cpp" />
     <ClCompile Include="..\Common\Window.cpp" />
     <ClCompile Include="Game.cpp" />
     <ClCompile Include="GameEntity.cpp" />
     <ClCompile Include="Material.cpp" />
     <ClCompile Include="Mesh.cpp" />
-    <ClCompile Include="TextureLoader.cpp" />
     <ClCompile Include="UIHelpers.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -198,6 +198,7 @@
     <ClInclude Include="..\Common\ImGui\imstb_truetype.h" />
     <ClInclude Include="..\Common\Input.h" />
     <ClInclude Include="..\Common\PathHelpers.h" />
+    <ClInclude Include="..\Common\TextureLoader.h" />
     <ClInclude Include="..\Common\Transform.h" />
     <ClInclude Include="..\Common\Window.h" />
     <ClInclude Include="BufferStructs.h" />
@@ -205,7 +206,6 @@
     <ClInclude Include="GameEntity.h" />
     <ClInclude Include="Material.h" />
     <ClInclude Include="Mesh.h" />
-    <ClInclude Include="TextureLoader.h" />
     <ClInclude Include="UIHelpers.h" />
     <ClInclude Include="Vertex.h" />
   </ItemGroup>
