@@ -276,6 +276,10 @@ void GetFormatConversionDetails(
 		MATCH(wicFormat, GUID_WICPixelFormat32bppBGR) ||   // BGR -> RGBA
 		MATCH(wicFormat, GUID_WICPixelFormat24bppBGR) ||   // BGR -> RGBA
 
+		// 48 bit
+		MATCH(wicFormat, GUID_WICPixelFormat48bppRGB) ||
+		MATCH(wicFormat, GUID_WICPixelFormat48bppBGR) || // BGR -> RGBA
+
 		MATCH(wicFormat, GUID_WICPixelFormat1bppIndexed) ||
 		MATCH(wicFormat, GUID_WICPixelFormat2bppIndexed) ||
 		MATCH(wicFormat, GUID_WICPixelFormat4bppIndexed) ||
